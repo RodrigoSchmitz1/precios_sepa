@@ -1,0 +1,23 @@
+version: 2
+
+models:
+  - name: stg_productos
+    columns:
+      - name: id_producto
+        tests:
+          - not_null
+      - name: precio
+        tests:
+          - not_null
+
+  - name: stg_sucursales
+    columns:
+      - name: id_sucursal
+        tests:
+          - not_null
+
+  - name: stg_comercio
+    columns:
+      - name: id_comercio
+        tests:
+          - not_null

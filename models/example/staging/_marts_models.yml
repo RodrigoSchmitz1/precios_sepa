@@ -1,0 +1,15 @@
+version: 2
+
+models:
+  - name: fct_precios
+    description: "Tabla de hechos de precios: cada precio con su producto, cadena y ubicacion."
+    columns:
+      - name: id_producto
+        tests:
+          - not_null
+      - name: precio
+        tests:
+          - not_null
+      - name: id_comercio
+        tests:
+          - not_null
