@@ -11,7 +11,8 @@ SELECT
     s.longitud,
     p.descripcion,
     p.marca,
-    p.precio
+    p.precio,
+    p.fecha_datos
 FROM {{ ref('stg_productos') }} AS p
 LEFT JOIN {{ ref('stg_sucursales') }} AS s
     ON p.id_comercio = s.id_comercio

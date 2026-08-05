@@ -13,3 +13,4 @@ SELECT
     CAST(sucursales_latitud AS FLOAT64) AS latitud,
     CAST(sucursales_longitud AS FLOAT64) AS longitud
 FROM {{ source('sepa', 'sucursales') }}
+WHERE id_sucursal IS NOT NULL
