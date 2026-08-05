@@ -1,0 +1,10 @@
+version: 2
+
+sources:
+  - name: sepa
+    database: proyecto-precios-504221
+    schema: sepa
+    tables:
+      - name: productos
+      - name: sucursales
+      - name: comercio
