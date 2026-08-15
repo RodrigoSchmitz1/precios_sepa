@@ -8,3 +8,7 @@ sources:
       - name: productos
       - name: sucursales
       - name: comercio
+      - name: producto_categoria
+      - name: sucursales_anterior
+      - name: comercio_anterior
+      

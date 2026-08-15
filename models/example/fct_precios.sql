@@ -12,7 +12,8 @@ SELECT
     p.descripcion,
     p.marca,
     p.precio,
-    p.fecha_datos
+    p.fecha_datos,
+    COALESCE(cat.categoria, 'Sin categoría') AS categoria
 FROM {{ ref('stg_productos') }} AS p
 LEFT JOIN {{ ref('stg_sucursales') }} AS s
     ON p.id_comercio = s.id_comercio
@@ -20,3 +21,5 @@ LEFT JOIN {{ ref('stg_sucursales') }} AS s
 LEFT JOIN {{ ref('stg_comercio') }} AS c
     ON p.id_comercio = c.id_comercio
     AND p.id_bandera = c.id_bandera
+LEFT JOIN {{ ref('stg_categorias') }} AS cat
+    ON p.id_producto = cat.id_producto

@@ -21,3 +21,9 @@ models:
       - name: id_comercio
         tests:
           - not_null
+  - name: stg_categorias
+    columns:
+      - name: id_producto
+        tests:
+          - unique
+          - not_null
