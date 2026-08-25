@@ -13,7 +13,8 @@ SELECT
     p.marca,
     p.precio,
     p.fecha_datos,
-    COALESCE(cat.categoria, 'Sin categoría') AS categoria
+    COALESCE(cat.categoria, 'Sin categoria') AS categoria,
+    COALESCE(cat.rubro, 'Sin rubro') AS rubro
 FROM {{ ref('stg_productos') }} AS p
 LEFT JOIN {{ ref('stg_sucursales') }} AS s
     ON p.id_comercio = s.id_comercio
