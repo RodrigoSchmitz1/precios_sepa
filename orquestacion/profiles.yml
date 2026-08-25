@@ -1,0 +1,13 @@
+default:
+  target: dev
+  outputs:
+    dev:
+      type: bigquery
+      method: service-account
+      project: proyecto-precios-504221
+      dataset: dbt_precios
+      location: US
+      keyfile: /root/.dbt/credenciales.json
+      threads: 4
+      timeout_seconds: 300
+      priority: interactive

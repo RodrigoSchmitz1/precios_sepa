@@ -1,0 +1,21 @@
+services:
+  n8n:
+    build: .
+    image: n8n-precios
+    container_name: n8n
+    user: root
+    ports:
+      - "5678:5678"
+    environment:
+      - NODES_EXCLUDE=[]
+      - N8N_ENCRYPTION_KEY=${N8N_ENCRYPTION_KEY}
+      - N8N_USER_FOLDER=/home/node/.n8n
+    volumes:
+      - n8n_data:/home/node/.n8n
+      - //var/run/docker.sock:/var/run/docker.sock
+      - ./credenciales.json:/scripts/credenciales.json
+      - ./.env:/scripts/.env
+
+volumes:
+  n8n_data:
+    external: true

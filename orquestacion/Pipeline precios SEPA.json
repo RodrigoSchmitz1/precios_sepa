@@ -1,0 +1,128 @@
+{
+  "name": "Pipeline precios SEPA",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        0,
+        0
+      ],
+      "id": "5dc5e6ea-80e5-4d33-9d70-f9841404fa00",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "command": "cd /scripts && python3 descargar_sepa.py"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        160,
+        0
+      ],
+      "id": "6a6c6b6b-6e54-456c-bb81-7689879e9568",
+      "name": "Descargar SEPA"
+    },
+    {
+      "parameters": {
+        "command": "cd /scripts && python3 cargar_datos.py"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        320,
+        0
+      ],
+      "id": "f5c2c777-56b9-42ae-ac6f-8fade984a8ec",
+      "name": "Cargar datos"
+    },
+    {
+      "parameters": {
+        "command": "docker run --rm -v \"C:\\Users\\rschmitz\\Desktop\\dbt-orquestacion\\precios_sepa:/usr/app\" -v \"C:\\Users\\rschmitz\\Desktop\\dbt-orquestacion\\profiles.yml:/root/.dbt/profiles.yml\" -v \"C:\\Users\\rschmitz\\Desktop\\carga-sepa\\credenciales.json:/root/.dbt/credenciales.json\" xemuliam/dbt:bigquery dbt run"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        480,
+        0
+      ],
+      "id": "5bd5280c-9807-493f-acca-4f9b0f89e504",
+      "name": "Ejecutar dbt"
+    },
+    {
+      "parameters": {
+        "command": "cd /scripts && python3 capturar_log.py"
+      },
+      "type": "n8n-nodes-base.executeCommand",
+      "typeVersion": 1,
+      "position": [
+        624,
+        0
+      ],
+      "id": "807ee94d-eb58-4fd2-a8e2-e3ed7ab06411",
+      "name": "Capturar log"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "Descargar SEPA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Descargar SEPA": {
+      "main": [
+        [
+          {
+            "node": "Cargar datos",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Cargar datos": {
+      "main": [
+        [
+          {
+            "node": "Ejecutar dbt",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Ejecutar dbt": {
+      "main": [
+        [
+          {
+            "node": "Capturar log",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": false
+  },
+  "versionId": "ae5fbd94-beec-4f64-8916-cfd1ac345eb7",
+  "meta": {
+    "instanceId": "d82666803cda8390b1d161b63382a7d62a61249e2e2cd42fde6a37fd4f5dd57e"
+  },
+  "nodeGroups": [],
+  "id": "DdkZELukPnsE5crS",
+  "tags": []
+}

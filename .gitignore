@@ -4,3 +4,22 @@ target/
 dbt_packages/
 logs/
 dbt_internal_packages/
+
+# Secretos - NUNCA subir esto a GitHub
+orquestacion/.env
+orquestacion/credenciales.json
+*.env
+credenciales.json
+
+# Entornos virtuales de Python
+venv/
+__pycache__/
+*.pyc
+
+# Datos crudos descargados (no van al repo)
+orquestacion/scripts/sepa*/
+*.zip
+
+# Sistema
+.DS_Store
+Thumbs.db
