@@ -1,10 +1,10 @@
--- Promos vigentes (datos actuales) a nivel producto-sucursal.
--- Una fila por cada promo activa (promo1 y promo2 se tratan por separado).
--- Alimenta la página de promos del dashboard: qué está en oferta, cuánto,
--- con qué mecánica (leyenda), en qué cadena/sucursal y dónde (lat/long).
+-- Promos vigentes (datos actuales) a nivel producto-cadena-provincia.
+-- Una fila por cada promo activa y zona de precio (promo1 y promo2 se tratan por separado).
+-- Se agrupa por cadena+provincia (no por sucursal individual) porque el precio de
+-- promo suele repetirse entre sucursales de una misma zona; agrupar evita filas
+-- duplicadas y conserva la variacion real entre regiones (ej. Buenos Aires vs Chubut).
 
 WITH base AS (
-    -- Traemos precio de lista + las dos promos + ubicación, del día más reciente.
     SELECT
         p.id_producto,
         p.productos_descripcion AS descripcion,
@@ -22,9 +22,7 @@ WITH base AS (
       AND p.productos_precio_lista IS NOT NULL
 ),
 
--- Desarmamos las dos promos en filas separadas (una por promo)
 promos_separadas AS (
-    -- Promo 1
     SELECT
         id_producto, descripcion, marca, precio_lista,
         precio_promo1 AS precio_promo,
@@ -36,7 +34,6 @@ promos_separadas AS (
 
     UNION ALL
 
-    -- Promo 2
     SELECT
         id_producto, descripcion, marca, precio_lista,
         precio_promo2 AS precio_promo,
@@ -47,39 +44,55 @@ promos_separadas AS (
     WHERE precio_promo2 IS NOT NULL AND precio_promo2 > 0
 ),
 
--- Calculamos el descuento y filtramos las que valen la pena (>10%)
 con_descuento AS (
     SELECT
         *,
         ROUND((precio_lista - precio_promo) / precio_lista * 100, 1) AS descuento_pct
     FROM promos_separadas
-    WHERE precio_promo < precio_lista  -- descarta errores (promo >= lista)
+    WHERE precio_promo < precio_lista
+),
+
+enriquecido AS (
+    SELECT
+        d.id_producto,
+        d.descripcion,
+        d.marca,
+        cat.categoria,
+        cat.rubro,
+        c.razon_social AS cadena,
+        s.provincia,
+        d.precio_lista,
+        d.precio_promo,
+        d.descuento_pct,
+        d.leyenda,
+        d.tipo_promo,
+        d.id_sucursal,
+        d.fecha_datos
+    FROM con_descuento AS d
+    LEFT JOIN {{ ref('stg_categorias') }} AS cat ON d.id_producto = cat.id_producto
+    LEFT JOIN {{ ref('stg_sucursales') }} AS s ON d.id_comercio = s.id_comercio AND d.id_sucursal = s.id_sucursal
+    LEFT JOIN {{ ref('stg_comercio') }} AS c ON d.id_comercio = c.id_comercio
+    WHERE d.descuento_pct >= 10
+),
+
+agrupado AS (
+    SELECT
+        id_producto,
+        descripcion,
+        marca,
+        categoria,
+        rubro,
+        cadena,
+        provincia,
+        precio_lista,
+        precio_promo,
+        descuento_pct,
+        leyenda,
+        tipo_promo,
+        COUNT(DISTINCT id_sucursal) AS sucursales_con_esta_promo,
+        fecha_datos
+    FROM enriquecido
+    GROUP BY 1,2,3,4,5,6,7,8,9,10,11,12,14
 )
 
-SELECT
-    d.id_producto,
-    d.descripcion,
-    d.marca,
-    cat.categoria,
-    cat.rubro,
-    d.precio_lista,
-    d.precio_promo,
-    d.descuento_pct,
-    d.leyenda,
-    d.tipo_promo,
-    c.razon_social AS cadena,
-    s.provincia,
-    s.localidad,
-    s.barrio,
-    s.latitud,
-    s.longitud,
-    d.fecha_datos
-FROM con_descuento AS d
-LEFT JOIN {{ ref('stg_categorias') }} AS cat
-    ON d.id_producto = cat.id_producto
-LEFT JOIN {{ ref('stg_sucursales') }} AS s
-    ON d.id_comercio = s.id_comercio
-    AND d.id_sucursal = s.id_sucursal
-LEFT JOIN {{ ref('stg_comercio') }} AS c
-    ON d.id_comercio = c.id_comercio
-WHERE d.descuento_pct >= 10  -- solo promos que valen la pena
+SELECT * FROM agrupado
