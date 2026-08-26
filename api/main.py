@@ -1,8 +1,17 @@
 from fastapi import FastAPI, Query
+from fastapi.middleware.cors import CORSMiddleware
 from google.cloud import bigquery
 from typing import Optional
 
 app = FastAPI(title="precios_sepa API")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["http://localhost:5173"],
+    allow_methods=["GET"],
+    allow_headers=["*"],
+)
+
 cliente_bq = bigquery.Client.from_service_account_json("credenciales.json")
 
 PROYECTO = "proyecto-precios-504221"
