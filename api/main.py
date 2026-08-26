@@ -24,13 +24,17 @@ def health():
 
 @app.get("/promos")
 def obtener_promos(
-    categoria: Optional[str] = Query(None, description="Filtrar por categoria"),
+    busqueda: Optional[str] = Query(None, description="Buscar en la descripcion del producto"),
+    categoria: Optional[str] = Query(None, description="Filtrar por categoria exacta"),
     provincia: Optional[str] = Query(None, description="Filtrar por provincia (ej: AR-B)"),
     limite: int = Query(50, le=200, description="Cantidad maxima de resultados"),
 ):
     condiciones = []
     parametros = []
 
+    if busqueda:
+        condiciones.append("LOWER(descripcion) LIKE @busqueda")
+        parametros.append(bigquery.ScalarQueryParameter("busqueda", "STRING", f"%{busqueda.lower()}%"))
     if categoria:
         condiciones.append("categoria = @categoria")
         parametros.append(bigquery.ScalarQueryParameter("categoria", "STRING", categoria))
