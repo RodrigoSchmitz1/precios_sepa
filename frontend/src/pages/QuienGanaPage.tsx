@@ -36,7 +36,7 @@ function QuienGanaPage() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <h1 className="text-3xl font-bold text-gray-900 mb-2">Quien gana</h1>
+      <h1 className="text-3xl font-bold text-gray-900 mb-2">Supermercado mas barato</h1>
       <p className="text-sm text-gray-500 mb-6">
         Comparacion honesta: solo productos identicos (mismo codigo de barras)
         presentes en 2 o mas cadenas. Evita el sesgo de marca propia.
@@ -59,7 +59,7 @@ function QuienGanaPage() {
 
       {!cargando && !error && resultados.length > 0 && (
         <p className="text-xs text-gray-400 mb-4">
-          Base: {resultados[0].total_productos_categoria} productos comparables
+          Base: {resultados[0].total_productos_categoria} productos comparables en esta categoria
         </p>
       )}
 
@@ -68,7 +68,10 @@ function QuienGanaPage() {
           <div key={r.cadena}>
             <div className="flex justify-between text-sm mb-1">
               <span className="text-gray-700">{r.cadena}</span>
-              <span className="font-semibold text-gray-900">{r.pct_victorias}%</span>
+              <span className="text-gray-500">
+                {r.productos_ganados} de {r.total_productos_categoria} productos ·{" "}
+                <span className="font-semibold text-gray-900">{r.pct_victorias}%</span>
+              </span>
             </div>
             <div className="w-full bg-gray-100 rounded-full h-3">
               <div
