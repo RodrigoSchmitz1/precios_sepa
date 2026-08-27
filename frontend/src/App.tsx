@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import MapaPromos from "./components/MapaPromos";
 
 type Promo = {
   descripcion: string;
@@ -14,6 +15,23 @@ type Promo = {
   sucursales_con_esta_promo: number;
 };
 
+type PromoMapa = {
+  descripcion: string;
+  marca: string;
+  cadena: string;
+  nombre_sucursal: string;
+  calle: string;
+  numero: string;
+  localidad: string;
+  provincia: string;
+  latitud: number;
+  longitud: number;
+  precio_lista: number;
+  precio_promo: number;
+  descuento_pct: number;
+  leyenda: string;
+};
+
 const PROVINCIAS: { codigo: string; nombre: string }[] = [
   { codigo: "", nombre: "Todas las provincias" },
   { codigo: "AR-B", nombre: "Buenos Aires" },
@@ -26,6 +44,7 @@ const PROVINCIAS: { codigo: string; nombre: string }[] = [
 
 function App() {
   const [promos, setPromos] = useState<Promo[]>([]);
+  const [promosMapa, setPromosMapa] = useState<PromoMapa[]>([]);
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -40,11 +59,19 @@ function App() {
     if (busqueda.trim()) params.set("busqueda", busqueda.trim());
     if (provincia) params.set("provincia", provincia);
 
+    const paramsMapa = new URLSearchParams();
+    paramsMapa.set("limite", "300");
+    if (busqueda.trim()) paramsMapa.set("busqueda", busqueda.trim());
+    if (provincia) paramsMapa.set("provincia", provincia);
+
     const timeoutId = setTimeout(() => {
-      fetch(`http://127.0.0.1:8000/promos?${params.toString()}`)
-        .then((respuesta) => respuesta.json())
-        .then((datos) => {
-          setPromos(datos);
+      Promise.all([
+        fetch(`http://127.0.0.1:8000/promos?${params.toString()}`).then((r) => r.json()),
+        fetch(`http://127.0.0.1:8000/promos/mapa?${paramsMapa.toString()}`).then((r) => r.json()),
+      ])
+        .then(([listaPromos, listaMapa]) => {
+          setPromos(listaPromos);
+          setPromosMapa(listaMapa);
           setCargando(false);
         })
         .catch((err) => {
@@ -86,6 +113,12 @@ function App() {
 
         {cargando && <p className="text-gray-500">Cargando promos...</p>}
         {error && <p className="text-red-500">Error al cargar: {error}</p>}
+
+        {!cargando && !error && promosMapa.length > 0 && (
+          <div className="mb-8">
+            <MapaPromos promos={promosMapa} />
+          </div>
+        )}
 
         {!cargando && !error && promos.length === 0 && (
           <p className="text-gray-500">No se encontraron promos con esos filtros.</p>
