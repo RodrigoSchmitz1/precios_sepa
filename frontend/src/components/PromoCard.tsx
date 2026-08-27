@@ -1,16 +1,4 @@
-type Promo = {
-  descripcion: string;
-  marca: string;
-  categoria: string | null;
-  rubro: string | null;
-  cadena: string;
-  provincia: string;
-  precio_lista: number;
-  precio_promo: number;
-  descuento_pct: number;
-  leyenda: string;
-  sucursales_con_esta_promo: number;
-};
+import type { Promo } from "../types";
 
 type Props = {
   promo: Promo;
