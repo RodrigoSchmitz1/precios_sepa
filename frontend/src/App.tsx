@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import MapaPromos from "./components/MapaPromos";
+import PromoCard from "./components/PromoCard";
 
 type Promo = {
   descripcion: string;
@@ -126,32 +127,7 @@ function App() {
 
         <div className="grid gap-4">
           {promos.map((promo, i) => (
-            <div
-              key={i}
-              className="bg-white rounded-lg shadow-sm border border-gray-200 p-4 flex justify-between items-center"
-            >
-              <div>
-                <p className="font-semibold text-gray-900">
-                  {promo.descripcion}
-                </p>
-                <p className="text-sm text-gray-500">
-                  {promo.marca} · {promo.cadena} · {promo.provincia}
-                </p>
-                <p className="text-xs text-gray-400 mt-1">{promo.leyenda}</p>
-              </div>
-
-              <div className="text-right shrink-0 ml-4">
-                <p className="text-sm text-gray-400 line-through">
-                  ${promo.precio_lista}
-                </p>
-                <p className="text-lg font-bold text-green-600">
-                  ${promo.precio_promo}
-                </p>
-                <span className="inline-block mt-1 text-xs font-semibold text-white bg-green-600 rounded-full px-2 py-0.5">
-                  {promo.descuento_pct}% OFF
-                </span>
-              </div>
-            </div>
+            <PromoCard key={i} promo={promo} />
           ))}
         </div>
       </div>
