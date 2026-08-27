@@ -61,6 +61,41 @@ def obtener_promos(
     return [dict(fila) for fila in resultados]
 
 
+@app.get("/promos/mapa")
+def obtener_promos_mapa(
+    busqueda: Optional[str] = Query(None, description="Buscar en la descripcion del producto"),
+    provincia: Optional[str] = Query(None, description="Filtrar por provincia (ej: AR-B)"),
+    limite: int = Query(500, le=2000, description="Cantidad maxima de resultados"),
+):
+    condiciones = []
+    parametros = []
+
+    if busqueda:
+        condiciones.append("LOWER(descripcion) LIKE @busqueda")
+        parametros.append(bigquery.ScalarQueryParameter("busqueda", "STRING", f"%{busqueda.lower()}%"))
+    if provincia:
+        condiciones.append("provincia = @provincia")
+        parametros.append(bigquery.ScalarQueryParameter("provincia", "STRING", provincia))
+
+    where = f"WHERE {' AND '.join(condiciones)}" if condiciones else ""
+
+    query = f"""
+        SELECT
+            descripcion, marca, categoria, rubro, cadena,
+            nombre_sucursal, calle, numero, barrio, localidad, provincia,
+            latitud, longitud, precio_lista, precio_promo, descuento_pct, leyenda
+        FROM `{PROYECTO}.dbt_precios.mart_promos_por_sucursal`
+        {where}
+        ORDER BY descuento_pct DESC
+        LIMIT @limite
+    """
+    parametros.append(bigquery.ScalarQueryParameter("limite", "INT64", limite))
+
+    job_config = bigquery.QueryJobConfig(query_parameters=parametros)
+    resultados = cliente_bq.query(query, job_config=job_config).result()
+    return [dict(fila) for fila in resultados]
+
+
 @app.get("/gama")
 def obtener_gama(
     categoria: Optional[str] = Query(None, description="Filtrar por categoria"),
