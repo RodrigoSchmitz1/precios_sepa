@@ -1,0 +1,20 @@
+id_comercio,id_bandera,nombre_comercial
+10,1,Carrefour
+10,2,Market (Carrefour)
+10,3,Express (Carrefour)
+10,4,Maxi (Carrefour)
+11,2,Changomas
+11,4,SuperChangomas
+11,5,HiperChangomas
+12,1,Coto
+13,1,Cooperativa Obrera
+15,1,Dia
+16,1,Libertad
+16,2,Mini Libertad
+16,3,Petit Libertad
+2,1,La Anonima
+2,2,Topsy (La Anonima)
+2,3,Bomba (La Anonima)
+9,1,Vea
+9,2,Disco
+9,3,Jumbo

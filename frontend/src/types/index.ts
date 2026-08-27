@@ -28,3 +28,12 @@ export type PromoMapa = {
   descuento_pct: number;
   leyenda: string;
 };
+
+export type QuienGana = {
+  categoria: string;
+  rubro: string;
+  cadena: string;
+  productos_ganados: number;
+  total_productos_categoria: number;
+  pct_victorias: number;
+};
