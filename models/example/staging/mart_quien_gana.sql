@@ -7,11 +7,11 @@
 WITH precio_por_producto_cadena AS (
     SELECT
         p.id_producto,
-        c.razon_social AS cadena,
+        c.nombre_comercial AS cadena,
         APPROX_QUANTILES(p.precio, 2)[OFFSET(1)] AS precio_mediano
     FROM {{ ref("stg_productos") }} AS p
     LEFT JOIN {{ ref("stg_comercio") }} AS c ON p.id_comercio = c.id_comercio
-    GROUP BY p.id_producto, c.razon_social
+    GROUP BY p.id_producto, c.nombre_comercial
 ),
 
 productos_comparables AS (
