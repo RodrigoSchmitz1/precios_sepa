@@ -126,3 +126,39 @@ def obtener_gama(
     job_config = bigquery.QueryJobConfig(query_parameters=parametros)
     resultados = cliente_bq.query(query, job_config=job_config).result()
     return [dict(fila) for fila in resultados]
+
+
+@app.get("/quien-gana")
+def obtener_quien_gana(
+    categoria: Optional[str] = Query(None, description="Filtrar por categoria exacta"),
+):
+    condiciones = []
+    parametros = []
+
+    if categoria:
+        condiciones.append("categoria = @categoria")
+        parametros.append(bigquery.ScalarQueryParameter("categoria", "STRING", categoria))
+
+    where = f"WHERE {' AND '.join(condiciones)}" if condiciones else ""
+
+    query = f"""
+        SELECT categoria, rubro, cadena, productos_ganados, total_productos_categoria, pct_victorias
+        FROM `{PROYECTO}.dbt_precios.mart_quien_gana`
+        {where}
+        ORDER BY categoria, pct_victorias DESC
+    """
+
+    job_config = bigquery.QueryJobConfig(query_parameters=parametros) if parametros else None
+    resultados = cliente_bq.query(query, job_config=job_config).result()
+    return [dict(fila) for fila in resultados]
+
+
+@app.get("/quien-gana/categorias")
+def obtener_categorias_disponibles():
+    query = f"""
+        SELECT DISTINCT categoria
+        FROM `{PROYECTO}.dbt_precios.mart_quien_gana`
+        ORDER BY categoria
+    """
+    resultados = cliente_bq.query(query).result()
+    return [fila["categoria"] for fila in resultados]
