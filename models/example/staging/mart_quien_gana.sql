@@ -3,6 +3,8 @@
 -- marca propia, donde una cadena "ganaria" solo por vender commodities
 -- baratos que otras ni ofrecen. Los empates cuentan a favor de todas las
 -- cadenas empatadas (no se fuerza un desempate arbitrario).
+-- fecha_datos = fecha real de los precios usados (no la fecha de corrida),
+-- para que el historico se etiquete por validez del dato, no por ejecucion.
 
 WITH precio_por_producto_cadena AS (
     SELECT
@@ -58,6 +60,11 @@ total_por_categoria AS (
     LEFT JOIN {{ ref("stg_categorias") }} AS cat ON pc.id_producto = cat.id_producto
     WHERE cat.categoria IS NOT NULL AND cat.categoria != "Otros"
     GROUP BY cat.categoria
+),
+
+fecha_ventana AS (
+    SELECT MAX(fecha_datos) AS fecha_datos
+    FROM {{ ref("stg_productos") }}
 )
 
 SELECT
@@ -66,8 +73,10 @@ SELECT
     cc.cadena,
     COUNT(DISTINCT cc.id_producto) AS productos_ganados,
     tpc.total_productos_categoria,
-    ROUND(COUNT(DISTINCT cc.id_producto) / tpc.total_productos_categoria * 100, 1) AS pct_victorias
+    ROUND(COUNT(DISTINCT cc.id_producto) / tpc.total_productos_categoria * 100, 1) AS pct_victorias,
+    fv.fecha_datos
 FROM con_categoria AS cc
 LEFT JOIN total_por_categoria AS tpc ON cc.categoria = tpc.categoria
-GROUP BY cc.categoria, cc.rubro, cc.cadena, tpc.total_productos_categoria
+CROSS JOIN fecha_ventana AS fv
+GROUP BY cc.categoria, cc.rubro, cc.cadena, tpc.total_productos_categoria, fv.fecha_datos
 ORDER BY cc.categoria, pct_victorias DESC
