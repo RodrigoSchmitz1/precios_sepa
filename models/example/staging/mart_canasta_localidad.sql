@@ -18,6 +18,8 @@
 -- percentil 10-90: con pocas muestras, un solo producto mal cargado puede
 -- contaminar el 100% de una categoria sin que el filtro estadistico tenga
 -- margen de descartarlo. Se prioriza confiabilidad sobre cobertura.
+-- fecha_datos = fecha real de los precios usados (no la fecha de corrida),
+-- para que el historico se etiquete por validez del dato, no por ejecucion.
 
 WITH productos_canasta AS (
     SELECT
@@ -27,6 +29,7 @@ WITH productos_canasta AS (
         p.precio,
         p.cantidad_normalizada,
         p.unidad_normalizada,
+        p.fecha_datos,
         cat.categoria
     FROM {{ ref("stg_productos") }} AS p
     JOIN {{ ref("stg_categorias") }} AS cat ON p.id_producto = cat.id_producto
@@ -65,7 +68,8 @@ sin_outliers AS (
         cpu.id_comercio,
         cpu.id_sucursal,
         cpu.categoria,
-        cpu.precio_por_unidad
+        cpu.precio_por_unidad,
+        cpu.fecha_datos
     FROM con_precio_unitario AS cpu
     JOIN limites_por_categoria AS lc ON cpu.categoria = lc.categoria
     WHERE cpu.precio_por_unidad >= lc.p10
@@ -77,7 +81,8 @@ con_localidad AS (
         so.categoria,
         s.localidad,
         s.provincia,
-        so.precio_por_unidad
+        so.precio_por_unidad,
+        so.fecha_datos
     FROM sin_outliers AS so
     JOIN {{ ref("stg_sucursales") }} AS s
         ON so.id_comercio = s.id_comercio AND so.id_sucursal = s.id_sucursal
@@ -89,10 +94,11 @@ precio_mediano_categoria_localidad AS (
         categoria,
         localidad,
         provincia,
+        fecha_datos,
         APPROX_QUANTILES(precio_por_unidad, 2)[OFFSET(1)] AS precio_mediano_unidad,
         COUNT(*) AS muestras
     FROM con_localidad
-    GROUP BY categoria, localidad, provincia
+    GROUP BY categoria, localidad, provincia, fecha_datos
     HAVING COUNT(*) >= 20
 ),
 
@@ -102,6 +108,7 @@ costo_por_categoria AS (
         pmc.provincia,
         pmc.categoria,
         pmc.precio_mediano_unidad,
+        pmc.fecha_datos,
         comp.cantidad AS cantidad_necesaria,
         pmc.precio_mediano_unidad * comp.cantidad AS costo_categoria,
         pmc.muestras
@@ -112,7 +119,8 @@ costo_por_categoria AS (
 SELECT
     localidad,
     provincia,
+    fecha_datos,
     COUNT(DISTINCT categoria) AS categorias_disponibles,
     ROUND(SUM(costo_categoria), 2) AS costo_canasta_total
 FROM costo_por_categoria
-GROUP BY localidad, provincia
+GROUP BY localidad, provincia, fecha_datos
