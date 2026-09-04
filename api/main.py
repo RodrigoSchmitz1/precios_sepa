@@ -162,3 +162,35 @@ def obtener_categorias_disponibles():
     """
     resultados = cliente_bq.query(query).result()
     return [fila["categoria"] for fila in resultados]
+
+
+@app.get("/canasta")
+def obtener_canasta(
+    busqueda: Optional[str] = Query(None, description="Buscar localidad por texto"),
+    provincia: Optional[str] = Query(None, description="Filtrar por provincia (ej: AR-B)"),
+    limite: int = Query(500, le=2000, description="Cantidad maxima de resultados"),
+):
+    condiciones = ["categorias_disponibles >= 20"]
+    parametros = []
+
+    if busqueda:
+        condiciones.append("LOWER(localidad) LIKE @busqueda")
+        parametros.append(bigquery.ScalarQueryParameter("busqueda", "STRING", f"%{busqueda.lower()}%"))
+    if provincia:
+        condiciones.append("provincia = @provincia")
+        parametros.append(bigquery.ScalarQueryParameter("provincia", "STRING", provincia))
+
+    where = f"WHERE {' AND '.join(condiciones)}"
+
+    query = f"""
+        SELECT localidad, provincia, categorias_disponibles, costo_canasta_total
+        FROM `{PROYECTO}.dbt_precios.mart_canasta_localidad`
+        {where}
+        ORDER BY costo_canasta_total ASC
+        LIMIT @limite
+    """
+    parametros.append(bigquery.ScalarQueryParameter("limite", "INT64", limite))
+
+    job_config = bigquery.QueryJobConfig(query_parameters=parametros)
+    resultados = cliente_bq.query(query, job_config=job_config).result()
+    return [dict(fila) for fila in resultados]
