@@ -1,4 +1,4 @@
-import type { Promo, PromoMapa, QuienGana } from "../types";
+import type { Promo, PromoMapa, QuienGana, Canasta } from "../types";
 
 const API_BASE = "http://127.0.0.1:8000";
 
@@ -41,5 +41,12 @@ export async function obtenerQuienGana(categoria: string): Promise<QuienGana[]> 
 export async function obtenerCategoriasDisponibles(): Promise<string[]> {
   const respuesta = await fetch(`${API_BASE}/quien-gana/categorias`);
   if (!respuesta.ok) throw new Error(`Error al traer categorias: ${respuesta.status}`);
+  return respuesta.json();
+}
+
+export async function obtenerCanasta(filtros: FiltrosPromos): Promise<Canasta[]> {
+  const query = armarQuery(filtros);
+  const respuesta = await fetch(`${API_BASE}/canasta?${query}`);
+  if (!respuesta.ok) throw new Error(`Error al traer canasta: ${respuesta.status}`);
   return respuesta.json();
 }
