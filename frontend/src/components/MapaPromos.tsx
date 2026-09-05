@@ -1,7 +1,10 @@
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
+import MarkerClusterGroup from "react-leaflet-cluster";
 import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "react-leaflet-cluster/dist/assets/MarkerCluster.css";
+import "react-leaflet-cluster/dist/assets/MarkerCluster.Default.css";
 import type { PromoMapa } from "../types";
 import { nombreProvincia } from "../utils/provincias";
 
@@ -115,33 +118,35 @@ function MapaPromos({ promos, onMoverMapa }: Props) {
         attribution="&copy; OpenStreetMap contributors"
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
       />
-      {grupos.map((grupo, i) => (
-        <Marker key={i} position={[grupo.latitud, grupo.longitud]}>
-          <Popup>
-            <div className="max-w-xs">
-              <p className="font-semibold">
-                {grupo.cadena} - {grupo.nombre_sucursal}
-              </p>
-              <p className="text-xs text-gray-500 mb-2">
-                {grupo.calle} {grupo.numero}, {grupo.localidad}, {nombreProvincia(grupo.provincia)}
-              </p>
-              <p className="text-xs font-semibold text-gray-700 mb-1">
-                {grupo.promos.length} promo{grupo.promos.length > 1 ? "s" : ""} vigente{grupo.promos.length > 1 ? "s" : ""}:
-              </p>
-              <div className="max-h-48 overflow-y-auto space-y-2">
-                {grupo.promos.map((promo, j) => (
-                  <div key={j} className="border-t border-gray-100 pt-1">
-                    <p className="text-sm">{promo.descripcion}</p>
-                    <p className="text-xs text-gray-600">
-                      de ${promo.precio_lista} a ${promo.precio_promo} ({promo.descuento_pct}% off)
-                    </p>
-                  </div>
-                ))}
+      <MarkerClusterGroup chunkedLoading>
+        {grupos.map((grupo, i) => (
+          <Marker key={i} position={[grupo.latitud, grupo.longitud]}>
+            <Popup>
+              <div className="max-w-xs">
+                <p className="font-semibold">
+                  {grupo.cadena} - {grupo.nombre_sucursal}
+                </p>
+                <p className="text-xs text-gray-500 mb-2">
+                  {grupo.calle} {grupo.numero}, {grupo.localidad}, {nombreProvincia(grupo.provincia)}
+                </p>
+                <p className="text-xs font-semibold text-gray-700 mb-1">
+                  {grupo.promos.length} promo{grupo.promos.length > 1 ? "s" : ""} vigente{grupo.promos.length > 1 ? "s" : ""}:
+                </p>
+                <div className="max-h-48 overflow-y-auto space-y-2">
+                  {grupo.promos.map((promo, j) => (
+                    <div key={j} className="border-t border-gray-100 pt-1">
+                      <p className="text-sm">{promo.descripcion}</p>
+                      <p className="text-xs text-gray-600">
+                        de ${promo.precio_lista} a ${promo.precio_promo} ({promo.descuento_pct}% off)
+                      </p>
+                    </div>
+                  ))}
+                </div>
               </div>
-            </div>
-          </Popup>
-        </Marker>
-      ))}
+            </Popup>
+          </Marker>
+        ))}
+      </MarkerClusterGroup>
     </MapContainer>
   );
 }
