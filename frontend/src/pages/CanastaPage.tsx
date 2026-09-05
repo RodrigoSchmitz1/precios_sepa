@@ -1,5 +1,6 @@
 import { useState, useEffect } from "react";
 import { obtenerCanasta } from "../api/client";
+import { nombreProvincia } from "../utils/provincias";
 import type { Canasta } from "../types";
 
 function formatearPesos(valor: number): string {
@@ -69,7 +70,7 @@ function CanastaPage() {
               <div>
                 <p className="font-semibold text-gray-900">{c.localidad}</p>
                 <p className="text-xs text-gray-400">
-                  {c.provincia} · {c.categorias_disponibles} categorias
+                  {nombreProvincia(c.provincia)} - {c.categorias_disponibles} categorias
                 </p>
               </div>
             </div>

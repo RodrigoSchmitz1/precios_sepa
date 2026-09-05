@@ -65,7 +65,11 @@ def obtener_promos(
 def obtener_promos_mapa(
     busqueda: Optional[str] = Query(None, description="Buscar en la descripcion del producto"),
     provincia: Optional[str] = Query(None, description="Filtrar por provincia (ej: AR-B)"),
-    limite: int = Query(500, le=2000, description="Cantidad maxima de resultados"),
+    lat_min: Optional[float] = Query(None, description="Limite sur del area visible"),
+    lat_max: Optional[float] = Query(None, description="Limite norte del area visible"),
+    lng_min: Optional[float] = Query(None, description="Limite oeste del area visible"),
+    lng_max: Optional[float] = Query(None, description="Limite este del area visible"),
+    limite: int = Query(500, le=1000, description="Cantidad maxima de resultados"),
 ):
     condiciones = []
     parametros = []
@@ -76,6 +80,14 @@ def obtener_promos_mapa(
     if provincia:
         condiciones.append("provincia = @provincia")
         parametros.append(bigquery.ScalarQueryParameter("provincia", "STRING", provincia))
+    if lat_min is not None and lat_max is not None:
+        condiciones.append("latitud BETWEEN @lat_min AND @lat_max")
+        parametros.append(bigquery.ScalarQueryParameter("lat_min", "FLOAT64", lat_min))
+        parametros.append(bigquery.ScalarQueryParameter("lat_max", "FLOAT64", lat_max))
+    if lng_min is not None and lng_max is not None:
+        condiciones.append("longitud BETWEEN @lng_min AND @lng_max")
+        parametros.append(bigquery.ScalarQueryParameter("lng_min", "FLOAT64", lng_min))
+        parametros.append(bigquery.ScalarQueryParameter("lng_max", "FLOAT64", lng_max))
 
     where = f"WHERE {' AND '.join(condiciones)}" if condiciones else ""
 
@@ -87,13 +99,17 @@ def obtener_promos_mapa(
         FROM `{PROYECTO}.dbt_precios.mart_promos_por_sucursal`
         {where}
         ORDER BY descuento_pct DESC
-        LIMIT @limite
+        LIMIT @limite_consulta
     """
-    parametros.append(bigquery.ScalarQueryParameter("limite", "INT64", limite))
+    parametros.append(bigquery.ScalarQueryParameter("limite_consulta", "INT64", limite + 1))
 
     job_config = bigquery.QueryJobConfig(query_parameters=parametros)
-    resultados = cliente_bq.query(query, job_config=job_config).result()
-    return [dict(fila) for fila in resultados]
+    resultados = [dict(fila) for fila in cliente_bq.query(query, job_config=job_config).result()]
+
+    hay_mas = len(resultados) > limite
+    resultados = resultados[:limite]
+
+    return {"promos": resultados, "hay_mas": hay_mas}
 
 
 @app.get("/gama")

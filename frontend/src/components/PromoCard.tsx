@@ -1,4 +1,5 @@
 import type { Promo } from "../types";
+import { nombreProvincia } from "../utils/provincias";
 
 type Props = {
   promo: Promo;
@@ -10,7 +11,7 @@ function PromoCard({ promo }: Props) {
       <div>
         <p className="font-semibold text-gray-900">{promo.descripcion}</p>
         <p className="text-sm text-gray-500">
-          {promo.marca} · {promo.cadena} · {promo.provincia}
+          {promo.marca} - {promo.cadena} - {nombreProvincia(promo.provincia)}
         </p>
         <p className="text-xs text-gray-400 mt-1">{promo.leyenda}</p>
       </div>
