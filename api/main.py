@@ -69,7 +69,7 @@ def obtener_promos_mapa(
     lat_max: Optional[float] = Query(None, description="Limite norte del area visible"),
     lng_min: Optional[float] = Query(None, description="Limite oeste del area visible"),
     lng_max: Optional[float] = Query(None, description="Limite este del area visible"),
-    limite: int = Query(500, le=1000, description="Cantidad maxima de resultados"),
+    limite: int = Query(500, le=6000, description="Cantidad maxima de resultados"),
 ):
     condiciones = []
     parametros = []

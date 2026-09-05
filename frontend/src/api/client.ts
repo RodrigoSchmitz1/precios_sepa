@@ -8,6 +8,22 @@ type FiltrosPromos = {
   limite?: number;
 };
 
+type BoundingBox = {
+  latMin: number;
+  latMax: number;
+  lngMin: number;
+  lngMax: number;
+};
+
+type FiltrosMapa = FiltrosPromos & {
+  bbox?: BoundingBox;
+};
+
+type RespuestaMapa = {
+  promos: PromoMapa[];
+  hay_mas: boolean;
+};
+
 function armarQuery(filtros: FiltrosPromos): string {
   const params = new URLSearchParams();
   if (filtros.limite) params.set("limite", String(filtros.limite));
@@ -23,9 +39,15 @@ export async function obtenerPromos(filtros: FiltrosPromos): Promise<Promo[]> {
   return respuesta.json();
 }
 
-export async function obtenerPromosMapa(filtros: FiltrosPromos): Promise<PromoMapa[]> {
-  const query = armarQuery(filtros);
-  const respuesta = await fetch(`${API_BASE}/promos/mapa?${query}`);
+export async function obtenerPromosMapa(filtros: FiltrosMapa): Promise<RespuestaMapa> {
+  const params = new URLSearchParams(armarQuery(filtros));
+  if (filtros.bbox) {
+    params.set("lat_min", String(filtros.bbox.latMin));
+    params.set("lat_max", String(filtros.bbox.latMax));
+    params.set("lng_min", String(filtros.bbox.lngMin));
+    params.set("lng_max", String(filtros.bbox.lngMax));
+  }
+  const respuesta = await fetch(`${API_BASE}/promos/mapa?${params.toString()}`);
   if (!respuesta.ok) throw new Error(`Error al traer promos del mapa: ${respuesta.status}`);
   return respuesta.json();
 }

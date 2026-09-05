@@ -1,4 +1,5 @@
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
+import { useEffect, useRef } from "react";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import type { PromoMapa } from "../types";
@@ -11,8 +12,11 @@ L.Icon.Default.mergeOptions({
   shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
 });
 
-type Props = {
-  promos: PromoMapa[];
+export type BoundingBox = {
+  latMin: number;
+  latMax: number;
+  lngMin: number;
+  lngMax: number;
 };
 
 type GrupoSucursal = {
@@ -54,7 +58,48 @@ function agruparPorSucursal(promos: PromoMapa[]): GrupoSucursal[] {
   return Array.from(grupos.values());
 }
 
-function MapaPromos({ promos }: Props) {
+type DetectorMovimientoProps = {
+  onMoverMapa: (bbox: BoundingBox) => void;
+};
+
+function DetectorMovimiento({ onMoverMapa }: DetectorMovimientoProps) {
+  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const mapa = useMapEvents({
+    moveend: () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      timeoutRef.current = setTimeout(() => {
+        const limites = mapa.getBounds();
+        onMoverMapa({
+          latMin: limites.getSouth(),
+          latMax: limites.getNorth(),
+          lngMin: limites.getWest(),
+          lngMax: limites.getEast(),
+        });
+      }, 400);
+    },
+  });
+
+  useEffect(() => {
+    const limites = mapa.getBounds();
+    onMoverMapa({
+      latMin: limites.getSouth(),
+      latMax: limites.getNorth(),
+      lngMin: limites.getWest(),
+      lngMax: limites.getEast(),
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return null;
+}
+
+type Props = {
+  promos: PromoMapa[];
+  onMoverMapa: (bbox: BoundingBox) => void;
+};
+
+function MapaPromos({ promos, onMoverMapa }: Props) {
   const centroDefault: [number, number] = [-34.6, -58.4];
   const grupos = agruparPorSucursal(promos);
 
@@ -65,6 +110,7 @@ function MapaPromos({ promos }: Props) {
       scrollWheelZoom={true}
       style={{ height: "500px", width: "100%", borderRadius: "8px" }}
     >
+      <DetectorMovimiento onMoverMapa={onMoverMapa} />
       <TileLayer
         attribution="&copy; OpenStreetMap contributors"
         url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
