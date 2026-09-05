@@ -15,6 +15,8 @@ export type Promo = {
 export type PromoMapa = {
   descripcion: string;
   marca: string;
+  categoria: string | null;
+  rubro: string | null;
   cadena: string;
   nombre_sucursal: string;
   calle: string;
@@ -43,4 +45,14 @@ export type Canasta = {
   provincia: string;
   categorias_disponibles: number;
   costo_canasta_total: number;
+};
+
+export type Inflacion = {
+  categoria: string;
+  cadena: string;
+  precio_inicio: number;
+  precio_fin: number;
+  variacion_pct: number;
+  fecha_inicio: string;
+  fecha_fin: string;
 };
