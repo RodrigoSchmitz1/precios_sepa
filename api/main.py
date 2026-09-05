@@ -210,3 +210,65 @@ def obtener_canasta(
     job_config = bigquery.QueryJobConfig(query_parameters=parametros)
     resultados = cliente_bq.query(query, job_config=job_config).result()
     return [dict(fila) for fila in resultados]
+
+
+@app.get("/inflacion")
+def obtener_inflacion(
+    categoria: Optional[str] = Query(None, description="Filtrar por categoria exacta"),
+):
+    condiciones = []
+    parametros = []
+
+    if categoria:
+        condiciones.append("f.categoria = @categoria")
+        parametros.append(bigquery.ScalarQueryParameter("categoria", "STRING", categoria))
+
+    where_extra = f"AND {' AND '.join(condiciones)}" if condiciones else ""
+
+    query = f"""
+        WITH fechas AS (
+            SELECT MIN(fecha_datos) AS fecha_inicio, MAX(fecha_datos) AS fecha_fin
+            FROM `{PROYECTO}.dbt_precios.historico_precios_cadena_categoria`
+        ),
+        inicio AS (
+            SELECT categoria, cadena, unidad_normalizada, precio_mediano_unidad AS precio_inicio
+            FROM `{PROYECTO}.dbt_precios.historico_precios_cadena_categoria` AS h, fechas
+            WHERE h.fecha_datos = fechas.fecha_inicio
+        ),
+        fin AS (
+            SELECT categoria, cadena, unidad_normalizada, precio_mediano_unidad AS precio_fin
+            FROM `{PROYECTO}.dbt_precios.historico_precios_cadena_categoria` AS h, fechas
+            WHERE h.fecha_datos = fechas.fecha_fin
+        )
+        SELECT
+            f.categoria,
+            f.cadena,
+            i.precio_inicio,
+            f.precio_fin,
+            ROUND((f.precio_fin - i.precio_inicio) / i.precio_inicio * 100, 2) AS variacion_pct,
+            (SELECT fecha_inicio FROM fechas) AS fecha_inicio,
+            (SELECT fecha_fin FROM fechas) AS fecha_fin
+        FROM fin AS f
+        JOIN inicio AS i
+            ON f.categoria = i.categoria
+            AND f.cadena = i.cadena
+            AND f.unidad_normalizada = i.unidad_normalizada
+        WHERE i.precio_inicio > 0
+        {where_extra}
+        ORDER BY f.categoria, variacion_pct DESC
+    """
+
+    job_config = bigquery.QueryJobConfig(query_parameters=parametros) if parametros else None
+    resultados = cliente_bq.query(query, job_config=job_config).result()
+    return [dict(fila) for fila in resultados]
+
+
+@app.get("/inflacion/categorias")
+def obtener_categorias_inflacion():
+    query = f"""
+        SELECT DISTINCT categoria
+        FROM `{PROYECTO}.dbt_precios.historico_precios_cadena_categoria`
+        ORDER BY categoria
+    """
+    resultados = cliente_bq.query(query).result()
+    return [fila["categoria"] for fila in resultados]
