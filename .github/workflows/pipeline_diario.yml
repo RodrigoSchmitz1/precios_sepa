@@ -22,7 +22,7 @@ jobs:
 
       - name: Instalar dependencias
         run: |
-          pip install -r requirements.txt
+          pip install -r ../requirements.txt
           pip install dbt-bigquery==1.11.11
 
       - name: Escribir credenciales de BigQuery
