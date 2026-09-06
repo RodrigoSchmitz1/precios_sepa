@@ -1,4 +1,5 @@
 import argparse
+import os
 from datetime import date, timedelta
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
@@ -64,6 +65,15 @@ def config_carga(esquema, modo):
     )
 
 
+def existe_tabla(cliente, tabla):
+    """Devuelve True si la tabla existe."""
+    try:
+        cliente.get_table(tabla)
+        return True
+    except NotFound:
+        return False
+
+
 def preservar_foto_anterior(cliente, tabla):
     """
     Antes de pisar la dimensión, guarda una copia de su versión actual en {tabla}_anterior.
@@ -74,9 +84,7 @@ def preservar_foto_anterior(cliente, tabla):
     origen = f"{PROYECTO}.{DATASET}.{tabla}"
     anterior = f"{PROYECTO}.{DATASET}.{tabla}_anterior"
 
-    try:
-        cliente.get_table(origen)  # lanza NotFound si la tabla no existe todavía
-    except NotFound:
+    if not existe_tabla(cliente, origen):
         print(f"  (no existe {tabla} aún; se omite la preservación de la foto anterior)")
         return
 
@@ -90,17 +98,30 @@ def cargar_dimension(cliente, tabla):
     """
     Snapshot con preservación:
       1. Copia la versión actual a {tabla}_anterior (foto de ayer, para detectar cambios).
-      2. La primera carga limpia la tabla, las siguientes anexan. Sin fecha.
+      2. Carga a una landing SOLO los comercios que vinieron en el ZIP de hoy.
+      3. Reconstruye la dimensión: los comercios ausentes conservan sus filas
+         anteriores y los presentes se reemplazan por lo nuevo.
+
+    El paso 3 importa: si un comercio no publica un día (pasa), pisar la
+    dimensión entera lo borraría, y la detección de cambios lo reportaría como
+    si hubiera dado de baja todas sus sucursales. Un hueco de publicación no es
+    un cierre de locales.
     """
     # Paso 1: preservar la foto anterior ANTES de pisar nada
     preservar_foto_anterior(cliente, tabla)
 
-    # Paso 2: recargar la dimensión (snapshot)
     destino = f"{PROYECTO}.{DATASET}.{tabla}"
+    landing = f"{PROYECTO}.{DATASET}.{tabla}_landing"
     primera_carga = True
+    presentes = []
 
+    # Paso 2: cargar a la landing los comercios disponibles
     for comercio in COMERCIOS:
         archivo = f"{comercio}/{tabla}.csv"
+        if not os.path.exists(archivo):
+            print(f"  (sin {archivo}: ese comercio no vino en el ZIP de esta fecha, se omite)")
+            continue
+
         modo = (
             bigquery.WriteDisposition.WRITE_TRUNCATE
             if primera_carga
@@ -110,12 +131,48 @@ def cargar_dimension(cliente, tabla):
         config = config_carga(esquema, modo)
 
         with open(archivo, "rb") as f:
-            print(f"Cargando {archivo} en {tabla} (modo: {'reemplazar' if primera_carga else 'anexar'})...")
-            job = cliente.load_table_from_file(f, destino, job_config=config)
+            print(f"Cargando {archivo} en landing de {tabla} (modo: {'reemplazar' if primera_carga else 'anexar'})...")
+            job = cliente.load_table_from_file(f, landing, job_config=config)
             job.result()
             print(f"  -> OK: {job.output_rows} filas cargadas")
 
+        presentes.append(comercio.replace("sepa", ""))
         primera_carga = False
+
+    if primera_carga:
+        raise RuntimeError(
+            f"No se encontro ningun archivo {tabla}.csv. Se aborta para no dejar "
+            f"la dimension a medio construir."
+        )
+
+    # Paso 3: reconstruir preservando los comercios ausentes.
+    # Se listan los ausentes explicitamente en vez de usar "NOT IN presentes":
+    # cada CSV de SEPA trae una fila final de metadata ("Ultima actualizacion:
+    # ...") que cae en id_comercio, y con NOT IN se irian acumulando dia a dia.
+    ausentes = [c.replace("sepa", "") for c in COMERCIOS if c.replace("sepa", "") not in presentes]
+
+    if existe_tabla(cliente, destino) and ausentes:
+        print(f"Reconstruyendo {tabla} (se preservan los comercios ausentes)...")
+        query = f"""
+            CREATE OR REPLACE TABLE `{destino}` AS
+            SELECT * FROM `{destino}` WHERE id_comercio IN UNNEST(@ausentes)
+            UNION ALL
+            SELECT * FROM `{landing}`
+        """
+        config = bigquery.QueryJobConfig(
+            query_parameters=[
+                bigquery.ArrayQueryParameter("ausentes", "STRING", ausentes)
+            ]
+        )
+        cliente.query(query, job_config=config).result()
+        print(f"  -> OK: comercios {ausentes} preservados de la foto anterior")
+    else:
+        cliente.query(
+            f"CREATE OR REPLACE TABLE `{destino}` AS SELECT * FROM `{landing}`"
+        ).result()
+        print(f"  -> OK: todos los comercios actualizados")
+
+    cliente.query(f"TRUNCATE TABLE `{landing}`").result()
 
 
 def cargar_productos(cliente, fecha):
@@ -132,6 +189,10 @@ def cargar_productos(cliente, fecha):
     primera_carga = True
     for comercio in COMERCIOS:
         archivo = f"{comercio}/{TABLA_HECHOS}.csv"
+        if not os.path.exists(archivo):
+            print(f"  (sin {archivo}: ese comercio no vino en el ZIP de esta fecha, se omite)")
+            continue
+
         modo = (
             bigquery.WriteDisposition.WRITE_TRUNCATE
             if primera_carga
@@ -147,6 +208,14 @@ def cargar_productos(cliente, fecha):
             print(f"  -> OK: {job.output_rows} filas cargadas a landing")
 
         primera_carga = False
+
+    # Sin esta guarda, si no se cargo nada la landing conservaria los datos de la
+    # corrida anterior y el paso siguiente los estamparia con la fecha de hoy.
+    if primera_carga:
+        raise RuntimeError(
+            f"No se encontro ningun archivo {TABLA_HECHOS}.csv para {fecha}. "
+            f"Se aborta para no cargar datos de otra fecha."
+        )
 
     # --- Escalón 2: reconstruir productos por unión (CTAS, sin DML) ---
     print(f"Reconstruyendo {TABLA_HECHOS} con la partición {fecha}...")

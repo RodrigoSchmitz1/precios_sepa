@@ -1,12 +1,25 @@
-name: Pipeline diario SEPA
+# Transformacion diaria en la nube.
+#
+# La DESCARGA de SEPA no esta aca: el portal (datos.produccion.gob.ar) bloquea
+# con 403 los rangos de IP de GitHub Actions y de Google, verificado el
+# 2026-09-06 (ver el workflow diagnostico_sepa.yml). Esa parte corre en la
+# maquina de Rodrigo via ingesta_backfill.py + Task Scheduler, que es la unica
+# IP que el portal acepta. Todo lo demas habla solo con BigQuery y Gemini, que
+# desde Actions funcionan sin problema.
+#
+# Como la ingesta local es auto-reparable, este workflow no necesita saber si
+# hoy entraron datos nuevos: dbt recalcula las fechas que haya en el crudo y
+# insert_overwrite reemplaza solo esas particiones. Correrlo de mas es inocuo.
+
+name: Transformacion diaria (dbt)
 
 on:
   schedule:
-    - cron: "0 10 * * *"  # 10:00 UTC = 07:00 ART
+    - cron: "0 11 * * *"  # 11:00 UTC = 08:00 ART, una hora despues de la ingesta local
   workflow_dispatch: {}
 
 jobs:
-  pipeline:
+  transformar:
     runs-on: ubuntu-latest
     defaults:
       run:
@@ -30,31 +43,12 @@ jobs:
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
 
-      - name: Descargar SEPA
-        run: python descargar_sepa.py
-
-      - name: Verificar si hubo datos nuevos
-        id: check_datos
-        run: |
-          if compgen -G "sepa*" > /dev/null; then
-            echo "hay_datos=true" >> "$GITHUB_OUTPUT"
-          else
-            echo "hay_datos=false" >> "$GITHUB_OUTPUT"
-            echo "El portal SEPA todavia no publico el recurso de hoy (o fallo la descarga). No se corre el resto del pipeline."
-          fi
-
-      - name: Cargar datos a BigQuery
-        if: steps.check_datos.outputs.hay_datos == 'true'
-        run: python cargar_datos.py
-
       - name: Categorizar productos nuevos (Gemini)
-        if: steps.check_datos.outputs.hay_datos == 'true'
         run: python categorizar.py
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
       - name: Escribir profiles.yml de dbt
-        if: steps.check_datos.outputs.hay_datos == 'true'
         run: |
           mkdir -p ~/.dbt
           cat > ~/.dbt/profiles.yml <<EOF
@@ -73,13 +67,14 @@ jobs:
                 priority: interactive
           EOF
 
+      # NUNCA agregar --full-refresh: reconstruiria los historicos desde cero y
+      # borraria toda la historia acumulada, que no se puede recuperar porque el
+      # crudo retiene solo 3 dias.
       - name: dbt run
-        if: steps.check_datos.outputs.hay_datos == 'true'
         working-directory: .
         run: dbt run
 
       - name: Capturar log de cambios de dimensiones
-        if: steps.check_datos.outputs.hay_datos == 'true'
         run: python capturar_log.py
 
       - name: Limpiar credenciales
