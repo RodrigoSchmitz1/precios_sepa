@@ -1,0 +1,51 @@
+name: Diagnostico acceso SEPA
+
+on:
+  workflow_dispatch: {}
+
+jobs:
+  diagnostico:
+    runs-on: ubuntu-latest
+    steps:
+      - name: IP publica del runner
+        run: curl -s https://api.ipify.org; echo
+
+      - name: API SEPA con curl (UA por defecto)
+        run: |
+          curl -s -o cuerpo.txt -w "HTTP %{http_code}\n" \
+            "https://datos.produccion.gob.ar/api/3/action/package_show?id=sepa-precios" || true
+          echo "--- primeros 600 chars del cuerpo ---"
+          head -c 600 cuerpo.txt; echo
+
+      - name: API SEPA con curl (UA de navegador)
+        run: |
+          curl -s -o cuerpo2.txt -w "HTTP %{http_code}\n" \
+            -A "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36" \
+            "https://datos.produccion.gob.ar/api/3/action/package_show?id=sepa-precios" || true
+          echo "--- primeros 600 chars del cuerpo ---"
+          head -c 600 cuerpo2.txt; echo
+
+      - name: Headers de respuesta (para identificar el WAF)
+        run: |
+          curl -s -D - -o /dev/null \
+            "https://datos.produccion.gob.ar/api/3/action/package_show?id=sepa-precios" || true
+
+      - name: Home del portal (sin /api)
+        run: |
+          curl -s -o /dev/null -w "HTTP %{http_code}\n" \
+            "https://datos.produccion.gob.ar/" || true
+
+      - name: HEAD sobre un ZIP de datos
+        run: |
+          curl -s -I -o /dev/null -w "HTTP %{http_code}\n" \
+            "https://datos.produccion.gob.ar/dataset/6f47ec76-d1ce-4e34-a7e1-621fe9b1d0b5/resource/b3c3da5d-213d-41e7-8d74-f23fda0a3c30/download/sepa_sabado.zip" || true
+
+      - name: Mismo pedido con python-requests
+        run: |
+          python -c "
+          import requests
+          r = requests.get('https://datos.produccion.gob.ar/api/3/action/package_show?id=sepa-precios', timeout=60)
+          print('HTTP', r.status_code)
+          print(dict(r.headers))
+          print(r.text[:600])
+          " || true
