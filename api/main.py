@@ -1,14 +1,17 @@
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from google.cloud import bigquery
+from pydantic import BaseModel
 from typing import Optional
+from interpretar_canasta import interpretar_descripcion
+from calcular_canasta import calcular_costo_canasta
 
 app = FastAPI(title="precios_sepa API")
 
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["http://localhost:5173"],
-    allow_methods=["GET"],
+    allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
@@ -272,3 +275,50 @@ def obtener_categorias_inflacion():
     """
     resultados = cliente_bq.query(query).result()
     return [fila["categoria"] for fila in resultados]
+
+
+class DescripcionCanasta(BaseModel):
+    descripcion: str
+
+
+class CalcularCanastaRequest(BaseModel):
+    items: list
+    localidades: list
+
+
+@app.post("/canasta-personalizada/interpretar")
+def interpretar_canasta_personalizada(datos: DescripcionCanasta):
+    return interpretar_descripcion(datos.descripcion)
+
+
+@app.post("/canasta-personalizada/calcular")
+def calcular_canasta_personalizada(datos: CalcularCanastaRequest):
+    return calcular_costo_canasta(cliente_bq, datos.items, datos.localidades)
+
+
+@app.get("/canasta-personalizada/localidades")
+def obtener_localidades_disponibles(
+    busqueda: Optional[str] = Query(None, description="Buscar localidad por texto"),
+    limite: int = Query(50, le=200, description="Cantidad maxima de resultados"),
+):
+    condiciones = ["categorias_disponibles >= 15"]
+    parametros = []
+
+    if busqueda:
+        condiciones.append("LOWER(localidad) LIKE @busqueda")
+        parametros.append(bigquery.ScalarQueryParameter("busqueda", "STRING", f"%{busqueda.lower()}%"))
+
+    where = f"WHERE {' AND '.join(condiciones)}"
+
+    query = f"""
+        SELECT DISTINCT localidad, provincia
+        FROM `{PROYECTO}.dbt_precios.mart_canasta_localidad`
+        {where}
+        ORDER BY localidad
+        LIMIT @limite
+    """
+    parametros.append(bigquery.ScalarQueryParameter("limite", "INT64", limite))
+
+    job_config = bigquery.QueryJobConfig(query_parameters=parametros)
+    resultados = cliente_bq.query(query, job_config=job_config).result()
+    return [dict(fila) for fila in resultados]
