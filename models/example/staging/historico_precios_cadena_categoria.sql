@@ -29,6 +29,8 @@ SELECT
     fecha_datos
 FROM {{ ref("mart_precios_cadena_categoria") }}
 
-{% if is_incremental() %}
-WHERE fecha_datos > (SELECT MAX(fecha_datos) FROM {{ this }})
-{% endif %}
+-- Sin filtro incremental a proposito. Con insert_overwrite, dbt reemplaza
+-- exactamente las particiones presentes en el resultado (las fechas que haya
+-- hoy en el crudo) y deja intactas las demas. Un filtro
+-- "fecha_datos > MAX(fecha_datos)" impediria recuperar una fecha perdida:
+-- al ser anterior al maximo ya acumulado, nunca volveria a entrar.

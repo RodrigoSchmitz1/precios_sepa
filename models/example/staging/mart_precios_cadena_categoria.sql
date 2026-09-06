@@ -1,4 +1,7 @@
--- Nivel de precios actual por cadena x categoria (foto actual).
+-- Nivel de precios por cadena x categoria, UNA FILA POR FECHA.
+-- Antes calculaba solo la fecha maxima del crudo; ahora calcula cada fecha
+-- disponible por separado, para que el historico pueda recuperar un dia
+-- perdido (backfill) y no unicamente el mas reciente.
 -- Sirve de base para comparar cadenas entre si y, con su historico,
 -- para calcular evolucion de precios / inflacion por categoria a nivel
 -- nacional (sin desagregar por provincia -- no es el foco de este KPI).
@@ -32,8 +35,7 @@ WITH productos_filtrados AS (
     JOIN {{ ref("stg_categorias") }} AS cat ON p.id_producto = cat.id_producto
     JOIN {{ ref("mart_gama_productos") }} AS gama ON p.id_producto = gama.id_producto
     JOIN {{ ref("stg_comercio") }} AS c ON p.id_comercio = c.id_comercio AND p.id_bandera = c.id_bandera
-    WHERE p.fecha_datos = (SELECT MAX(fecha_datos) FROM {{ ref("stg_productos") }})
-        AND gama.gama = "economico"
+    WHERE gama.gama = "economico"
         AND cat.categoria != "Otros"
         AND p.cantidad_normalizada IS NOT NULL
         AND (
@@ -50,12 +52,15 @@ con_precio_unitario AS (
 ),
 
 limites_por_categoria AS (
+    -- Los limites se calculan por categoria Y fecha: mezclar fechas dejaria que
+    -- un dia contamine el recorte de outliers de otro.
     SELECT
         categoria,
+        fecha_datos,
         APPROX_QUANTILES(precio_por_unidad, 100)[OFFSET(10)] AS p10,
         APPROX_QUANTILES(precio_por_unidad, 100)[OFFSET(90)] AS p90
     FROM con_precio_unitario
-    GROUP BY categoria
+    GROUP BY categoria, fecha_datos
 ),
 
 sin_outliers AS (
@@ -66,7 +71,9 @@ sin_outliers AS (
         cpu.precio_por_unidad,
         cpu.fecha_datos
     FROM con_precio_unitario AS cpu
-    JOIN limites_por_categoria AS lc ON cpu.categoria = lc.categoria
+    JOIN limites_por_categoria AS lc
+        ON cpu.categoria = lc.categoria
+        AND cpu.fecha_datos = lc.fecha_datos
     WHERE cpu.precio_por_unidad >= lc.p10
         AND cpu.precio_por_unidad <= lc.p90
 )

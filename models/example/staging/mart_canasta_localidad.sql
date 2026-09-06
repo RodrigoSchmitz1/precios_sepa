@@ -20,6 +20,9 @@
 -- margen de descartarlo. Se prioriza confiabilidad sobre cobertura.
 -- fecha_datos = fecha real de los precios usados (no la fecha de corrida),
 -- para que el historico se etiquete por validez del dato, no por ejecucion.
+-- Devuelve UNA FILA POR LOCALIDAD Y FECHA: antes calculaba solo la fecha
+-- maxima del crudo; ahora calcula cada fecha disponible por separado, para
+-- que el historico pueda recuperar un dia perdido (backfill).
 
 WITH productos_canasta AS (
     SELECT
@@ -37,8 +40,7 @@ WITH productos_canasta AS (
     JOIN {{ ref("composicion_canasta") }} AS comp
         ON cat.categoria = comp.categoria
         AND p.unidad_normalizada = comp.unidad
-    WHERE p.fecha_datos = (SELECT MAX(fecha_datos) FROM {{ ref("stg_productos") }})
-        AND gama.gama = "economico"
+    WHERE gama.gama = "economico"
         AND p.cantidad_normalizada IS NOT NULL
         AND (
             (p.unidad_normalizada IN ("g", "cc") AND p.cantidad_normalizada BETWEEN 5 AND 10000)
@@ -54,12 +56,15 @@ con_precio_unitario AS (
 ),
 
 limites_por_categoria AS (
+    -- Los limites se calculan por categoria Y fecha: mezclar fechas dejaria que
+    -- un dia contamine el recorte de outliers de otro.
     SELECT
         categoria,
+        fecha_datos,
         APPROX_QUANTILES(precio_por_unidad, 100)[OFFSET(10)] AS p10,
         APPROX_QUANTILES(precio_por_unidad, 100)[OFFSET(90)] AS p90
     FROM con_precio_unitario
-    GROUP BY categoria
+    GROUP BY categoria, fecha_datos
 ),
 
 sin_outliers AS (
@@ -71,7 +76,9 @@ sin_outliers AS (
         cpu.precio_por_unidad,
         cpu.fecha_datos
     FROM con_precio_unitario AS cpu
-    JOIN limites_por_categoria AS lc ON cpu.categoria = lc.categoria
+    JOIN limites_por_categoria AS lc
+        ON cpu.categoria = lc.categoria
+        AND cpu.fecha_datos = lc.fecha_datos
     WHERE cpu.precio_por_unidad >= lc.p10
         AND cpu.precio_por_unidad <= lc.p90
 ),
