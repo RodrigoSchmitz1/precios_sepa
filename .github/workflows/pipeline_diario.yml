@@ -1,0 +1,87 @@
+name: Pipeline diario SEPA
+
+on:
+  schedule:
+    - cron: "0 10 * * *"  # 10:00 UTC = 07:00 ART
+  workflow_dispatch: {}
+
+jobs:
+  pipeline:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: orquestacion/scripts
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Instalar dependencias
+        run: |
+          pip install -r requirements.txt
+          pip install dbt-bigquery==1.11.11
+
+      - name: Escribir credenciales de BigQuery
+        run: echo "$GCP_SA_KEY" > credenciales.json
+        env:
+          GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
+
+      - name: Descargar SEPA
+        run: python descargar_sepa.py
+
+      - name: Verificar si hubo datos nuevos
+        id: check_datos
+        run: |
+          if compgen -G "sepa*" > /dev/null; then
+            echo "hay_datos=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "hay_datos=false" >> "$GITHUB_OUTPUT"
+            echo "El portal SEPA todavia no publico el recurso de hoy (o fallo la descarga). No se corre el resto del pipeline."
+          fi
+
+      - name: Cargar datos a BigQuery
+        if: steps.check_datos.outputs.hay_datos == 'true'
+        run: python cargar_datos.py
+
+      - name: Categorizar productos nuevos (Gemini)
+        if: steps.check_datos.outputs.hay_datos == 'true'
+        run: python categorizar.py
+        env:
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+
+      - name: Escribir profiles.yml de dbt
+        if: steps.check_datos.outputs.hay_datos == 'true'
+        run: |
+          mkdir -p ~/.dbt
+          cat > ~/.dbt/profiles.yml <<EOF
+          default:
+            target: dev
+            outputs:
+              dev:
+                type: bigquery
+                method: service-account
+                project: proyecto-precios-504221
+                dataset: dbt_precios
+                location: US
+                keyfile: ${{ github.workspace }}/orquestacion/scripts/credenciales.json
+                threads: 4
+                timeout_seconds: 300
+                priority: interactive
+          EOF
+
+      - name: dbt run
+        if: steps.check_datos.outputs.hay_datos == 'true'
+        working-directory: .
+        run: dbt run
+
+      - name: Capturar log de cambios de dimensiones
+        if: steps.check_datos.outputs.hay_datos == 'true'
+        run: python capturar_log.py
+
+      - name: Limpiar credenciales
+        if: always()
+        run: rm -f credenciales.json
