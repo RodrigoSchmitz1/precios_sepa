@@ -3,10 +3,17 @@
 -- reporta cada cadena -- que en CABA es inconsistente: algunas cadenas
 -- reportan el barrio real (Belgrano, Caballito), otras agrupan todo
 -- bajo "Capital Federal" generico, perdiendo la granularidad de barrio.
--- Fuente de los poligonos: datos abiertos GCBA (ver seed/carga en
+-- Fuente de los poligonos: datos abiertos GCBA (ver
 -- orquestacion/scripts/descargar_barrios_caba.py).
+-- IMPORTANTE: lee directo de la macro limpiar_sucursales (no de
+-- stg_sucursales), porque stg_sucursales depende de este modelo para
+-- corregir la localidad -- depender de stg_sucursales creo un ciclo.
 
-WITH barrios AS (
+WITH sucursales_base AS (
+    {{ limpiar_sucursales(source("sepa", "sucursales")) }}
+),
+
+barrios AS (
     SELECT
         barrio,
         ST_GEOGFROMTEXT(geometria_wkt) AS geometria
@@ -19,7 +26,7 @@ sucursales_caba AS (
         id_sucursal,
         latitud,
         longitud
-    FROM {{ ref("stg_sucursales") }}
+    FROM sucursales_base
     WHERE provincia = "AR-C"
         AND latitud IS NOT NULL
         AND longitud IS NOT NULL
