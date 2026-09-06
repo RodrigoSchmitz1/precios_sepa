@@ -9,6 +9,12 @@ import requests
 # --- Configuración ---
 API_URL = "https://datos.produccion.gob.ar/api/3/action/package_show?id=sepa-precios"
 
+# El portal rechaza pedidos sin User-Agent de navegador (403), sin importar si el request es legitimo.
+HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 "
+                  "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+}
+
 # Las cadenas que queremos (comercioId). Editá esta lista para escalar.
 COMERCIOS_OBJETIVO = [2, 9, 10, 11, 12, 13, 15, 16]  # La Anónima, Cencosud, Carrefour, Coto, DIA
 
@@ -43,7 +49,7 @@ def obtener_recurso(nombre_dia, fecha_esperada=None):
     """
     modo = "modo prueba" if fecha_esperada is None else "modo normal"
     print(f"Consultando la API de SEPA para el recurso '{nombre_dia}' ({modo})...")
-    respuesta = requests.get(API_URL, timeout=60)
+    respuesta = requests.get(API_URL, headers=HEADERS, timeout=60)
     respuesta.raise_for_status()
     datos = respuesta.json()
 
@@ -70,7 +76,7 @@ def obtener_recurso(nombre_dia, fecha_esperada=None):
 def descargar_zip(url, destino):
     """Descarga el ZIP grande del día en pedazos."""
     print(f"Descargando ZIP principal (puede tardar varios minutos)...")
-    with requests.get(url, stream=True, timeout=600) as r:
+    with requests.get(url, headers=HEADERS, stream=True, timeout=600) as r:
         r.raise_for_status()
         with open(destino, "wb") as f:
             for chunk in r.iter_content(chunk_size=8192):
