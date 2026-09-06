@@ -11,4 +11,4 @@ sources:
       - name: producto_categoria
       - name: sucursales_anterior
       - name: comercio_anterior
-      
+      - name: barrios_caba
