@@ -1,4 +1,13 @@
-import type { Promo, PromoMapa, QuienGana, Canasta, Inflacion } from "../types";
+import type {
+  Promo,
+  PromoMapa,
+  QuienGana,
+  Canasta,
+  Inflacion,
+  ItemCanastaIA,
+  ResultadoCanastaPersonalizada,
+  LocalidadOpcion,
+} from "../types";
 
 const API_BASE = "http://127.0.0.1:8000";
 
@@ -84,5 +93,36 @@ export async function obtenerInflacion(categoria: string): Promise<Inflacion[]> 
 export async function obtenerCategoriasInflacion(): Promise<string[]> {
   const respuesta = await fetch(`${API_BASE}/inflacion/categorias`);
   if (!respuesta.ok) throw new Error(`Error al traer categorias: ${respuesta.status}`);
+  return respuesta.json();
+}
+
+export async function interpretarCanasta(descripcion: string): Promise<{ items: ItemCanastaIA[] }> {
+  const respuesta = await fetch(`${API_BASE}/canasta-personalizada/interpretar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ descripcion }),
+  });
+  if (!respuesta.ok) throw new Error(`Error al interpretar: ${respuesta.status}`);
+  return respuesta.json();
+}
+
+export async function calcularCanastaPersonalizada(
+  items: ItemCanastaIA[],
+  localidades: string[]
+): Promise<ResultadoCanastaPersonalizada> {
+  const respuesta = await fetch(`${API_BASE}/canasta-personalizada/calcular`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items, localidades }),
+  });
+  if (!respuesta.ok) throw new Error(`Error al calcular: ${respuesta.status}`);
+  return respuesta.json();
+}
+
+export async function buscarLocalidades(busqueda: string): Promise<LocalidadOpcion[]> {
+  const params = new URLSearchParams();
+  if (busqueda.trim()) params.set("busqueda", busqueda.trim());
+  const respuesta = await fetch(`${API_BASE}/canasta-personalizada/localidades?${params.toString()}`);
+  if (!respuesta.ok) throw new Error(`Error al buscar localidades: ${respuesta.status}`);
   return respuesta.json();
 }

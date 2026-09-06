@@ -3,6 +3,7 @@ import Layout from "./components/Layout";
 import PromosPage from "./pages/PromosPage";
 import QuienGanaPage from "./pages/QuienGanaPage";
 import CanastaPage from "./pages/CanastaPage";
+import CanastaPersonalizadaPage from "./pages/CanastaPersonalizadaPage";
 import InflacionPage from "./pages/InflacionPage";
 
 const router = createBrowserRouter([
@@ -12,6 +13,7 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <PromosPage /> },
       { path: "canasta", element: <CanastaPage /> },
+      { path: "canasta-personalizada", element: <CanastaPersonalizadaPage /> },
       { path: "quien-gana", element: <QuienGanaPage /> },
       { path: "inflacion", element: <InflacionPage /> },
     ],

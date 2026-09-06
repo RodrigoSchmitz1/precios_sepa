@@ -56,3 +56,29 @@ export type Inflacion = {
   fecha_inicio: string;
   fecha_fin: string;
 };
+
+export type ItemCanastaIA = {
+  categoria: string;
+  cantidad: number;
+  unidad: string;
+  gama: string;
+  razon: string;
+};
+
+export type ItemCanastaCalculado = ItemCanastaIA & {
+  precio_unitario: number;
+  costo_categoria: number;
+  muestras: number;
+};
+
+export type ResultadoCanastaPersonalizada = {
+  items: ItemCanastaCalculado[];
+  costo_total: number;
+  categorias_calculadas: number;
+  categorias_pedidas: number;
+};
+
+export type LocalidadOpcion = {
+  localidad: string;
+  provincia: string;
+};
