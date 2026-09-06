@@ -31,6 +31,7 @@ CARPETA_TEMP = os.path.join(CARPETA_DESTINO, "_temp_descarga")
 def parsear_argumentos():
     parser = argparse.ArgumentParser(description="Descarga datos de SEPA.")
     parser.add_argument("--dia", help="Forzar un día específico para probar (ej: Viernes)")
+    parser.add_argument("--fecha", help="Descargar una fecha puntual (AAAA-MM-DD), para backfill")
     return parser.parse_args()
 
 
@@ -85,6 +86,18 @@ def descargar_zip(url, destino):
     print(f"  -> OK: descargado ({tam_mb:.1f} MB)")
 
 
+def limpiar_carpetas_comercios():
+    """
+    Borra las carpetas sepaN/ de una corrida anterior.
+    Imprescindible para el backfill: si el ZIP de la fecha que estamos bajando
+    no trae algun comercio, la carpeta vieja quedaria en disco y cargar_datos.py
+    la subiria como si fuera de esta fecha, mezclando dias distintos.
+    """
+    for carpeta in glob.glob(os.path.join(CARPETA_DESTINO, "sepa*")):
+        if os.path.isdir(carpeta):
+            shutil.rmtree(carpeta)
+
+
 def extraer_comercios_objetivo(zip_principal, carpeta_trabajo):
     """Descomprime el ZIP principal y extrae SOLO los CSV de los comercios objetivo."""
     with zipfile.ZipFile(zip_principal, 'r') as z:
@@ -129,6 +142,11 @@ def main():
         nombre_dia = args.dia.capitalize()
         fecha_esperada = None
         print(f"=== Descarga SEPA — MODO PRUEBA: {nombre_dia} ===\n")
+    elif args.fecha:
+        fecha = date.fromisoformat(args.fecha)
+        nombre_dia = DIAS_SEMANA[fecha.weekday()]
+        fecha_esperada = fecha
+        print(f"=== Descarga SEPA — BACKFILL: {nombre_dia} {fecha} ===\n")
     else:
         fecha, nombre_dia = calcular_fecha_objetivo()
         fecha_esperada = fecha
@@ -149,6 +167,7 @@ def main():
     descargar_zip(url, zip_principal)
 
     print("Extrayendo comercios objetivo...")
+    limpiar_carpetas_comercios()
     extraidos = extraer_comercios_objetivo(zip_principal, CARPETA_TEMP)
 
     shutil.rmtree(CARPETA_TEMP)
