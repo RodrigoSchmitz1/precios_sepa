@@ -14,6 +14,28 @@ COMERCIOS = ["sepa2", "sepa9", "sepa10", "sepa11", "sepa12", "sepa13", "sepa15",
 TABLA_HECHOS = "productos"
 TABLAS_DIMENSIONES = ["sucursales", "comercio"]
 
+# Columnas del CSV de productos que se conservan. El archivo trae 4 mas
+# (productos_ean, productos_precio_referencia, productos_cantidad_referencia y
+# productos_unidad_medida_referencia) que no usa ningun modelo ni endpoint y
+# pesaban 0.86 GB del crudo. El CSV se carga entero a la landing (el esquema
+# tiene que coincidir posicionalmente con el archivo), y el descarte ocurre al
+# reconstruir la tabla final.
+COLUMNAS_PRODUCTOS = [
+    "id_comercio",
+    "id_bandera",
+    "id_sucursal",
+    "id_producto",
+    "productos_descripcion",
+    "productos_cantidad_presentacion",
+    "productos_unidad_medida_presentacion",
+    "productos_marca",
+    "productos_precio_lista",
+    "productos_precio_unitario_promo1",
+    "productos_leyenda_promo1",
+    "productos_precio_unitario_promo2",
+    "productos_leyenda_promo2",
+]
+
 
 def parsear_fecha():
     """
@@ -219,14 +241,20 @@ def cargar_productos(cliente, fecha):
 
     # --- Escalón 2: reconstruir productos por unión (CTAS, sin DML) ---
     print(f"Reconstruyendo {TABLA_HECHOS} con la partición {fecha}...")
+    columnas = ",\n            ".join(COLUMNAS_PRODUCTOS)
     reconstruir = f"""
         CREATE OR REPLACE TABLE `{destino}`
         PARTITION BY fecha_datos
         OPTIONS (partition_expiration_days = 3) AS
-        SELECT * FROM `{destino}`
+        SELECT
+            {columnas},
+            fecha_datos
+        FROM `{destino}`
         WHERE fecha_datos != DATE(@fecha)
         UNION ALL
-        SELECT *, DATE(@fecha) AS fecha_datos
+        SELECT
+            {columnas},
+            DATE(@fecha) AS fecha_datos
         FROM `{landing}`
     """
     params = [bigquery.ScalarQueryParameter("fecha", "DATE", fecha)]
