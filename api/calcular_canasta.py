@@ -10,8 +10,11 @@ def calcular_costo_canasta(cliente_bq, items: list, localidades: list) -> dict:
     """Calcula el costo real de una canasta personalizada.
 
     items: lista de {categoria, cantidad, unidad, gama, razon}
-    localidades: lista de nombres de localidad (se combinan, no se promedian
-    por separado -- el usuario eligio verlas como una sola zona).
+    localidades: lista de {localidad, provincia} (se combinan, no se promedian
+    por separado -- el usuario eligio verlas como una sola zona). La provincia
+    es obligatoria porque el nombre solo es ambiguo: hay localidades repetidas
+    entre provincias (Cordoba existe en AR-C y AR-X con precios distintos), y
+    filtrar solo por nombre traia las dos mezcladas en el mismo promedio.
 
     Lee de mart_precio_categoria_localidad, que ya tiene el precio mediano por
     unidad precalculado por categoria x gama x unidad x localidad. Antes esto
@@ -75,14 +78,27 @@ def _traer_precios(cliente_bq, items: list, localidades: list) -> dict:
             SUM(muestras) AS muestras
         FROM `{tabla}`
         WHERE fecha_datos = (SELECT MAX(fecha_datos) FROM `{tabla}`)
-            AND localidad IN UNNEST(@localidades)
+            AND (localidad, provincia) IN UNNEST(@zonas)
             AND categoria IN UNNEST(@categorias)
         GROUP BY categoria, gama, unidad_normalizada
     """
 
     categorias = list({item["categoria"] for item in items})
+    tipo_zona = bigquery.StructQueryParameterType(
+        bigquery.ScalarQueryParameterType("STRING", name="localidad"),
+        bigquery.ScalarQueryParameterType("STRING", name="provincia"),
+    )
+    zonas = [
+        bigquery.StructQueryParameter(
+            None,
+            bigquery.ScalarQueryParameter("localidad", "STRING", z["localidad"]),
+            bigquery.ScalarQueryParameter("provincia", "STRING", z["provincia"]),
+        )
+        for z in localidades
+    ]
+
     job_config = bigquery.QueryJobConfig(query_parameters=[
-        bigquery.ArrayQueryParameter("localidades", "STRING", localidades),
+        bigquery.ArrayQueryParameter("zonas", tipo_zona, zonas),
         bigquery.ArrayQueryParameter("categorias", "STRING", categorias),
     ])
 

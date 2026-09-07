@@ -108,7 +108,7 @@ export async function interpretarCanasta(descripcion: string): Promise<{ items: 
 
 export async function calcularCanastaPersonalizada(
   items: ItemCanastaIA[],
-  localidades: string[]
+  localidades: LocalidadOpcion[]
 ): Promise<ResultadoCanastaPersonalizada> {
   const respuesta = await fetch(`${API_BASE}/canasta-personalizada/calcular`, {
     method: "POST",

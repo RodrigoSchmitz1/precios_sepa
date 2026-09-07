@@ -1,0 +1,42 @@
+version: 2
+
+models:
+  - name: historico_quien_gana
+    description: >
+      Acumulacion diaria del KPI de supermercado mas barato. Es data
+      IRRECUPERABLE: el crudo retiene 3 dias, asi que un --full-refresh sobre
+      este modelo borra historia que no se puede reconstruir.
+      Las filas anteriores al 2026-09-06 usan la metodologia vieja (agregado de
+      varios dias y join sin id_bandera) y no son comparables con las nuevas.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fecha_datos, categoria, cadena]
+    columns:
+      - name: fecha_datos
+        tests: [not_null]
+
+  - name: historico_canasta_localidad
+    description: >
+      Acumulacion diaria del costo de canasta basica por localidad. Solo
+      guarda localidades con 20 o mas categorias disponibles, el mismo umbral
+      de confiabilidad que aplica la API. Data irrecuperable.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fecha_datos, localidad, provincia]
+    columns:
+      - name: fecha_datos
+        tests: [not_null]
+      - name: costo_canasta_total
+        tests: [not_null]
+
+  - name: historico_precios_cadena_categoria
+    description: >
+      Acumulacion diaria del nivel de precios por cadena y categoria. Es la
+      fuente de la seccion de inflacion, que se calcula al vuelo restando dos
+      fechas en vez de persistir la variacion. Data irrecuperable.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fecha_datos, categoria, cadena, unidad_normalizada]
+    columns:
+      - name: fecha_datos
+        tests: [not_null]

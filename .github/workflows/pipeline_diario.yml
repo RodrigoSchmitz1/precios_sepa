@@ -67,12 +67,25 @@ jobs:
                 priority: interactive
           EOF
 
+      - name: Instalar paquetes de dbt
+        working-directory: .
+        run: dbt deps
+
       # NUNCA agregar --full-refresh: reconstruiria los historicos desde cero y
       # borraria toda la historia acumulada, que no se puede recuperar porque el
       # crudo retiene solo 3 dias.
       - name: dbt run
         working-directory: .
         run: dbt run
+
+      # Los tests van DESPUES de run, y no como "dbt build", a proposito: si un
+      # test falla a mitad del DAG, build saltea los modelos de abajo y ese dia
+      # no se acumularia en los historicos. Como el crudo retiene 3 dias, esa
+      # fecha se volveria irrecuperable. Preferimos que el dato quede capturado
+      # y que la falla avise (el workflow queda en rojo y GitHub manda el mail).
+      - name: dbt test
+        working-directory: .
+        run: dbt test
 
       - name: Capturar log de cambios de dimensiones
         run: python capturar_log.py

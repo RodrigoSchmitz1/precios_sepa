@@ -2,28 +2,66 @@ version: 2
 
 models:
   - name: stg_productos
+    description: >
+      Precios crudos de SEPA, tipados y con la presentacion normalizada a
+      g / cc / unidad. La cantidad sale de las columnas estructuradas de la
+      fuente, no de parsear la descripcion en texto libre.
+      Particionada por fecha_datos: sin particion, consultar un solo dia
+      obligaba a escanear las 43 millones de filas.
     columns:
       - name: id_producto
-        tests:
-          - not_null
+        tests: [not_null]
       - name: precio
+        tests: [not_null]
+      - name: unidad_normalizada
+        description: NULL cuando la unidad de la fuente no es reconocible.
         tests:
-          - not_null
-
-  - name: stg_sucursales
-    columns:
-      - name: id_sucursal
-        tests:
-          - not_null
+          - accepted_values:
+              values: ["g", "cc", "unidad"]
+              config:
+                where: "unidad_normalizada IS NOT NULL"
 
   - name: stg_comercio
+    description: >
+      Dimension de cadenas. El grano es (id_comercio, id_bandera): una misma
+      empresa opera varias banderas con nombre comercial distinto
+      (Carrefour / Market / Express / Maxi son el mismo id_comercio).
+      nombre_comercial viene del seed mapeo_cadenas para mostrar la marca
+      reconocible en vez de la razon social legal.
+    tests:
+      # El grano de esta dimension es el supuesto del que dependen todos los
+      # joins de productos. Si se rompe, los marts multiplican filas en
+      # silencio, que es exactamente lo que paso en 2026-09.
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [id_comercio, id_bandera]
     columns:
       - name: id_comercio
-        tests:
-          - not_null
+        tests: [not_null]
+      - name: id_bandera
+        tests: [not_null]
+      - name: nombre_comercial
+        tests: [not_null]
+
+  - name: stg_sucursales
+    description: >
+      Dimension de sucursales. Para CABA, la localidad se corrige con el barrio
+      real calculado por geometria cuando la cadena reporta un valor generico
+      tipo "Capital Federal"; si ya reportaba un barrio valido, se respeta.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [id_comercio, id_sucursal]
+    columns:
+      - name: id_sucursal
+        tests: [not_null]
+
   - name: stg_categorias
+    description: >
+      Categoria y rubro de cada producto, clasificados con Gemini contra una
+      taxonomia cerrada de 58 categorias.
     columns:
       - name: id_producto
         tests:
           - unique
           - not_null
+      - name: categoria
+        tests: [not_null]

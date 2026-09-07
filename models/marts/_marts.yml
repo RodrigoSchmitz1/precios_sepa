@@ -1,0 +1,119 @@
+version: 2
+
+models:
+  - name: mart_quien_gana
+    description: >
+      KPI "supermercado mas barato": porcentaje de productos en los que cada
+      cadena tiene el precio mas bajo, dentro de cada categoria. Solo compara
+      productos presentes en 2 o mas cadenas, para no premiar a una cadena por
+      vender marca propia barata que las demas ni ofrecen. Una fila por fecha.
+    tests:
+      # El grano importa: en 2026-09 el modelo unia stg_comercio sin id_bandera
+      # y cada observacion de precio se replicaba una vez por bandera de la
+      # empresa. Este test hace que un fan-out asi no pueda volver a pasar sin
+      # que la corrida falle.
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fecha_datos, categoria, cadena]
+      - dbt_utils.expression_is_true:
+          expression: "productos_ganados <= total_productos_categoria"
+      - dbt_utils.expression_is_true:
+          expression: "pct_victorias BETWEEN 0 AND 100"
+    columns:
+      - name: fecha_datos
+        description: Fecha real de los precios comparados, no la de la corrida.
+        tests: [not_null]
+      - name: categoria
+        tests: [not_null]
+      - name: cadena
+        description: nombre_comercial de la bandera, no la razon social.
+        tests: [not_null]
+
+  - name: mart_precios_cadena_categoria
+    description: >
+      Nivel de precios por cadena y categoria, una fila por fecha. Base para
+      comparar cadenas entre si y para calcular inflacion al vuelo restando
+      dos fechas del historico.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fecha_datos, categoria, cadena, unidad_normalizada]
+      - dbt_utils.expression_is_true:
+          expression: "precio_mediano_unidad > 0"
+      - dbt_utils.expression_is_true:
+          expression: "muestras >= 20"
+    columns:
+      - name: fecha_datos
+        tests: [not_null]
+
+  - name: mart_canasta_localidad
+    description: >
+      Costo de la canasta basica por localidad, con la composicion del INDEC
+      adaptada a las categorias propias. Solo gama economica.
+    tests:
+      # El grano incluye provincia: hay nombres de localidad que se repiten
+      # entre provincias (Cordoba en AR-C y AR-X, San Martin en AR-B y AR-D),
+      # ademas de sucursales que la cadena reporta con la provincia equivocada.
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fecha_datos, localidad, provincia]
+      - dbt_utils.expression_is_true:
+          expression: "costo_canasta_total > 0"
+    columns:
+      - name: localidad
+        description: >
+          Para CABA es el barrio real, resuelto por point-in-polygon contra la
+          geometria oficial (ver stg_sucursales_barrio), no la localidad
+          generica que reportan las cadenas.
+        tests: [not_null]
+      - name: fecha_datos
+        tests: [not_null]
+
+  - name: mart_precio_categoria_localidad
+    description: >
+      Precio mediano por unidad para cada categoria x gama x unidad x
+      localidad. Existe para que la API de canasta personalizada no calcule
+      esto al vuelo: antes escaneaba 2.5 GB por categoria consultada.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fecha_datos, categoria, gama, unidad_normalizada, localidad, provincia]
+      - dbt_utils.expression_is_true:
+          expression: "precio_mediano_unidad > 0"
+      - dbt_utils.expression_is_true:
+          expression: "muestras >= 10"
+    columns:
+      - name: gama
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["economico", "medio", "premium"]
+      - name: unidad_normalizada
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["g", "cc", "unidad"]
+
+  - name: mart_gama_productos
+    description: >
+      Clasifica cada producto en economico/medio/premium segun el tercil de su
+      precio mediano dentro de su categoria. La mediana se toma entre cadenas,
+      sucursales y dias para que una promo puntual no cambie la gama.
+    columns:
+      - name: id_producto
+        tests: [not_null, unique]
+      - name: gama
+        tests:
+          - accepted_values:
+              values: ["economico", "medio", "premium"]
+
+  - name: mart_promos_vigentes
+    description: Promos activas agrupadas por cadena y provincia, para listados.
+    columns:
+      - name: descuento_pct
+        tests: [not_null]
+
+  - name: mart_promos_por_sucursal
+    description: >
+      Las mismas promos a nivel sucursal, con lat/long, para el mapa.
+    columns:
+      - name: latitud
+        tests: [not_null]
+      - name: longitud
+        tests: [not_null]

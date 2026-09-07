@@ -5,6 +5,7 @@ import {
   buscarLocalidades,
 } from "../api/client";
 import type { ItemCanastaIA, ResultadoCanastaPersonalizada, LocalidadOpcion } from "../types";
+import { nombreProvincia } from "../utils/provincias";
 
 function formatearPesos(valor: number): string {
   return new Intl.NumberFormat("es-AR", {
@@ -22,7 +23,10 @@ function CanastaPersonalizadaPage() {
 
   const [busquedaLocalidad, setBusquedaLocalidad] = useState("");
   const [opcionesLocalidad, setOpcionesLocalidad] = useState<LocalidadOpcion[]>([]);
-  const [localidadesElegidas, setLocalidadesElegidas] = useState<string[]>([]);
+  // Se guarda la provincia junto al nombre: hay localidades homonimas en
+  // provincias distintas (Cordoba en AR-C y AR-X) y sin ese dato el calculo
+  // mezclaba las dos.
+  const [localidadesElegidas, setLocalidadesElegidas] = useState<LocalidadOpcion[]>([]);
 
   const [resultado, setResultado] = useState<ResultadoCanastaPersonalizada | null>(null);
   const [calculando, setCalculando] = useState(false);
@@ -53,16 +57,23 @@ function CanastaPersonalizadaPage() {
     buscarLocalidades(texto).then(setOpcionesLocalidad).catch(() => setOpcionesLocalidad([]));
   }
 
-  function agregarLocalidad(localidad: string) {
-    if (!localidadesElegidas.includes(localidad) && localidadesElegidas.length < 3) {
-      setLocalidadesElegidas([...localidadesElegidas, localidad]);
+  function agregarLocalidad(opcion: LocalidadOpcion) {
+    const yaEsta = localidadesElegidas.some(
+      (l) => l.localidad === opcion.localidad && l.provincia === opcion.provincia
+    );
+    if (!yaEsta && localidadesElegidas.length < 3) {
+      setLocalidadesElegidas([...localidadesElegidas, opcion]);
     }
     setBusquedaLocalidad("");
     setOpcionesLocalidad([]);
   }
 
-  function quitarLocalidad(localidad: string) {
-    setLocalidadesElegidas(localidadesElegidas.filter((l) => l !== localidad));
+  function quitarLocalidad(opcion: LocalidadOpcion) {
+    setLocalidadesElegidas(
+      localidadesElegidas.filter(
+        (l) => !(l.localidad === opcion.localidad && l.provincia === opcion.provincia)
+      )
+    );
   }
 
   function quitarItem(categoria: string) {
@@ -151,10 +162,11 @@ function CanastaPersonalizadaPage() {
               {opcionesLocalidad.map((op) => (
                 <button
                   key={`${op.localidad}-${op.provincia}`}
-                  onClick={() => agregarLocalidad(op.localidad)}
+                  onClick={() => agregarLocalidad(op)}
                   className="block w-full text-left text-sm px-3 py-2 hover:bg-gray-50"
                 >
                   {op.localidad}
+                  <span className="text-gray-500"> — {nombreProvincia(op.provincia)}</span>
                 </button>
               ))}
             </div>
@@ -162,10 +174,10 @@ function CanastaPersonalizadaPage() {
           <div className="flex flex-wrap gap-2 mb-6">
             {localidadesElegidas.map((loc) => (
               <span
-                key={loc}
+                key={`${loc.localidad}-${loc.provincia}`}
                 className="inline-flex items-center gap-1 bg-green-50 text-green-700 text-xs font-medium px-2 py-1 rounded-full"
               >
-                {loc}
+                {loc.localidad} ({nombreProvincia(loc.provincia)})
                 <button onClick={() => quitarLocalidad(loc)} className="text-green-500 hover:text-green-800">
                   x
                 </button>
