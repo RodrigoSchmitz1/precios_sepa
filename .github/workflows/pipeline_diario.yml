@@ -52,7 +52,7 @@ jobs:
         run: |
           mkdir -p ~/.dbt
           cat > ~/.dbt/profiles.yml <<EOF
-          default:
+          precios_sepa:
             target: dev
             outputs:
               dev:

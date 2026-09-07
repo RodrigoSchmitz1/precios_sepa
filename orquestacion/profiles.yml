@@ -1,4 +1,4 @@
-default:
+precios_sepa:
   target: dev
   outputs:
     dev:
