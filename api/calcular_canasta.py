@@ -2,6 +2,9 @@ from google.cloud import bigquery
 
 PROYECTO = "proyecto-precios-504221"
 
+# Minimo de muestras para considerar confiable el precio de una categoria.
+MIN_MUESTRAS = 10
+
 
 def calcular_costo_canasta(cliente_bq, items: list, localidades: list) -> dict:
     """Calcula el costo real de una canasta personalizada.
@@ -9,76 +12,42 @@ def calcular_costo_canasta(cliente_bq, items: list, localidades: list) -> dict:
     items: lista de {categoria, cantidad, unidad, gama, razon}
     localidades: lista de nombres de localidad (se combinan, no se promedian
     por separado -- el usuario eligio verlas como una sola zona).
+
+    Lee de mart_precio_categoria_localidad, que ya tiene el precio mediano por
+    unidad precalculado por categoria x gama x unidad x localidad. Antes esto
+    se calculaba al vuelo con una query por categoria contra stg_productos:
+    2.51 GB escaneados por categoria, ~37 GB por una canasta de 15. Con eso,
+    unos 27 usuarios agotaban el TB mensual gratuito de BigQuery.
+
+    Al combinar varias localidades se promedian las medianas ponderando por
+    cantidad de muestras. No es identico a la mediana del pool de todas las
+    localidades juntas (lo que se hacia antes), pero es mas representativo:
+    el recorte de outliers queda relativo a cada localidad, en vez de que una
+    localidad barata entera pueda quedar recortada al compararla con otra cara.
     """
     if not items or not localidades:
         return {"items": [], "costo_total": 0, "categorias_calculadas": 0, "categorias_pedidas": len(items)}
 
-    parametros = []
+    precios = _traer_precios(cliente_bq, items, localidades)
+
     resultados_por_categoria = []
+    for item in items:
+        clave = (item["categoria"], item["gama"], item["unidad"])
+        dato = precios.get(clave)
+        if not dato or dato["muestras"] < MIN_MUESTRAS:
+            continue
 
-    for i, item in enumerate(items):
-        param_categoria = f"categoria_{i}"
-        param_gama = f"gama_{i}"
-
-        query = f"""
-            WITH productos_filtrados AS (
-                SELECT
-                    p.precio,
-                    p.cantidad_normalizada
-                FROM `{PROYECTO}.dbt_precios.stg_productos` AS p
-                JOIN `{PROYECTO}.sepa.producto_categoria` AS cat ON p.id_producto = cat.id_producto
-                JOIN `{PROYECTO}.dbt_precios.mart_gama_productos` AS gama ON p.id_producto = gama.id_producto
-                JOIN `{PROYECTO}.dbt_precios.stg_sucursales` AS s ON p.id_comercio = s.id_comercio AND p.id_sucursal = s.id_sucursal
-                WHERE p.fecha_datos = (SELECT MAX(fecha_datos) FROM `{PROYECTO}.dbt_precios.stg_productos`)
-                    AND cat.categoria = @{param_categoria}
-                    AND gama.gama = @{param_gama}
-                    AND s.localidad IN UNNEST(@localidades)
-                    AND p.cantidad_normalizada IS NOT NULL
-                    AND p.unidad_normalizada = @unidad_{i}
-                    AND (
-                        (p.unidad_normalizada IN ("g", "cc") AND p.cantidad_normalizada BETWEEN 5 AND 10000)
-                        OR (p.unidad_normalizada = "unidad" AND p.cantidad_normalizada BETWEEN 1 AND 60)
-                    )
-            ),
-            con_precio_unitario AS (
-                SELECT precio / cantidad_normalizada AS precio_por_unidad
-                FROM productos_filtrados
-            ),
-            limites AS (
-                SELECT
-                    APPROX_QUANTILES(precio_por_unidad, 100)[OFFSET(10)] AS p10,
-                    APPROX_QUANTILES(precio_por_unidad, 100)[OFFSET(90)] AS p90
-                FROM con_precio_unitario
-            )
-            SELECT
-                APPROX_QUANTILES(precio_por_unidad, 2)[OFFSET(1)] AS precio_mediano_unidad,
-                COUNT(*) AS muestras
-            FROM con_precio_unitario, limites
-            WHERE precio_por_unidad >= limites.p10 AND precio_por_unidad <= limites.p90
-        """
-
-        job_config = bigquery.QueryJobConfig(query_parameters=[
-            bigquery.ScalarQueryParameter(param_categoria, "STRING", item["categoria"]),
-            bigquery.ScalarQueryParameter(param_gama, "STRING", item["gama"]),
-            bigquery.ScalarQueryParameter(f"unidad_{i}", "STRING", item["unidad"]),
-            bigquery.ArrayQueryParameter("localidades", "STRING", localidades),
-        ])
-
-        resultado = list(cliente_bq.query(query, job_config=job_config).result())
-
-        if resultado and resultado[0]["muestras"] and resultado[0]["muestras"] >= 10:
-            precio_unitario = resultado[0]["precio_mediano_unidad"]
-            costo_categoria = round(precio_unitario * item["cantidad"], 2)
-            resultados_por_categoria.append({
-                "categoria": item["categoria"],
-                "cantidad": item["cantidad"],
-                "unidad": item["unidad"],
-                "gama": item["gama"],
-                "razon": item.get("razon", ""),
-                "precio_unitario": round(precio_unitario, 4),
-                "costo_categoria": costo_categoria,
-                "muestras": resultado[0]["muestras"],
-            })
+        precio_unitario = dato["precio_mediano_unidad"]
+        resultados_por_categoria.append({
+            "categoria": item["categoria"],
+            "cantidad": item["cantidad"],
+            "unidad": item["unidad"],
+            "gama": item["gama"],
+            "razon": item.get("razon", ""),
+            "precio_unitario": round(precio_unitario, 4),
+            "costo_categoria": round(precio_unitario * item["cantidad"], 2),
+            "muestras": dato["muestras"],
+        })
 
     costo_total = round(sum(r["costo_categoria"] for r in resultados_por_categoria), 2)
 
@@ -87,4 +56,41 @@ def calcular_costo_canasta(cliente_bq, items: list, localidades: list) -> dict:
         "costo_total": costo_total,
         "categorias_calculadas": len(resultados_por_categoria),
         "categorias_pedidas": len(items),
+    }
+
+
+def _traer_precios(cliente_bq, items: list, localidades: list) -> dict:
+    """Trae en UNA sola query el precio de todas las categorias pedidas.
+
+    Devuelve {(categoria, gama, unidad): {precio_mediano_unidad, muestras}}.
+    """
+    tabla = f"{PROYECTO}.dbt_precios.mart_precio_categoria_localidad"
+
+    query = f"""
+        SELECT
+            categoria,
+            gama,
+            unidad_normalizada,
+            SUM(precio_mediano_unidad * muestras) / SUM(muestras) AS precio_mediano_unidad,
+            SUM(muestras) AS muestras
+        FROM `{tabla}`
+        WHERE fecha_datos = (SELECT MAX(fecha_datos) FROM `{tabla}`)
+            AND localidad IN UNNEST(@localidades)
+            AND categoria IN UNNEST(@categorias)
+        GROUP BY categoria, gama, unidad_normalizada
+    """
+
+    categorias = list({item["categoria"] for item in items})
+    job_config = bigquery.QueryJobConfig(query_parameters=[
+        bigquery.ArrayQueryParameter("localidades", "STRING", localidades),
+        bigquery.ArrayQueryParameter("categorias", "STRING", categorias),
+    ])
+
+    filas = cliente_bq.query(query, job_config=job_config).result()
+    return {
+        (f["categoria"], f["gama"], f["unidad_normalizada"]): {
+            "precio_mediano_unidad": f["precio_mediano_unidad"],
+            "muestras": f["muestras"],
+        }
+        for f in filas
     }

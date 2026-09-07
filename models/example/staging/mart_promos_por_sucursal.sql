@@ -7,6 +7,8 @@
 -- El join a stg_comercio usa id_comercio + id_bandera (no solo id_comercio)
 -- para no multiplicar cada fila por cada bandera de la cadena.
 
+{% set fecha = ultima_fecha(source("sepa", "productos")) %}
+
 WITH base AS (
     SELECT
         p.id_producto,
@@ -22,7 +24,9 @@ WITH base AS (
         p.id_sucursal,
         p.fecha_datos
     FROM {{ source("sepa", "productos") }} AS p
-    WHERE p.fecha_datos = (SELECT MAX(fecha_datos) FROM {{ source("sepa", "productos") }})
+    -- Fecha literal, no subconsulta: con "= (SELECT MAX(...))" BigQuery no
+    -- poda particiones y escanea los 3 dias (3.9 GB en vez de 1.3 GB).
+    WHERE p.fecha_datos = DATE('{{ fecha }}')
       AND p.productos_precio_lista IS NOT NULL
 ),
 

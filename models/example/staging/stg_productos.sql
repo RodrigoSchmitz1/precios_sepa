@@ -1,3 +1,19 @@
+{{
+  config(
+    materialized="table",
+    partition_by={
+      "field": "fecha_datos",
+      "data_type": "date"
+    }
+  )
+}}
+
+-- Particionada por fecha_datos a proposito: sin particion, cualquier consulta
+-- que quiera un solo dia escanea las 57 millones de filas igual. La API de
+-- canasta personalizada hacia exactamente eso, una vez por categoria.
+-- No lleva descripcion ni marca: ningun modelo ni endpoint las consume desde
+-- aca (las promos las toman del crudo), y pesaban 2.19 GB.
+--
 -- Agrega cantidad_normalizada y unidad_normalizada a partir de las columnas
 -- estructuradas de presentacion (cantidad_presentacion + unidad_medida_presentacion).
 -- Se prefiere esto sobre parsear la descripcion (texto libre): el dato ya viene
@@ -10,8 +26,6 @@ WITH base AS (
         id_bandera,
         id_sucursal,
         id_producto,
-        productos_descripcion AS descripcion,
-        productos_marca AS marca,
         CAST(productos_precio_lista AS FLOAT64) AS precio,
         productos_cantidad_presentacion AS cantidad_presentacion_raw,
         productos_unidad_medida_presentacion AS unidad_presentacion_raw,
@@ -34,8 +48,6 @@ SELECT
     id_bandera,
     id_sucursal,
     id_producto,
-    descripcion,
-    marca,
     precio,
     fecha_datos,
     CASE

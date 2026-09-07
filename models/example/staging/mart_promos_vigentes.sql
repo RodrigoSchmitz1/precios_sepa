@@ -8,6 +8,8 @@
 -- nombre_comercial distinto; sin id_bandera, cada promo se multiplicaria una vez
 -- por cada bandera de la cadena.
 
+{% set fecha = ultima_fecha(source("sepa", "productos")) %}
+
 WITH base AS (
     SELECT
         p.id_producto,
@@ -23,7 +25,9 @@ WITH base AS (
         p.id_sucursal,
         p.fecha_datos
     FROM {{ source("sepa", "productos") }} AS p
-    WHERE p.fecha_datos = (SELECT MAX(fecha_datos) FROM {{ source("sepa", "productos") }})
+    -- Fecha literal, no subconsulta: con "= (SELECT MAX(...))" BigQuery no
+    -- poda particiones y escanea los 3 dias (3.9 GB en vez de 1.3 GB).
+    WHERE p.fecha_datos = DATE('{{ fecha }}')
       AND p.productos_precio_lista IS NOT NULL
 ),
 
