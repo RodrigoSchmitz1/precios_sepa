@@ -89,9 +89,13 @@ def descargar_zip(url, destino):
 def limpiar_carpetas_comercios():
     """
     Borra las carpetas sepaN/ de una corrida anterior.
-    Imprescindible para el backfill: si el ZIP de la fecha que estamos bajando
-    no trae algun comercio, la carpeta vieja quedaria en disco y cargar_datos.py
-    la subiria como si fuera de esta fecha, mezclando dias distintos.
+    Imprescindible para el backfill, por dos caminos distintos:
+      - si el ZIP de la fecha que bajamos no trae algun comercio, la carpeta
+        vieja de ese comercio quedaria en disco y cargar_datos.py la subiria
+        como si fuera de esta fecha;
+      - si el portal todavia no publico la fecha, main() sale temprano sin
+        bajar nada y TODAS las carpetas viejas quedarian en disco.
+    En los dos casos se terminan mezclando dias distintos.
     """
     for carpeta in glob.glob(os.path.join(CARPETA_DESTINO, "sepa*")):
         if os.path.isdir(carpeta):
@@ -156,6 +160,13 @@ def main():
         shutil.rmtree(CARPETA_TEMP)
     os.makedirs(CARPETA_TEMP)
 
+    # Se limpia ANTES de consultar la API, no despues de descargar: si el portal
+    # todavia no publico esta fecha se sale sin bajar nada, y las carpetas de la
+    # corrida anterior sobrevivirian. ingesta_backfill.py las leeria como "hay
+    # datos descargados" y cargar_datos.py las subiria con la fecha de hoy.
+    # Paso exactamente eso el 2026-09-08: se cargo el 09-07 duplicado.
+    limpiar_carpetas_comercios()
+
     url = obtener_recurso(nombre_dia, fecha_esperada)
     if not url:
         print("\nNo hay datos válidos para descargar. Saliendo sin error.")
@@ -167,7 +178,6 @@ def main():
     descargar_zip(url, zip_principal)
 
     print("Extrayendo comercios objetivo...")
-    limpiar_carpetas_comercios()
     extraidos = extraer_comercios_objetivo(zip_principal, CARPETA_TEMP)
 
     shutil.rmtree(CARPETA_TEMP)
