@@ -1,13 +1,18 @@
 import { useState, useEffect } from "react";
 import { obtenerQuienGana, obtenerCategoriasDisponibles } from "../api/client";
+import SelectorCategoria from "../components/SelectorCategoria";
+import { formatearNumero } from "../utils/formato";
 import type { QuienGana } from "../types";
+
+// Ver el comentario en CanastaPage: el estado de carga se deriva comparando la
+// categoria que produjo el resultado contra la que esta elegida ahora.
+type Estado = { categoria: string; filas?: QuienGana[]; error?: string };
 
 function QuienGanaPage() {
   const [categorias, setCategorias] = useState<string[]>([]);
   const [categoriaElegida, setCategoriaElegida] = useState("");
-  const [resultados, setResultados] = useState<QuienGana[]>([]);
-  const [cargando, setCargando] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [estado, setEstado] = useState<Estado | null>(null);
+  const [errorCategorias, setErrorCategorias] = useState<string | null>(null);
 
   useEffect(() => {
     obtenerCategoriasDisponibles()
@@ -15,73 +20,105 @@ function QuienGanaPage() {
         setCategorias(lista);
         if (lista.length > 0) setCategoriaElegida(lista[0]);
       })
-      .catch((err) => setError(err.message));
+      .catch((err) => setErrorCategorias(err.message));
   }, []);
 
   useEffect(() => {
     if (!categoriaElegida) return;
-    setCargando(true);
+    let cancelado = false;
+
     obtenerQuienGana(categoriaElegida)
-      .then((datos) => {
-        setResultados(datos);
-        setCargando(false);
+      .then((filas) => {
+        if (!cancelado) setEstado({ categoria: categoriaElegida, filas });
       })
       .catch((err) => {
-        setError(err.message);
-        setCargando(false);
+        if (!cancelado) setEstado({ categoria: categoriaElegida, error: err.message });
       });
+
+    return () => {
+      cancelado = true;
+    };
   }, [categoriaElegida]);
 
-  const maximoVictorias = Math.max(...resultados.map((r) => r.pct_victorias), 1);
+  const vigente = estado?.categoria === categoriaElegida ? estado : null;
+  const filas = vigente?.filas ?? [];
+
+  // Las barras se escalan contra la cadena que mas gana, no contra 100: los
+  // porcentajes rara vez pasan del 30% y contra 100 quedarian todas aplastadas.
+  const maximo = Math.max(...filas.map((r) => r.pct_victorias), 1);
 
   return (
     <div className="max-w-3xl mx-auto">
-      <h1 className="text-3xl font-bold text-gray-900 mb-2">Supermercado mas barato</h1>
-      <p className="text-sm text-gray-500 mb-6">
-        Comparacion honesta: solo productos identicos (mismo codigo de barras)
-        presentes en 2 o mas cadenas. Evita el sesgo de marca propia.
-      </p>
+      <header className="mb-6">
+        <h1 className="font-display text-4xl text-tinta mb-2">Supermercado mas barato</h1>
+        <p className="text-tinta-media leading-relaxed">
+          Comparacion honesta: solo productos identicos, con el mismo codigo de barras,
+          presentes en dos o mas cadenas. Asi la marca propia de cada cadena no le
+          regala victorias.
+        </p>
+      </header>
 
-      <select
-        value={categoriaElegida}
-        onChange={(e) => setCategoriaElegida(e.target.value)}
-        className="border border-gray-300 rounded-md px-3 py-2 text-sm mb-6 focus:outline-none focus:ring-2 focus:ring-green-500"
-      >
-        {categorias.map((cat) => (
-          <option key={cat} value={cat}>
-            {cat}
-          </option>
-        ))}
-      </select>
+      <div className="mb-6">
+        <SelectorCategoria
+          categorias={categorias}
+          elegida={categoriaElegida}
+          onElegir={setCategoriaElegida}
+        />
+      </div>
 
-      {cargando && <p className="text-gray-500">Cargando...</p>}
-      {error && <p className="text-red-500">Error: {error}</p>}
-
-      {!cargando && !error && resultados.length > 0 && (
-        <p className="text-xs text-gray-400 mb-4">
-          Base: {resultados[0].total_productos_categoria} productos comparables en esta categoria
+      {errorCategorias && (
+        <p className="text-sm text-alerta bg-alerta-tenue border border-alerta/20 rounded-lg px-3 py-2">
+          No se pudieron cargar las categorias: {errorCategorias}
         </p>
       )}
 
-      <div className="space-y-3">
-        {resultados.map((r) => (
-          <div key={r.cadena}>
-            <div className="flex justify-between text-sm mb-1">
-              <span className="text-gray-700">{r.cadena}</span>
-              <span className="text-gray-500">
-                {r.productos_ganados} de {r.total_productos_categoria} productos ·{" "}
-                <span className="font-semibold text-gray-900">{r.pct_victorias}%</span>
-              </span>
-            </div>
-            <div className="w-full bg-gray-100 rounded-full h-3">
-              <div
-                className="bg-green-600 h-3 rounded-full"
-                style={{ width: `${(r.pct_victorias / maximoVictorias) * 100}%` }}
-              ></div>
-            </div>
+      {!errorCategorias && vigente === null && (
+        <p className="text-sm text-tinta-suave">Cargando…</p>
+      )}
+
+      {vigente?.error && (
+        <p className="text-sm text-alerta bg-alerta-tenue border border-alerta/20 rounded-lg px-3 py-2">
+          No se pudo cargar: {vigente.error}
+        </p>
+      )}
+
+      {filas.length > 0 && (
+        <>
+          <p className="text-xs text-tinta-suave mb-5">
+            Base: {formatearNumero(filas[0].total_productos_categoria)} productos comparables
+            en {categoriaElegida.toLowerCase()}
+          </p>
+
+          <div className="space-y-3.5">
+            {filas.map((r, i) => (
+              <div key={r.cadena}>
+                <div className="flex justify-between items-baseline gap-3 text-sm mb-1.5">
+                  <span className={i === 0 ? "font-semibold text-tinta" : "text-tinta-media"}>
+                    {r.cadena}
+                  </span>
+                  <span className="text-xs text-tinta-suave shrink-0">
+                    <span className="numero">{formatearNumero(r.productos_ganados)}</span> de{" "}
+                    <span className="numero">{formatearNumero(r.total_productos_categoria)}</span>
+                    {" · "}
+                    <span className="numero font-semibold text-tinta">{r.pct_victorias}%</span>
+                  </span>
+                </div>
+                <div className="w-full bg-papel-hundido rounded-full h-2.5 overflow-hidden">
+                  <div
+                    className={["h-full rounded-full", i === 0 ? "bg-ahorro" : "bg-ahorro/50"].join(" ")}
+                    style={{ width: `${(r.pct_victorias / maximo) * 100}%` }}
+                  />
+                </div>
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
+
+          <p className="text-xs text-tinta-suave mt-5">
+            Las barras estan a escala de la cadena que mas gana, no sobre 100%. Un producto
+            puede empatar en varias cadenas, asi que los porcentajes no suman 100.
+          </p>
+        </>
+      )}
     </div>
   );
 }
