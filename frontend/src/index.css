@@ -1,6 +1,69 @@
 @import "tailwindcss";
 
+/*
+  Sistema visual de precios_sepa.
+  Tailwind v4 se configura desde CSS: todo lo que se define en @theme genera
+  utilidades (--color-tinta -> bg-tinta, text-tinta, border-tinta).
+
+  Criterio: esto es un producto de datos sobre precios e inflacion, no una
+  landing de startup. La referencia es el periodismo de datos (FT, Bloomberg):
+  fondo calido en vez de gris azulado, una serif para los titulos y los numeros
+  grandes, y un solo verde con significado (ahorro / precio bueno). El rojo se
+  reserva para lo caro y los errores, asi que nunca se usa de adorno.
+*/
+
+@theme {
+  /* Superficies: papel calido, no gris azulado */
+  --color-lienzo: #faf9f7;
+  --color-papel: #ffffff;
+  --color-papel-hundido: #f4f2ee;
+
+  /* Tinta: negro calido, nunca #000 */
+  --color-tinta: #1a1815;
+  --color-tinta-media: #57514a;
+  --color-tinta-suave: #8a827a;
+
+  /* Bordes */
+  --color-linea: #e8e4de;
+  --color-linea-fuerte: #d6d0c7;
+
+  /* Verde = ahorro, precio conveniente, accion principal */
+  --color-ahorro: #0f6b4f;
+  --color-ahorro-hover: #0b5540;
+  --color-ahorro-tenue: #e7f1ec;
+  --color-ahorro-borde: #b9d8cb;
+
+  /* Terracota = caro, alerta, error. Nunca decorativo. */
+  --color-alerta: #b4462f;
+  --color-alerta-tenue: #fbeeea;
+
+  /* Ambar = advertencia suave (datos incompletos) */
+  --color-aviso: #8a6212;
+  --color-aviso-tenue: #fbf3e2;
+
+  --font-display: "Instrument Serif", Georgia, serif;
+  --font-sans: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
+}
+
 body {
   margin: 0;
-  font-family: system-ui, "Segoe UI", Roboto, sans-serif;
+  background-color: var(--color-lienzo);
+  color: var(--color-tinta);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+/*
+  Los importes tienen que alinearse en columna: sin tabular-nums los digitos
+  tienen ancho distinto y las listas de precios quedan temblorosas.
+*/
+.numero {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum";
+}
+
+/* Foco visible y consistente, sin el anillo azul por defecto del navegador */
+:where(button, input, textarea, select, a):focus-visible {
+  outline: 2px solid var(--color-ahorro);
+  outline-offset: 2px;
 }

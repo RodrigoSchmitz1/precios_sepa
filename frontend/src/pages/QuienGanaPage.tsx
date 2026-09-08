@@ -69,7 +69,7 @@ function QuienGanaPage() {
             <div className="flex justify-between text-sm mb-1">
               <span className="text-gray-700">{r.cadena}</span>
               <span className="text-gray-500">
-                {r.productos_ganados} de {r.total_productos_categoria} productos ·{" "}
+                {r.productos_ganados} de {r.total_productos_categoria} productos Â·{" "}
                 <span className="font-semibold text-gray-900">{r.pct_victorias}%</span>
               </span>
             </div>
