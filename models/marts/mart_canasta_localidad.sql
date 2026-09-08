@@ -23,6 +23,25 @@
 -- Devuelve UNA FILA POR LOCALIDAD Y FECHA: antes calculaba solo la fecha
 -- maxima del crudo; ahora calcula cada fecha disponible por separado, para
 -- que el historico pueda recuperar un dia perdido (backfill).
+--
+-- SOLO LOCALIDADES CON LA CANASTA COMPLETA (corregido 2026-09-08).
+-- Antes se sumaban las categorias que cada localidad tuviera y se comparaban
+-- esos totales entre si, lo cual no mide lo que dice medir: una localidad con
+-- 20 de 32 categorias parece barata simplemente porque le faltan 12. Medido
+-- sobre los datos del dia: mediana de $177.419 con 20 categorias contra
+-- $388.726 con 30, o sea que el "ranking de canasta mas barata" era en realidad
+-- un ranking de cuantas categorias le faltaban a cada localidad.
+--
+-- La composicion tiene que ser FIJA, no derivada de los datos de cada dia: este
+-- modelo alimenta un historico permanente, y si la canasta cambia de dia a dia
+-- la serie mezcla variaciones de precio con variaciones de composicion. Por eso
+-- el conjunto sale de la seed y el HAVING exige tenerlo entero.
+--
+-- Cuesta cobertura: 31 localidades en vez de 127. Se evaluo achicar la canasta
+-- para ganar alcance y no sirve: la unica categoria que ata es Huevos (38
+-- localidades). Sacarla da 51, y sacar cualquier otra da +0. Un "nucleo de 8
+-- basicos" da las mismas 31, porque incluye huevos. No hay termino medio que
+-- compre cobertura sin romper el significado de la canasta.
 
 WITH productos_canasta AS (
     SELECT
@@ -121,13 +140,24 @@ costo_por_categoria AS (
         pmc.muestras
     FROM precio_mediano_categoria_localidad AS pmc
     JOIN {{ ref("composicion_canasta") }} AS comp ON pmc.categoria = comp.categoria
+),
+
+tamano_canasta AS (
+    -- Una fila por categoria en la seed, asi que contarlas da el tamano de la
+    -- canasta de referencia. Sale de la seed y no de un numero escrito aca para
+    -- que cambiar la composicion no requiera acordarse de tocar dos lugares.
+    SELECT COUNT(*) AS categorias FROM {{ ref("composicion_canasta") }}
 )
 
 SELECT
     localidad,
     provincia,
     fecha_datos,
-    COUNT(DISTINCT categoria) AS categorias_disponibles,
+    COUNT(DISTINCT categoria) AS categorias_en_canasta,
     ROUND(SUM(costo_categoria), 2) AS costo_canasta_total
 FROM costo_por_categoria
 GROUP BY localidad, provincia, fecha_datos
+-- Solo localidades donde se puede medir la canasta ENTERA. Ver el encabezado:
+-- sumar las categorias que cada localidad tenga hace que el total no sea
+-- comparable entre localidades.
+HAVING COUNT(DISTINCT categoria) = (SELECT categorias FROM tamano_canasta)

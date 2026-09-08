@@ -14,18 +14,22 @@
 -- IMPORTANTE: nunca correr con --full-refresh sobre este modelo -- los datos
 -- crudos solo tienen unos pocos dias de ventana, asi que un full-refresh
 -- reconstruiria la tabla desde cero y borraria TODA la historia acumulada.
--- Solo incluye localidades con categorias_disponibles >= 20 (mismo umbral
--- de confiabilidad que aplica la API en /canasta), para no guardar fotos
--- de localidades con cobertura pobre.
+-- Ya no hace falta filtrar por cobertura: desde el 2026-09-08 el mart emite
+-- unicamente localidades con la canasta COMPLETA, que son las unicas cuyo costo
+-- se puede comparar contra otra localidad o contra si misma en otra fecha.
+--
+-- ATENCION: las filas anteriores al 2026-09-08 se calcularon con la metodologia
+-- vieja (se sumaban las categorias que cada localidad tuviera, entre 20 y 30 de
+-- 32) y NO son comparables con las nuevas. Una localidad podia figurar barata
+-- solo porque le faltaban categorias.
 
 SELECT
     localidad,
     provincia,
-    categorias_disponibles,
+    categorias_en_canasta,
     costo_canasta_total,
     fecha_datos
 FROM {{ ref("mart_canasta_localidad") }}
-WHERE categorias_disponibles >= 20
 
 -- Sin filtro incremental a proposito. Con insert_overwrite, dbt reemplaza
 -- exactamente las particiones presentes en el resultado (las fechas que haya

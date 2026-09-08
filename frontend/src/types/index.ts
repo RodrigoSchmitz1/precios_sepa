@@ -43,7 +43,7 @@ export type QuienGana = {
 export type Canasta = {
   localidad: string;
   provincia: string;
-  categorias_disponibles: number;
+  categorias_en_canasta: number;
   costo_canasta_total: number;
 };
 

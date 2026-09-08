@@ -71,6 +71,16 @@ jobs:
         working-directory: .
         run: dbt deps
 
+      # Las seeds se cargan en cada corrida. Antes se hacia a mano y era una
+      # trampa silenciosa: una correccion en composicion_canasta.csv o en
+      # mapeo_cadenas.csv quedaba commiteada en el repo pero nunca llegaba a
+      # BigQuery, asi que los modelos seguian usando la version vieja. Son dos
+      # CSV chicos, cargarlos todos los dias no cuesta nada y hace que el
+      # warehouse siempre refleje lo que dice el repo.
+      - name: Cargar seeds
+        working-directory: .
+        run: dbt seed
+
       # NUNCA agregar --full-refresh: reconstruiria los historicos desde cero y
       # borraria toda la historia acumulada, que no se puede recuperar porque el
       # crudo retiene solo 3 dias.

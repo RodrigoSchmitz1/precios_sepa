@@ -56,12 +56,25 @@ models:
           combination_of_columns: [fecha_datos, localidad, provincia]
       - dbt_utils.expression_is_true:
           expression: "costo_canasta_total > 0"
+      # Toda fila tiene que tener la canasta ENTERA. Es lo que hace que dos
+      # localidades sean comparables entre si: antes se sumaban las categorias
+      # que cada una tuviera y las que tenian menos parecian mas baratas.
+      # Si alguien afloja el HAVING del mart, esto rompe la corrida.
+      - dbt_utils.expression_is_true:
+          expression: >
+            categorias_en_canasta = (SELECT COUNT(*) FROM {{ ref("composicion_canasta") }})
     columns:
       - name: localidad
         description: >
           Para CABA es el barrio real, resuelto por point-in-polygon contra la
           geometria oficial (ver stg_sucursales_barrio), no la localidad
           generica que reportan las cadenas.
+        tests: [not_null]
+      - name: categorias_en_canasta
+        description: >
+          Constante por construccion: es el tamano de la canasta de referencia.
+          Se deja en el modelo para que el numero sea auditable desde la API y
+          la UI sin tener que abrir la seed.
         tests: [not_null]
       - name: fecha_datos
         tests: [not_null]

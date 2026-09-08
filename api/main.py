@@ -210,8 +210,10 @@ def obtener_canasta(
     provincia: Optional[str] = Query(None, description="Filtrar por provincia (ej: AR-B)"),
     limite: int = Query(500, le=2000, description="Cantidad maxima de resultados"),
 ):
+    # Ya no se filtra por cobertura: desde el 2026-09-08 el mart emite solo
+    # localidades con la canasta completa, que son las unicas comparables entre si.
     tabla = f"{PROYECTO}.dbt_precios.mart_canasta_localidad"
-    condiciones = ["categorias_disponibles >= 20", solo_ultima_fecha(tabla)]
+    condiciones = [solo_ultima_fecha(tabla)]
     parametros = []
 
     if busqueda:
@@ -224,7 +226,7 @@ def obtener_canasta(
     where = f"WHERE {' AND '.join(condiciones)}"
 
     query = f"""
-        SELECT localidad, provincia, categorias_disponibles, costo_canasta_total
+        SELECT localidad, provincia, categorias_en_canasta, costo_canasta_total
         FROM `{tabla}`
         {where}
         ORDER BY costo_canasta_total ASC
@@ -323,8 +325,13 @@ def obtener_localidades_disponibles(
     busqueda: Optional[str] = Query(None, description="Buscar localidad por texto"),
     limite: int = Query(50, le=200, description="Cantidad maxima de resultados"),
 ):
-    tabla = f"{PROYECTO}.dbt_precios.mart_canasta_localidad"
-    condiciones = ["categorias_disponibles >= 15", solo_ultima_fecha(tabla)]
+    # Se consulta el mart de precios por categoria, que es contra el que
+    # realmente cotiza la canasta personalizada, y no el de canasta basica.
+    # Salian de ahi por inercia, y desde que ese mart emite solo localidades con
+    # la canasta INDEC completa habria dejado al usuario con 31 opciones cuando
+    # su canasta a medida se puede calcular en cientos de localidades.
+    tabla = f"{PROYECTO}.dbt_precios.mart_precio_categoria_localidad"
+    condiciones = [solo_ultima_fecha(tabla)]
     parametros = []
 
     if busqueda:
@@ -334,9 +341,11 @@ def obtener_localidades_disponibles(
     where = f"WHERE {' AND '.join(condiciones)}"
 
     query = f"""
-        SELECT DISTINCT localidad, provincia
+        SELECT localidad, provincia
         FROM `{tabla}`
         {where}
+        GROUP BY localidad, provincia
+        HAVING COUNT(DISTINCT categoria) >= 15
         ORDER BY localidad
         LIMIT @limite
     """

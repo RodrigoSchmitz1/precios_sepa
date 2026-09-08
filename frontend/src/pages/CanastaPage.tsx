@@ -70,6 +70,9 @@ function CanastaPage() {
 
   const lote = filas.slice(0, mostradas);
   const faltan = filas.length - lote.length;
+  // Constante por construccion: el mart solo emite localidades con la canasta
+  // entera. Se muestra para que el lector pueda auditar sobre que se compara.
+  const canasta = filas[0]?.categorias_en_canasta ?? 0;
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -77,8 +80,15 @@ function CanastaPage() {
         <h1 className="font-display text-4xl text-tinta mb-2">Canasta basica</h1>
         <p className="text-tinta-media leading-relaxed">
           Costo mensual de una canasta basica alimentaria por localidad, con metodologia
-          INDEC adaptada. Solo aparecen las localidades con datos suficientes para un
-          calculo confiable.
+          INDEC adaptada.{" "}
+          {canasta > 0 && (
+            <>
+              Se comparan unicamente las localidades donde se puede medir la canasta
+              <strong className="font-semibold text-tinta"> completa, las {canasta} categorias</strong>:
+              sumar solo las categorias que cada localidad tiene haria parecer mas baratas
+              a las que tienen menos datos.
+            </>
+          )}
         </p>
       </header>
 
@@ -106,7 +116,7 @@ function CanastaPage() {
             etiqueta="Localidades"
             tono="azul"
             valor={formatearNumero(filas.length)}
-            detalle="con datos suficientes para medir"
+            detalle="donde se puede medir la canasta completa"
           />
         </div>
       )}
@@ -162,7 +172,7 @@ function CanastaPage() {
                   <div className="min-w-0 w-48 shrink-0">
                     <p className="text-sm font-medium text-tinta truncate">{c.localidad}</p>
                     <p className="text-xs text-tinta-suave truncate">
-                      {nombreProvincia(c.provincia)} · {c.categorias_disponibles} cat.
+                      {nombreProvincia(c.provincia)}
                     </p>
                   </div>
 
