@@ -20,6 +20,24 @@ cliente_bq = bigquery.Client.from_service_account_json("credenciales.json")
 PROYECTO = "proyecto-precios-504221"
 
 
+def solo_ultima_fecha(tabla: str) -> str:
+    """Condicion para acotar un mart al ultimo dia que tenga cargado.
+
+    Desde el arreglo de grano del 2026-09-06 los marts devuelven UNA FILA POR
+    FECHA (antes solo calculaban la fecha maxima del crudo, y por eso un dia
+    perdido se volvia irrecuperable). Esta API no se actualizo junto con ese
+    cambio y quedo consultandolos sin filtrar, asi que devolvia una fila por
+    cada fecha disponible: /canasta listaba la misma localidad varias veces con
+    precios distintos, y como ordena por costo ascendente terminaba rankeando
+    combinaciones de localidad-y-dia en vez de localidades.
+
+    Cualquier consulta a un mart que tenga fecha_datos en el grano tiene que
+    pasar por aca. Los historicos son la excepcion: ahi las fechas multiples son
+    justamente el punto.
+    """
+    return f"fecha_datos = (SELECT MAX(fecha_datos) FROM `{tabla}`)"
+
+
 @app.get("/health")
 def health():
     return {"status": "ok"}
@@ -151,18 +169,19 @@ def obtener_gama(
 def obtener_quien_gana(
     categoria: Optional[str] = Query(None, description="Filtrar por categoria exacta"),
 ):
-    condiciones = []
+    tabla = f"{PROYECTO}.dbt_precios.mart_quien_gana"
+    condiciones = [solo_ultima_fecha(tabla)]
     parametros = []
 
     if categoria:
         condiciones.append("categoria = @categoria")
         parametros.append(bigquery.ScalarQueryParameter("categoria", "STRING", categoria))
 
-    where = f"WHERE {' AND '.join(condiciones)}" if condiciones else ""
+    where = f"WHERE {' AND '.join(condiciones)}"
 
     query = f"""
         SELECT categoria, rubro, cadena, productos_ganados, total_productos_categoria, pct_victorias
-        FROM `{PROYECTO}.dbt_precios.mart_quien_gana`
+        FROM `{tabla}`
         {where}
         ORDER BY categoria, pct_victorias DESC
     """
@@ -174,9 +193,11 @@ def obtener_quien_gana(
 
 @app.get("/quien-gana/categorias")
 def obtener_categorias_disponibles():
+    tabla = f"{PROYECTO}.dbt_precios.mart_quien_gana"
     query = f"""
         SELECT DISTINCT categoria
-        FROM `{PROYECTO}.dbt_precios.mart_quien_gana`
+        FROM `{tabla}`
+        WHERE {solo_ultima_fecha(tabla)}
         ORDER BY categoria
     """
     resultados = cliente_bq.query(query).result()
@@ -189,7 +210,8 @@ def obtener_canasta(
     provincia: Optional[str] = Query(None, description="Filtrar por provincia (ej: AR-B)"),
     limite: int = Query(500, le=2000, description="Cantidad maxima de resultados"),
 ):
-    condiciones = ["categorias_disponibles >= 20"]
+    tabla = f"{PROYECTO}.dbt_precios.mart_canasta_localidad"
+    condiciones = ["categorias_disponibles >= 20", solo_ultima_fecha(tabla)]
     parametros = []
 
     if busqueda:
@@ -203,7 +225,7 @@ def obtener_canasta(
 
     query = f"""
         SELECT localidad, provincia, categorias_disponibles, costo_canasta_total
-        FROM `{PROYECTO}.dbt_precios.mart_canasta_localidad`
+        FROM `{tabla}`
         {where}
         ORDER BY costo_canasta_total ASC
         LIMIT @limite
@@ -301,7 +323,8 @@ def obtener_localidades_disponibles(
     busqueda: Optional[str] = Query(None, description="Buscar localidad por texto"),
     limite: int = Query(50, le=200, description="Cantidad maxima de resultados"),
 ):
-    condiciones = ["categorias_disponibles >= 15"]
+    tabla = f"{PROYECTO}.dbt_precios.mart_canasta_localidad"
+    condiciones = ["categorias_disponibles >= 15", solo_ultima_fecha(tabla)]
     parametros = []
 
     if busqueda:
@@ -312,7 +335,7 @@ def obtener_localidades_disponibles(
 
     query = f"""
         SELECT DISTINCT localidad, provincia
-        FROM `{PROYECTO}.dbt_precios.mart_canasta_localidad`
+        FROM `{tabla}`
         {where}
         ORDER BY localidad
         LIMIT @limite
