@@ -6,6 +6,7 @@ import {
 } from "../api/client";
 import type { ItemCanastaIA, ResultadoCanastaPersonalizada, LocalidadOpcion } from "../types";
 import { nombreProvincia } from "../utils/provincias";
+import { formatearPesos } from "../utils/formato";
 import ItemCanastaEditable from "../components/ItemCanastaEditable";
 import {
   canastaAUrl,
@@ -22,14 +23,6 @@ const EJEMPLOS = [
   "Vivo solo, cocino poco, compro mucha fruta y verdura, no tomo gaseosa",
   "Pareja vegetariana, cocinamos todo en casa, priorizamos calidad sobre precio",
 ];
-
-function formatearPesos(valor: number): string {
-  return new Intl.NumberFormat("es-AR", {
-    style: "currency",
-    currency: "ARS",
-    maximumFractionDigits: 0,
-  }).format(valor);
-}
 
 /*
   Identifica el estado exacto que produjo un resultado. Si el usuario edita una
