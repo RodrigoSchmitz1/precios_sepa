@@ -85,6 +85,9 @@ FROM con_descuento AS d
 LEFT JOIN {{ ref("stg_categorias") }} AS cat ON d.id_producto = cat.id_producto
 LEFT JOIN {{ ref("stg_sucursales") }} AS s ON d.id_comercio = s.id_comercio AND d.id_sucursal = s.id_sucursal
 LEFT JOIN {{ ref("stg_comercio") }} AS c ON d.id_comercio = c.id_comercio AND d.id_bandera = c.id_bandera
-WHERE d.descuento_pct >= 10
+-- El techo descarta las promos inverosimiles: SEPA mezcla en esta columna
+-- importes de cuota de financiacion (ver descuento_maximo_plausible en
+-- dbt_project.yml, que documenta la evidencia).
+WHERE d.descuento_pct BETWEEN 10 AND {{ var("descuento_maximo_plausible") }}
   AND s.latitud IS NOT NULL
   AND s.longitud IS NOT NULL

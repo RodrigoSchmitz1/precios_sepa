@@ -34,6 +34,33 @@ clean-targets:         # directories to be removed by `dbt clean`
 # insert_overwrite + particion sin expiracion) en cada archivo, para que la
 # regla de "nunca --full-refresh" quede visible junto al SQL.
 
+# Techo de descuento para las promos.
+#
+# SEPA no usa productos_precio_unitario_promo1 de forma consistente. Para
+# alimentos se comporta como precio promocional, pero Carrefour lo usa en el
+# rubro No alimentario para poner el importe de la CUOTA de financiacion, no el
+# precio final. Se ve en los datos del 2026-09-07: los valores de promo son un
+# diccionario chico de numeros redondos reusados entre productos con precios de
+# lista muy distintos (1900 aparece en 32 productos que van de $18.990 a
+# $184.990), y para el producto mas barato de cada grupo el valor es exactamente
+# lista/10, que son las clasicas 10 cuotas sin interes ($18.990 -> $1.900,
+# $6.990 -> $700, $299.000 -> $29.900).
+#
+# Sin esto la portada mostraba colchones con "98.8% OFF" y un movil Fisher Price
+# de $184.990 a $1.900, que nadie va a encontrar en la gondola.
+#
+# La leyenda no permite distinguirlos: es generica ("Promo A valida desde el
+# ... hasta ..."). Tampoco se puede reconstruir el precio real, porque las
+# columnas de referencia del crudo (precio_referencia, cantidad_referencia,
+# unidad_medida_referencia) se descartaron al cargar el 2026-09-06.
+#
+# 70 sale de mirar la distribucion: por encima de ese valor el 96% de las filas
+# son Carrefour + No alimentario con esa huella. Cuesta ~2.500 filas sobre
+# 102.000 (2,5%), incluidas algunas rebajas reales que puedan existir. Se
+# prioriza que lo que se muestra sea creible.
+vars:
+  descuento_maximo_plausible: 70
+
 models:
   precios_sepa:
     staging:

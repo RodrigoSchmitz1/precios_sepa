@@ -105,6 +105,12 @@ models:
 
   - name: mart_promos_vigentes
     description: Promos activas agrupadas por cadena y provincia, para listados.
+    tests:
+      # El techo no es cosmetico: SEPA mezcla importes de cuota de financiacion
+      # en la columna de precio de promo, y sin el la portada mostraba colchones
+      # con "98.8% OFF". Si alguien afloja el filtro, esto tiene que fallar.
+      - dbt_utils.expression_is_true:
+          expression: "descuento_pct BETWEEN 10 AND {{ var('descuento_maximo_plausible') }}"
     columns:
       - name: descuento_pct
         tests: [not_null]
@@ -112,6 +118,9 @@ models:
   - name: mart_promos_por_sucursal
     description: >
       Las mismas promos a nivel sucursal, con lat/long, para el mapa.
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "descuento_pct BETWEEN 10 AND {{ var('descuento_maximo_plausible') }}"
     columns:
       - name: latitud
         tests: [not_null]
