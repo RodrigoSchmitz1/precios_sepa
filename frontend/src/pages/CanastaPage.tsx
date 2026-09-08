@@ -1,15 +1,18 @@
 import { useState, useEffect } from "react";
 import { obtenerCanasta } from "../api/client";
 import { nombreProvincia } from "../utils/provincias";
-import { formatearPesos } from "../utils/formato";
+import { formatearPesos, formatearNumero } from "../utils/formato";
+import TileKPI from "../components/TileKPI";
 import type { Canasta } from "../types";
+
+const TANDA = 50;
 
 /*
   Se guarda junto al resultado la busqueda que lo produjo. Con eso el estado de
   "cargando" se DERIVA (lo cargado no corresponde a lo que se esta pidiendo) en
-  vez de setearse dentro del efecto, lo cual evita el render encadenado que
-  marca react-hooks/set-state-in-effect y, sobre todo, impide mostrar los
-  resultados de una busqueda anterior como si fueran de la actual.
+  vez de setearse dentro del efecto, lo que evita el render encadenado que marca
+  react-hooks/set-state-in-effect y, sobre todo, impide mostrar los resultados
+  de una busqueda anterior como si fueran de la actual.
 */
 type Estado = { busqueda: string; filas?: Canasta[]; error?: string };
 
@@ -21,7 +24,7 @@ function CanastaPage() {
     let cancelado = false;
 
     const timeoutId = setTimeout(() => {
-      obtenerCanasta({ busqueda, limite: 50 })
+      obtenerCanasta({ busqueda, limite: 500 })
         .then((filas) => {
           if (!cancelado) setEstado({ busqueda, filas });
         })
@@ -37,11 +40,39 @@ function CanastaPage() {
   }, [busqueda]);
 
   const vigente = estado?.busqueda === busqueda ? estado : null;
-  const filas = vigente?.filas ?? [];
-  const masBarata = filas[0]?.costo_canasta_total;
+
+  /*
+    Se compara contra estado.filas, que es la referencia guardada en el estado y
+    por lo tanto estable entre renders. Comparar contra "filas" (con el ?? [])
+    generaba un array nuevo en cada render, la condicion daba siempre verdadera
+    y el componente entraba en un bucle infinito de renders.
+  */
+  const filasCrudas = vigente?.filas;
+  const [mostradas, setMostradas] = useState(TANDA);
+  const [filasPrevias, setFilasPrevias] = useState(filasCrudas);
+  if (filasPrevias !== filasCrudas) {
+    setFilasPrevias(filasCrudas);
+    setMostradas(TANDA);
+  }
+
+  const filas = filasCrudas ?? [];
+
+  // La API devuelve ordenado por costo ascendente, asi que la primera y la
+  // ultima son los extremos del conjunto que se esta mirando.
+  const masBarata = filas[0];
+  const masCara = filas[filas.length - 1];
+  const brecha =
+    masBarata && masCara && masBarata.costo_canasta_total > 0
+      ? ((masCara.costo_canasta_total - masBarata.costo_canasta_total) /
+          masBarata.costo_canasta_total) *
+        100
+      : 0;
+
+  const lote = filas.slice(0, mostradas);
+  const faltan = filas.length - lote.length;
 
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-4xl mx-auto">
       <header className="mb-6">
         <h1 className="font-display text-4xl text-tinta mb-2">Canasta basica</h1>
         <p className="text-tinta-media leading-relaxed">
@@ -51,13 +82,42 @@ function CanastaPage() {
         </p>
       </header>
 
+      {filas.length > 0 && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-7">
+          <TileKPI
+            etiqueta="Mas barata"
+            tono="verde"
+            valor={formatearPesos(masBarata.costo_canasta_total)}
+            detalle={`${masBarata.localidad}, ${nombreProvincia(masBarata.provincia)}`}
+          />
+          <TileKPI
+            etiqueta="Mas cara"
+            tono="ocre"
+            valor={formatearPesos(masCara.costo_canasta_total)}
+            detalle={`${masCara.localidad}, ${nombreProvincia(masCara.provincia)}`}
+          />
+          <TileKPI
+            etiqueta="Brecha"
+            tono="ciruela"
+            valor={`${brecha.toFixed(0)}%`}
+            detalle="mas cara la ultima que la primera"
+          />
+          <TileKPI
+            etiqueta="Localidades"
+            tono="azul"
+            valor={formatearNumero(filas.length)}
+            detalle="con datos suficientes para medir"
+          />
+        </div>
+      )}
+
       <input
         type="search"
         placeholder="Buscar localidad (ej: Tandil, Olavarria)"
         value={busqueda}
         onChange={(e) => setBusqueda(e.target.value)}
         aria-label="Buscar localidad"
-        className="w-full bg-papel border border-linea rounded-xl px-4 py-2.5 text-sm mb-6 focus:outline-none focus:border-ahorro"
+        className="w-full bg-papel border border-linea rounded-xl px-4 py-2.5 text-sm mb-5 focus:outline-none focus:border-ahorro"
       />
 
       {vigente === null && <p className="text-sm text-tinta-suave">Cargando…</p>}
@@ -72,41 +132,75 @@ function CanastaPage() {
         <p className="text-sm text-tinta-suave">No se encontraron localidades con ese nombre.</p>
       )}
 
-      <div className="grid gap-2">
-        {filas.map((c, i) => (
-          <div
-            key={`${c.localidad}-${c.provincia}`}
-            className="bg-papel rounded-xl border border-linea p-4 flex items-center justify-between gap-4"
-          >
-            <div className="flex items-center gap-3.5 min-w-0">
-              <span className="numero text-sm text-tinta-suave w-6 shrink-0 text-right">{i + 1}</span>
-              <div className="min-w-0">
-                <p className="font-semibold text-tinta truncate">{c.localidad}</p>
-                <p className="text-xs text-tinta-suave">
-                  {nombreProvincia(c.provincia)} · {c.categorias_disponibles} categorias
-                </p>
-              </div>
-            </div>
-
-            <div className="text-right shrink-0">
-              <p className="numero text-lg font-bold text-tinta">
-                {formatearPesos(c.costo_canasta_total)}
-              </p>
-              {/*
-                La diferencia contra la mas barata es el dato que hace util al
-                ranking: solo con el importe no se sabe si estar 20 puestos mas
-                abajo cuesta mil pesos o cuarenta mil.
-              */}
-              {masBarata !== undefined && i > 0 && (
-                <p className="numero text-xs text-alerta">
-                  +{formatearPesos(c.costo_canasta_total - masBarata)}
-                </p>
-              )}
-              {i === 0 && <p className="text-xs text-ahorro font-medium">la mas barata</p>}
-            </div>
+      {filas.length > 0 && (
+        <div className="bg-papel border border-linea rounded-2xl overflow-hidden">
+          <div className="flex items-baseline justify-between gap-3 px-4 py-3 border-b border-linea">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave">
+              Ranking por costo
+            </h2>
+            <span className="text-xs text-tinta-suave">de menor a mayor</span>
           </div>
-        ))}
-      </div>
+
+          <ul>
+            {lote.map((c, i) => {
+              // Barra proporcional al costo, con el minimo del conjunto como
+              // origen: partir de cero aplastaria todas las diferencias, porque
+              // entre la mas barata y la mas cara hay menos de un factor dos.
+              const rango = masCara.costo_canasta_total - masBarata.costo_canasta_total;
+              const proporcion =
+                rango > 0 ? (c.costo_canasta_total - masBarata.costo_canasta_total) / rango : 0;
+
+              return (
+                <li
+                  key={`${c.localidad}-${c.provincia}`}
+                  className="flex items-center gap-4 px-4 py-2.5 border-b border-linea last:border-0 hover:bg-papel-hundido transition-colors"
+                >
+                  <span className="numero text-xs text-tinta-suave w-8 shrink-0 text-right">
+                    {i + 1}
+                  </span>
+
+                  <div className="min-w-0 w-48 shrink-0">
+                    <p className="text-sm font-medium text-tinta truncate">{c.localidad}</p>
+                    <p className="text-xs text-tinta-suave truncate">
+                      {nombreProvincia(c.provincia)} · {c.categorias_disponibles} cat.
+                    </p>
+                  </div>
+
+                  {/* Marca fina, con la punta redondeada y anclada a la linea base */}
+                  <div className="flex-1 hidden sm:block">
+                    <div
+                      className="h-2 rounded-r bg-escala-3"
+                      style={{ width: `${8 + proporcion * 92}%` }}
+                      role="presentation"
+                    />
+                  </div>
+
+                  <div className="text-right shrink-0 w-28">
+                    <p className="numero text-sm font-semibold text-tinta">
+                      {formatearPesos(c.costo_canasta_total)}
+                    </p>
+                    {i > 0 && (
+                      <p className="numero text-xs text-tinta-suave">
+                        +{formatearPesos(c.costo_canasta_total - masBarata.costo_canasta_total)}
+                      </p>
+                    )}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+
+          {faltan > 0 && (
+            <button
+              onClick={() => setMostradas(mostradas + TANDA)}
+              className="w-full px-4 py-3 text-sm font-medium text-tinta-media hover:bg-papel-hundido border-t border-linea transition-colors"
+            >
+              Ver {Math.min(TANDA, faltan)} localidades mas
+              <span className="numero text-tinta-suave"> ({formatearNumero(faltan)} restantes)</span>
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -403,7 +403,9 @@ function CanastaPersonalizadaPage() {
           )}
 
           <p className="text-xs uppercase tracking-wider text-tinta-suave mb-1">Costo mensual</p>
-          <p className="numero font-display text-5xl text-ahorro mb-1">
+          {/* Sin tabular-nums: las cifras de ancho fijo son para columnas que se
+              alinean, y a tamano display dejan el numero suelto. */}
+          <p className="font-display text-5xl text-ahorro mb-1">
             {formatearPesos(resultado.costo_total)}
           </p>
           <p className="text-xs text-tinta-suave mb-5">
@@ -412,21 +414,47 @@ function CanastaPersonalizadaPage() {
               ` · ${localidadesElegidas.map((l) => l.localidad).join(", ")}`}
           </p>
 
-          <div className="border-t border-linea pt-4 space-y-2">
-            {resultado.items.map((item) => (
-              <div key={item.categoria} className="flex justify-between items-baseline gap-4 text-sm">
-                <span className="text-tinta-media">
-                  {item.categoria}
-                  <span className="text-tinta-suave text-xs">
-                    {" "}
-                    {item.cantidad} {item.unidad} · {item.gama}
-                  </span>
-                </span>
-                <span className="numero text-tinta font-medium">
-                  {formatearPesos(item.costo_categoria)}
-                </span>
-              </div>
-            ))}
+          {/*
+            Desglose ordenado de mayor a menor con barra proporcional: la lista
+            suelta no dejaba ver en que se va la plata, que es la pregunta que
+            trae a alguien a armar una canasta.
+          */}
+          <div className="border-t border-linea pt-4 space-y-2.5">
+            {[...resultado.items]
+              .sort((a, b) => b.costo_categoria - a.costo_categoria)
+              .map((item) => {
+                const parte =
+                  resultado.costo_total > 0 ? item.costo_categoria / resultado.costo_total : 0;
+                return (
+                  <div key={item.categoria}>
+                    <div className="flex justify-between items-baseline gap-4 text-sm mb-1">
+                      <span className="text-tinta-media">
+                        {item.categoria}
+                        <span className="text-tinta-suave text-xs">
+                          {" "}
+                          {item.cantidad} {item.unidad} · {item.gama}
+                        </span>
+                      </span>
+                      <span className="shrink-0">
+                        <span className="numero text-tinta font-medium">
+                          {formatearPesos(item.costo_categoria)}
+                        </span>
+                        <span className="numero text-xs text-tinta-suave">
+                          {" "}
+                          {(parte * 100).toFixed(0)}%
+                        </span>
+                      </span>
+                    </div>
+                    <div className="h-1.5 bg-papel-hundido rounded-full">
+                      <div
+                        className="h-1.5 rounded-full bg-escala-3"
+                        style={{ width: `${parte * 100}%` }}
+                        role="presentation"
+                      />
+                    </div>
+                  </div>
+                );
+              })}
           </div>
 
           {sinCotizar.length > 0 && (

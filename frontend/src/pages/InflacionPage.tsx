@@ -1,12 +1,17 @@
 import { useState, useEffect } from "react";
 import { obtenerInflacion, obtenerCategoriasInflacion } from "../api/client";
 import SelectorCategoria from "../components/SelectorCategoria";
+import TileKPI from "../components/TileKPI";
 import { formatearPesos } from "../utils/formato";
 import type { Inflacion } from "../types";
 
 // Ver el comentario en CanastaPage: el estado de carga se deriva comparando la
 // categoria que produjo el resultado contra la que esta elegida ahora.
 type Estado = { categoria: string; filas?: Inflacion[]; error?: string };
+
+function conSigno(valor: number): string {
+  return `${valor > 0 ? "+" : ""}${valor}%`;
+}
 
 function InflacionPage() {
   const [categorias, setCategorias] = useState<string[]>([]);
@@ -44,8 +49,14 @@ function InflacionPage() {
   const filas = vigente?.filas ?? [];
   const maximo = Math.max(...filas.map((r) => Math.abs(r.variacion_pct)), 1);
 
+  const ordenadas = [...filas].sort((a, b) => b.variacion_pct - a.variacion_pct);
+  const laQueMasSubio = ordenadas[0];
+  const laQueMasBajo = ordenadas[ordenadas.length - 1];
+  const promedio =
+    filas.length > 0 ? filas.reduce((suma, r) => suma + r.variacion_pct, 0) / filas.length : 0;
+
   return (
-    <div className="max-w-3xl mx-auto">
+    <div className="max-w-4xl mx-auto">
       <header className="mb-5">
         <h1 className="font-display text-4xl text-tinta mb-2">Inflacion por categoria</h1>
         <p className="text-tinta-media leading-relaxed">
@@ -92,56 +103,99 @@ function InflacionPage() {
 
       {filas.length > 0 && (
         <>
-          <p className="numero text-xs text-tinta-suave mb-4">
-            Periodo: {filas[0].fecha_inicio} a {filas[0].fecha_fin}
-          </p>
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-7">
+            <TileKPI
+              etiqueta="Variacion promedio"
+              tono={promedio > 0 ? "ocre" : "verde"}
+              valor={conSigno(Number(promedio.toFixed(1)))}
+              detalle={`entre las ${filas.length} cadenas`}
+            />
+            <TileKPI
+              etiqueta="La que mas subio"
+              tono="ocre"
+              valor={laQueMasSubio.cadena}
+              detalle={conSigno(laQueMasSubio.variacion_pct)}
+            />
+            <TileKPI
+              etiqueta="La que mas bajo"
+              tono="verde"
+              valor={laQueMasBajo.cadena}
+              detalle={conSigno(laQueMasBajo.variacion_pct)}
+            />
+            <TileKPI
+              etiqueta="Periodo medido"
+              tono="azul"
+              valor={<span className="text-lg">{filas[0].fecha_inicio}</span>}
+              detalle={`hasta ${filas[0].fecha_fin}`}
+            />
+          </div>
 
-          <div className="grid gap-2">
-            {filas.map((r) => {
-              const subio = r.variacion_pct > 0;
-              const bajo = r.variacion_pct < 0;
-              return (
-                <div key={r.cadena} className="bg-papel rounded-xl border border-linea p-3.5">
-                  <div className="flex items-baseline justify-between gap-3 mb-2">
-                    <span className="text-sm font-medium text-tinta">{r.cadena}</span>
-                    <div className="flex items-baseline gap-2.5 shrink-0">
-                      {/*
-                        Los importes de inicio y fin le dan escala al porcentaje:
-                        un +8% no dice lo mismo sobre $900 que sobre $9.000.
-                      */}
-                      <span className="numero text-xs text-tinta-suave">
-                        {formatearPesos(r.precio_inicio)} → {formatearPesos(r.precio_fin)}
-                      </span>
-                      <span
+          <div className="bg-papel border border-linea rounded-2xl p-5">
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave mb-1">
+              Variacion por cadena
+            </h2>
+            <p className="text-xs text-tinta-suave mb-5">
+              Las que subieron van a la derecha; las que bajaron, a la izquierda.
+            </p>
+
+            <div className="space-y-3">
+              {filas.map((r) => {
+                const subio = r.variacion_pct > 0;
+                const bajo = r.variacion_pct < 0;
+                return (
+                  <div
+                    key={r.cadena}
+                    title={`${r.cadena}: ${formatearPesos(r.precio_inicio)} → ${formatearPesos(r.precio_fin)} (${conSigno(r.variacion_pct)})`}
+                  >
+                    <div className="flex items-baseline justify-between gap-3 mb-1.5">
+                      <span className="text-sm text-tinta-media">{r.cadena}</span>
+                      <div className="flex items-baseline gap-2.5 shrink-0">
+                        {/*
+                          Los importes de inicio y fin le dan escala al
+                          porcentaje: un +8% no dice lo mismo sobre $900 que
+                          sobre $9.000.
+                        */}
+                        <span className="numero text-xs text-tinta-suave">
+                          {formatearPesos(r.precio_inicio)} → {formatearPesos(r.precio_fin)}
+                        </span>
+                        <span
+                          className={[
+                            "numero text-sm font-semibold w-16 text-right",
+                            subio ? "text-alerta" : bajo ? "text-dato-verde" : "text-tinta-suave",
+                          ].join(" ")}
+                        >
+                          {conSigno(r.variacion_pct)}
+                        </span>
+                      </div>
+                    </div>
+
+                    {/*
+                      Barra divergente con gris neutro en el medio.
+
+                      El par verde/terracota queda en la banda 6-8 de separacion
+                      para daltonismo (medido: ΔE 7.5 en deutan), que el metodo
+                      permite SOLO con codificacion secundaria. La hay, y es
+                      doble: el lado respecto de la linea central y el signo
+                      explicito en el numero. Se eligio sostener la convencion
+                      del dominio (verde = mas barato) en vez de azul/rojo.
+                    */}
+                    <div className="relative h-2 bg-papel-hundido rounded-full">
+                      <div className="absolute inset-y-0 left-1/2 w-px bg-linea-fuerte" />
+                      <div
                         className={[
-                          "numero text-sm font-semibold",
-                          subio ? "text-alerta" : bajo ? "text-ahorro" : "text-tinta-suave",
+                          "absolute inset-y-0",
+                          subio
+                            ? "left-1/2 bg-alerta rounded-r-full"
+                            : "right-1/2 bg-dato-verde rounded-l-full",
                         ].join(" ")}
-                      >
-                        {subio ? "+" : ""}
-                        {r.variacion_pct}%
-                      </span>
+                        style={{ width: `${(Math.abs(r.variacion_pct) / maximo) * 50}%` }}
+                        role="presentation"
+                      />
                     </div>
                   </div>
-
-                  {/*
-                    Barra divergente desde el centro: las subas van a la derecha
-                    en rojo y las bajas a la izquierda en verde, para que se lea
-                    de un vistazo quien aumento y quien no.
-                  */}
-                  <div className="relative h-1.5 bg-papel-hundido rounded-full">
-                    <div className="absolute inset-y-0 left-1/2 w-px bg-linea-fuerte" />
-                    <div
-                      className={[
-                        "absolute inset-y-0 rounded-full",
-                        subio ? "left-1/2 bg-alerta" : "right-1/2 bg-ahorro",
-                      ].join(" ")}
-                      style={{ width: `${(Math.abs(r.variacion_pct) / maximo) * 50}%` }}
-                    />
-                  </div>
-                </div>
-              );
-            })}
+                );
+              })}
+            </div>
           </div>
         </>
       )}

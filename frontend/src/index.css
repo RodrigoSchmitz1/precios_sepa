@@ -2,44 +2,82 @@
 
 /*
   Sistema visual de precios_sepa.
-  Tailwind v4 se configura desde CSS: todo lo que se define en @theme genera
+  Tailwind v4 se configura desde CSS: lo que se define en @theme genera
   utilidades (--color-tinta -> bg-tinta, text-tinta, border-tinta).
 
-  Criterio: esto es un producto de datos sobre precios e inflacion, no una
-  landing de startup. La referencia es el periodismo de datos (FT, Bloomberg):
-  fondo calido en vez de gris azulado, una serif para los titulos y los numeros
-  grandes, y un solo verde con significado (ahorro / precio bueno). El rojo se
-  reserva para lo caro y los errores, asi que nunca se usa de adorno.
+  Criterio: producto de datos sobre precios e inflacion, no una landing. La
+  referencia es el periodismo de datos: fondo calido, una serif para titulos e
+  importes, y color que entra por los datos (tiles, barras, escalas) y no como
+  decoracion.
 */
 
 @theme {
-  /* Superficies: papel calido, no gris azulado */
+  /* --- Superficies: papel calido, no gris azulado --- */
   --color-lienzo: #faf9f7;
   --color-papel: #ffffff;
   --color-papel-hundido: #f4f2ee;
 
-  /* Tinta: negro calido, nunca #000 */
+  /* --- Tinta: negro calido, nunca #000 --- */
   --color-tinta: #1a1815;
   --color-tinta-media: #57514a;
   --color-tinta-suave: #8a827a;
 
-  /* Bordes */
+  /* --- Bordes --- */
   --color-linea: #e8e4de;
   --color-linea-fuerte: #d6d0c7;
 
-  /* Verde = ahorro, precio conveniente, accion principal */
-  --color-ahorro: #0f6b4f;
-  --color-ahorro-hover: #0b5540;
-  --color-ahorro-tenue: #e7f1ec;
-  --color-ahorro-borde: #b9d8cb;
+  /*
+    --- Acento: verde = ahorro, precio conveniente, accion principal ---
+    Mismo tono que --color-dato-verde pero un paso mas oscuro, para que el
+    texto blanco encima de los botones tenga contraste suficiente.
+  */
+  --color-ahorro: #0b6b4d;
+  --color-ahorro-hover: #085239;
+  --color-ahorro-tenue: #e7f5f0;
+  --color-ahorro-borde: #a9d9c6;
 
-  /* Terracota = caro, alerta, error. Nunca decorativo. */
-  --color-alerta: #b4462f;
-  --color-alerta-tenue: #fbeeea;
+  /* --- Terracota = caro, alerta, error. Nunca decorativo. --- */
+  --color-alerta: #c0392b;
+  --color-alerta-tenue: #fbeceb;
 
-  /* Ambar = advertencia suave (datos incompletos) */
+  /* --- Ambar = advertencia suave (datos incompletos) --- */
   --color-aviso: #8a6212;
   --color-aviso-tenue: #fbf3e2;
+
+  /*
+    --- Paleta de datos ---
+    Validada con el script del metodo de visualizacion contra la superficie
+    blanca de las tarjetas (categorica, pares adyacentes):
+      croma y banda de luminosidad OK, peor par CVD ΔE 8.7 (protan) sobre un
+      objetivo de 8, vision normal 20.9 sobre un piso de 15, contraste >= 3:1.
+
+    LIMITE MEDIDO: en modo all-pairs (marcas salteadas, tipo chips repartidos
+    por un feed) el par verde-ciruela cae a ΔE 4.9 y no pasa. Por eso estos
+    cuatro solo se usan en filas de tiles, que son adyacentes y ademas van
+    siempre rotulados. Los chips del feed de promos NO se colorean por
+    categoria: llevan el texto, que es identificacion mas robusta que el color.
+  */
+  --color-dato-verde: #0f8a63;
+  --color-dato-ocre: #c2601c;
+  --color-dato-azul: #3e6fd0;
+  --color-dato-ciruela: #a8437e;
+
+  --color-dato-verde-tenue: #e7f5f0;
+  --color-dato-ocre-tenue: #faefe4;
+  --color-dato-azul-tenue: #eaf0fc;
+  --color-dato-ciruela-tenue: #f8ebf3;
+
+  /*
+    --- Escala secuencial (magnitud: mas oscuro = mas) ---
+    Un solo tono, luminosidad monotona. Validada en modo ordinal: saltos de
+    luminosidad >= 0.06 y el paso mas claro a 2.09:1 contra el blanco, o sea que
+    no se confunde con la superficie.
+  */
+  --color-escala-1: #6bc4a2;
+  --color-escala-2: #3fae87;
+  --color-escala-3: #1a9670;
+  --color-escala-4: #0f8058;
+  --color-escala-5: #0a6146;
 
   --font-display: "Instrument Serif", Georgia, serif;
   --font-sans: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
@@ -54,8 +92,10 @@ body {
 }
 
 /*
-  Los importes tienen que alinearse en columna: sin tabular-nums los digitos
-  tienen ancho distinto y las listas de precios quedan temblorosas.
+  Cifras de ancho fijo para COLUMNAS de numeros que tienen que alinearse
+  verticalmente (filas de una tabla, ejes, listas de precios). No usar en las
+  cifras grandes de los tiles: tabular le da a cada digito el ancho de un cero y
+  a tamano display el numero queda suelto.
 */
 .numero {
   font-variant-numeric: tabular-nums;
