@@ -60,8 +60,9 @@ function InflacionPage() {
       <header className="mb-5">
         <h1 className="font-display text-4xl text-tinta mb-2">Inflacion por categoria</h1>
         <p className="text-tinta-media leading-relaxed">
-          Variacion de precios por cadena, comparando la primera y la ultima fecha
-          registradas en el historico.
+          Variacion de precios por cadena, medida sobre los productos presentes en las
+          dos fechas y encadenando los cambios dia a dia. Comparar el precio promedio de
+          dos fechas sueltas mezclaria los cambios de precio con los cambios de surtido.
         </p>
       </header>
 
@@ -144,19 +145,26 @@ function InflacionPage() {
                 const bajo = r.variacion_pct < 0;
                 return (
                   <div
-                    key={r.cadena}
-                    title={`${r.cadena}: ${formatearPesos(r.precio_inicio)} → ${formatearPesos(r.precio_fin)} (${conSigno(r.variacion_pct)})`}
+                    key={`${r.cadena}-${r.unidad_normalizada}`}
+                    title={`${r.cadena} (por ${r.unidad_normalizada}): nivel actual ${formatearPesos(r.precio_actual)}, variacion encadenada ${conSigno(r.variacion_pct)} entre ${r.fecha_inicio} y ${r.fecha_fin}`}
                   >
                     <div className="flex items-baseline justify-between gap-3 mb-1.5">
-                      <span className="text-sm text-tinta-media">{r.cadena}</span>
+                      <span className="text-sm text-tinta-media">
+                        {r.cadena}
+                        <span className="text-xs text-tinta-suave"> por {r.unidad_normalizada}</span>
+                      </span>
                       <div className="flex items-baseline gap-2.5 shrink-0">
                         {/*
-                          Los importes de inicio y fin le dan escala al
-                          porcentaje: un +8% no dice lo mismo sobre $900 que
-                          sobre $9.000.
+                          El nivel actual le da escala al porcentaje: un +8% no
+                          dice lo mismo sobre $900 que sobre $9.000. No se
+                          muestra un "precio inicial" porque la variacion no
+                          sale de restar dos niveles sino de encadenar los
+                          cambios diarios sobre productos pareados; ponerlos
+                          juntos sugeriria una aritmetica que no es la que se
+                          hizo.
                         */}
                         <span className="numero text-xs text-tinta-suave">
-                          {formatearPesos(r.precio_inicio)} → {formatearPesos(r.precio_fin)}
+                          {formatearPesos(r.precio_actual)}
                         </span>
                         <span
                           className={[

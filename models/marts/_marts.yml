@@ -40,6 +40,22 @@ models:
           expression: "precio_mediano_unidad > 0"
       - dbt_utils.expression_is_true:
           expression: "muestras >= 20"
+      # El factor es un cociente de precios: cero o negativo significa que algo
+      # se rompio aguas arriba, no un precio que bajo.
+      - dbt_utils.expression_is_true:
+          expression: "factor_vs_base > 0"
+          config:
+            where: "factor_vs_base IS NOT NULL"
+      - dbt_utils.expression_is_true:
+          expression: "muestras_pareadas >= 20"
+          config:
+            where: "factor_vs_base IS NOT NULL"
+      # La fecha contra la que se compara tiene que ser anterior. Si un cambio
+      # futuro invierte el LAG, el indice quedaria al reves sin avisar.
+      - dbt_utils.expression_is_true:
+          expression: "fecha_base < fecha_datos"
+          config:
+            where: "fecha_base IS NOT NULL"
     columns:
       - name: fecha_datos
         tests: [not_null]

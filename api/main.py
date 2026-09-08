@@ -252,37 +252,68 @@ def obtener_inflacion(
 
     where_extra = f"AND {' AND '.join(condiciones)}" if condiciones else ""
 
+    tabla = f"{PROYECTO}.dbt_precios.historico_precios_cadena_categoria"
+
+    # Se encadenan los factores diarios en vez de restar el nivel de precios de
+    # dos fechas. El nivel es la mediana de los productos que hubiera ese dia, y
+    # restar dos niveles mezcla cambios de precio con cambios de surtido: medido
+    # sobre 564 combinaciones entre el 09-05 y el 09-07, 101 se desviaban mas de
+    # un punto y "Bazar y hogar" en Disco daba +75,76% cuando en realidad ningun
+    # precio se habia movido. El factor diario se calcula sobre los productos
+    # presentes en ambas fechas (ver mart_precios_cadena_categoria).
     query = f"""
-        WITH fechas AS (
-            SELECT MIN(fecha_datos) AS fecha_inicio, MAX(fecha_datos) AS fecha_fin
-            FROM `{PROYECTO}.dbt_precios.historico_precios_cadena_categoria`
+        WITH periodo AS (
+            SELECT
+                MIN(fecha_base) AS fecha_inicio,
+                MAX(fecha_datos) AS fecha_fin,
+                COUNT(DISTINCT fecha_datos) AS eslabones_esperados
+            FROM `{tabla}`
+            WHERE factor_vs_base IS NOT NULL
         ),
-        inicio AS (
-            SELECT categoria, cadena, unidad_normalizada, precio_mediano_unidad AS precio_inicio
-            FROM `{PROYECTO}.dbt_precios.historico_precios_cadena_categoria` AS h, fechas
-            WHERE h.fecha_datos = fechas.fecha_inicio
+        encadenado AS (
+            SELECT
+                categoria,
+                cadena,
+                unidad_normalizada,
+                -- Producto de los factores, via exp(suma de logaritmos).
+                EXP(SUM(LN(factor_vs_base))) AS factor_total,
+                COUNT(*) AS eslabones,
+                MIN(fecha_base) AS desde,
+                MAX(fecha_datos) AS hasta
+            FROM `{tabla}`
+            WHERE factor_vs_base IS NOT NULL
+            GROUP BY categoria, cadena, unidad_normalizada
         ),
-        fin AS (
-            SELECT categoria, cadena, unidad_normalizada, precio_mediano_unidad AS precio_fin
-            FROM `{PROYECTO}.dbt_precios.historico_precios_cadena_categoria` AS h, fechas
-            WHERE h.fecha_datos = fechas.fecha_fin
+        nivel_actual AS (
+            SELECT h.categoria, h.cadena, h.unidad_normalizada, h.precio_mediano_unidad
+            FROM `{tabla}` AS h, periodo
+            WHERE h.fecha_datos = periodo.fecha_fin
         )
         SELECT
-            f.categoria,
-            f.cadena,
-            i.precio_inicio,
-            f.precio_fin,
-            ROUND((f.precio_fin - i.precio_inicio) / i.precio_inicio * 100, 2) AS variacion_pct,
-            (SELECT fecha_inicio FROM fechas) AS fecha_inicio,
-            (SELECT fecha_fin FROM fechas) AS fecha_fin
-        FROM fin AS f
-        JOIN inicio AS i
-            ON f.categoria = i.categoria
-            AND f.cadena = i.cadena
-            AND f.unidad_normalizada = i.unidad_normalizada
-        WHERE i.precio_inicio > 0
-        {where_extra}
-        ORDER BY f.categoria, variacion_pct DESC
+            e.categoria,
+            e.cadena,
+            -- La unidad es parte del grano: una cadena puede tener dos filas en
+            -- la misma categoria (ej. jugos en cc y en unidad). Sin este campo
+            -- se veian dos "Coto" con numeros distintos y sin forma de saber
+            -- cual era cual.
+            e.unidad_normalizada,
+            n.precio_mediano_unidad AS precio_actual,
+            ROUND((e.factor_total - 1) * 100, 2) AS variacion_pct,
+            p.fecha_inicio,
+            p.fecha_fin
+        FROM encadenado AS e
+        CROSS JOIN periodo AS p
+        JOIN nivel_actual AS n
+            USING (categoria, cadena, unidad_normalizada)
+        -- Solo series con la cadena COMPLETA: tiene que tener un eslabon por
+        -- cada fecha del periodo y arrancar y terminar donde arranca y termina
+        -- el periodo. Una serie a la que le falta un dia no se puede encadenar,
+        -- y multiplicar salteando el hueco daria un numero inventado.
+        WHERE e.eslabones = p.eslabones_esperados
+            AND e.desde = p.fecha_inicio
+            AND e.hasta = p.fecha_fin
+        {where_extra.replace("f.categoria", "e.categoria")}
+        ORDER BY e.categoria, variacion_pct DESC
     """
 
     job_config = bigquery.QueryJobConfig(query_parameters=parametros) if parametros else None
@@ -292,9 +323,12 @@ def obtener_inflacion(
 
 @app.get("/inflacion/categorias")
 def obtener_categorias_inflacion():
+    # Solo las que tienen factor: una categoria que existe en el historico pero
+    # no se puede encadenar aparecia en el desplegable y devolvia cero filas.
     query = f"""
         SELECT DISTINCT categoria
         FROM `{PROYECTO}.dbt_precios.historico_precios_cadena_categoria`
+        WHERE factor_vs_base IS NOT NULL
         ORDER BY categoria
     """
     resultados = cliente_bq.query(query).result()

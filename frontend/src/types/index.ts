@@ -50,8 +50,13 @@ export type Canasta = {
 export type Inflacion = {
   categoria: string;
   cadena: string;
-  precio_inicio: number;
-  precio_fin: number;
+  /** Parte del grano: una cadena puede aparecer dos veces en la misma categoria
+   *  con unidades distintas (ej. jugos en cc y en unidad). */
+  unidad_normalizada: string;
+  /** Nivel de precios observado en la fecha final. Es un dato de contexto: no
+   *  guarda relacion aritmetica con variacion_pct, que se mide encadenando los
+   *  cambios diarios sobre productos pareados y no restando dos niveles. */
+  precio_actual: number;
   variacion_pct: number;
   fecha_inicio: string;
   fecha_fin: string;
