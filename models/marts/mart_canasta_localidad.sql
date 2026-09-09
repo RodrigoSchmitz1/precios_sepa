@@ -105,6 +105,28 @@ sin_outliers AS (
         AND cpu.precio_por_unidad <= lc.p90
 ),
 
+localidades_reales AS (
+    -- Descarta las "localidades" que en realidad son provincias enteras.
+    -- Algunas cadenas llenan el campo localidad con el nombre de la provincia,
+    -- y como esas filas agrupan cientos de sucursales SUPERAN el umbral de
+    -- muestras con comodidad: el filtro de calidad las premiaba en vez de
+    -- descartarlas. Medido: "BUENOS AIRES" juntaba 425 sucursales repartidas en
+    -- 555 km, "ENTRE RIOS" 66 en 311 km, "CORRIENTES" 17 en 322 km. Comparar
+    -- eso contra un barrio de CABA no significa nada.
+    --
+    -- El criterio es geografico y no una lista de nombres: una localidad real es
+    -- compacta. Medio grado (~55 km) deja pasar cualquier ciudad con su area
+    -- metropolitana (San Miguel de Tucuman abarca 0,1 grados) y corta las bolsas
+    -- provinciales, que arrancan en 1,1 grados. Al ser una regla y no una lista,
+    -- tambien atrapa las que aparezcan mas adelante.
+    SELECT localidad, provincia
+    FROM {{ ref("stg_sucursales") }}
+    WHERE localidad IS NOT NULL AND latitud IS NOT NULL AND longitud IS NOT NULL
+    GROUP BY localidad, provincia
+    HAVING MAX(latitud) - MIN(latitud) <= 0.5
+       AND MAX(longitud) - MIN(longitud) <= 0.5
+),
+
 con_localidad AS (
     SELECT
         so.categoria,
@@ -115,6 +137,8 @@ con_localidad AS (
     FROM sin_outliers AS so
     JOIN {{ ref("stg_sucursales") }} AS s
         ON so.id_comercio = s.id_comercio AND so.id_sucursal = s.id_sucursal
+    JOIN localidades_reales AS lr
+        ON s.localidad = lr.localidad AND s.provincia = lr.provincia
     WHERE s.localidad IS NOT NULL
 ),
 
@@ -128,7 +152,18 @@ precio_mediano_categoria_localidad AS (
         COUNT(*) AS muestras
     FROM con_localidad
     GROUP BY categoria, localidad, provincia, fecha_datos
-    HAVING COUNT(*) >= 20
+    -- Umbral bajado de 20 a 8 el 2026-09-09, con evidencia. Con 20 el ranking
+    -- eran 27 localidades y 21 de ellas barrios de CABA: el interior quedaba
+    -- afuera porque tiene 3,4 sucursales por localidad contra las 13,2 de los
+    -- barrios portenos, y no llegaba a 20 observaciones en las 32 categorias.
+    -- Medido sobre los datos del dia: bajar a 8 pasa de 27 a 78 localidades, la
+    -- mediana del costo se mueve 0,9% ($365.943 -> $369.188), el percentil 10
+    -- queda igual, y NINGUNA de las 51 localidades nuevas cae fuera del rango
+    -- del grupo original. O sea que 20 era mucho mas conservador que necesario.
+    -- El umbral es unico para todo el pais a proposito: uno distinto para CABA
+    -- y para el interior haria que las cifras no sean comparables entre si, que
+    -- es justamente lo que este modelo existe para garantizar.
+    HAVING COUNT(*) >= 8
 ),
 
 costo_por_categoria AS (
