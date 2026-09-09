@@ -22,31 +22,69 @@ Datos del proyecto:
 
 **Este paso va primero, no último.** El proyecto tiene facturación habilitada, o
 sea que pasarse del tier gratuito cobra dinero real. Una API pública que consulta
-BigQuery es un vector de gasto sin techo: alcanza con que un bot recorra el mapa.
+BigQuery es un vector de gasto sin techo: alcanza con que un bot recorra el mapa,
+donde cada movimiento escanea ~212 MB.
 
 La caché de la API (6 horas) baja muchísimo el consumo, pero **no es una
-garantía**. La única garantía es una cuota dura, que es gratis y se pone una vez:
+garantía**. La única garantía es una cuota dura, que es gratis.
 
-1. Consola de GCP → **IAM y administración** → **Cuotas y límites del sistema**.
-2. Filtrar por servicio **BigQuery API** y buscar la métrica
-   **Query usage per day** (uso de consultas por día), a nivel proyecto.
-3. Editar y poner **30 GiB por día**.
+No está dentro de BigQuery: vive en *IAM y administración → Cuotas*, que es una
+sección aparte. Pero conviene hacerlo por línea de comandos:
 
-De dónde sale ese número:
+```bash
+gcloud quotas preferences create --service=bigquery.googleapis.com --project=proyecto-precios-504221 --quota-id=QueryUsagePerDay --preferred-value=102400 --preference-id=limite-diario-consultas --allow-high-percentage-quota-decrease --allow-quota-decrease-below-usage
+```
+
+El valor está en **MiB por día**: 102400 son 100 GiB.
+
+Los dos flags del final no son opcionales y cuestan tiempo si no se saben:
+
+- `--allow-high-percentage-quota-decrease`: pasar de "ilimitado" a un número es
+  una reducción grande y Google pide confirmarla.
+- `--allow-quota-decrease-below-usage`: el guardrail compara contra el **pico de
+  consumo reciente**, no contra el de hoy. Si hubo un día de desarrollo pesado,
+  rechaza cualquier valor por debajo de ese pico aunque hoy se esté usando mucho
+  menos. El mensaje de error dice cuál es ese número.
+
+**Antes de bajar la cuota, mirar el consumo de HOY**, no el del pico: si el techo
+queda por debajo de lo ya consumido en el día, BigQuery empieza a rechazar
+consultas y el sitio deja de funcionar hasta que el contador se reinicie.
+
+```sql
+SELECT ROUND(SUM(total_bytes_billed)/POW(1024,3),1) AS gib_hoy
+FROM `region-us`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+WHERE DATE(creation_time) = CURRENT_DATE() AND job_type = "QUERY"
+```
+
+Y para ver el mes completo, que es contra lo que corre el tier gratuito de 1 TiB:
+
+```sql
+SELECT DATE(creation_time) AS dia,
+       ROUND(SUM(total_bytes_billed)/POW(1024,3), 1) AS gib
+FROM `region-us`.INFORMATION_SCHEMA.JOBS_BY_PROJECT
+WHERE creation_time >= TIMESTAMP(DATE_TRUNC(CURRENT_DATE(), MONTH))
+  AND job_type = "QUERY"
+GROUP BY dia ORDER BY dia
+```
+
+### Qué valor corresponde
 
 | Concepto | Consumo |
 |---|---|
-| Corrida diaria de dbt | ~15,6 GB |
-| Reconstrucción diaria del crudo | ~4,6 GB |
-| **Subtotal del pipeline** | **~20 GB/día** |
-| Margen que queda para la API | ~10 GB/día |
+| Corrida diaria de dbt | ~15,6 GiB |
+| Reconstrucción diaria del crudo | ~4,6 GiB |
+| **Un día tranquilo, sólo pipeline** | **~23 GiB** (medido el 2026-09-04) |
+| Un día de desarrollo | 60 a 155 GiB |
 
-30 GiB/día son ~900 GB al mes, justo por debajo del 1 TB gratuito mensual. Y
-deja ~10 GB diarios para la API, que con la caché puesta alcanza de sobra para
-el tráfico de un portfolio.
+Con el sitio ya andando y sin desarrollo pesado, **25 GiB por día** es el valor
+que corresponde: ~750 GiB al mes, cómodo bajo el TiB gratuito. Para ajustarlo:
 
-Si algún día la cuota corta el pipeline, se nota enseguida: el workflow de
-GitHub Actions falla y llega el mail. Es preferible eso a una factura.
+```bash
+gcloud quotas preferences update --service=bigquery.googleapis.com --project=proyecto-precios-504221 --quota-id=QueryUsagePerDay --preferred-value=25600 --preference-id=limite-diario-consultas --allow-high-percentage-quota-decrease --allow-quota-decrease-below-usage
+```
+
+Si algún día la cuota corta el pipeline se nota enseguida: falla el workflow de
+GitHub Actions y llega el mail. Es preferible eso a una factura.
 
 ---
 
