@@ -30,19 +30,36 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# En local el archivo de credenciales esta al lado del codigo; en un hosting no
-# se sube un archivo con una clave privada, se inyecta por variable de entorno.
-_credenciales_json = os.getenv("GCP_SA_KEY")
-if _credenciales_json:
-    cliente_bq = bigquery.Client(
-        credentials=service_account.Credentials.from_service_account_info(
-            json.loads(_credenciales_json)
-        )
-    )
-else:
-    cliente_bq = bigquery.Client.from_service_account_json("credenciales.json")
-
 PROYECTO = "proyecto-precios-504221"
+
+
+def _crear_cliente_bq() -> bigquery.Client:
+    """Resuelve las credenciales segun donde este corriendo, de mas segura a menos.
+
+    1. Credenciales del propio entorno (ADC). Es el camino en Cloud Run: el
+       servicio corre COMO una service account, asi que no hace falta que exista
+       una clave privada en ningun lado. Es la opcion preferida justamente
+       porque no hay material secreto que filtrar.
+    2. GCP_SA_KEY, la clave completa en una variable de entorno. Para hostings
+       que no son de Google y no tienen forma de asumir una identidad.
+    3. El archivo credenciales.json al lado del codigo, que es el desarrollo
+       local de siempre.
+    """
+    if os.getenv("USAR_CREDENCIALES_DEL_ENTORNO") == "1":
+        return bigquery.Client(project=PROYECTO)
+
+    clave = os.getenv("GCP_SA_KEY")
+    if clave:
+        return bigquery.Client(
+            credentials=service_account.Credentials.from_service_account_info(
+                json.loads(clave)
+            ),
+            project=PROYECTO,
+        )
+
+    return bigquery.Client.from_service_account_json("credenciales.json")
+
+cliente_bq = _crear_cliente_bq()
 
 # ---------------------------------------------------------------------------
 # Cache en memoria
