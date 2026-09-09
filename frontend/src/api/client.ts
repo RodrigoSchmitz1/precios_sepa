@@ -3,6 +3,7 @@ import type {
   PromoMapa,
   QuienGana,
   Canasta,
+  CanastaDetalle,
   Inflacion,
   ItemCanastaIA,
   ResultadoCanastaPersonalizada,
@@ -85,6 +86,16 @@ export async function obtenerCanasta(filtros: FiltrosPromos): Promise<Canasta[]>
   const query = armarQuery(filtros);
   const respuesta = await fetch(`${API_BASE}/canasta?${query}`);
   if (!respuesta.ok) throw new Error(`Error al traer canasta: ${respuesta.status}`);
+  return respuesta.json();
+}
+
+export async function obtenerCanastaDetalle(
+  localidad: string,
+  provincia: string
+): Promise<CanastaDetalle[]> {
+  const params = new URLSearchParams({ localidad, provincia });
+  const respuesta = await fetch(`${API_BASE}/canasta/detalle?${params.toString()}`);
+  if (!respuesta.ok) throw new Error(`Error al traer el detalle: ${respuesta.status}`);
   return respuesta.json();
 }
 

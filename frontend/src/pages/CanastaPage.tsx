@@ -3,6 +3,7 @@ import { obtenerCanasta } from "../api/client";
 import { nombreProvincia } from "../utils/provincias";
 import { formatearPesos, formatearNumero } from "../utils/formato";
 import TileKPI from "../components/TileKPI";
+import DetalleCanasta from "../components/DetalleCanasta";
 import type { Canasta } from "../types";
 
 const TANDA = 50;
@@ -19,6 +20,9 @@ type Estado = { busqueda: string; filas?: Canasta[]; error?: string };
 function CanastaPage() {
   const [busqueda, setBusqueda] = useState("");
   const [estado, setEstado] = useState<Estado | null>(null);
+  // Localidad cuyo desglose esta abierto. Se guarda una sola: dos desgloses
+  // abiertos a la vez compiten por la atencion y no aportan.
+  const [abierta, setAbierta] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelado = false;
@@ -159,11 +163,21 @@ function CanastaPage() {
               const rango = masCara.costo_canasta_total - masBarata.costo_canasta_total;
               const proporcion =
                 rango > 0 ? (c.costo_canasta_total - masBarata.costo_canasta_total) / rango : 0;
+              const clave = `${c.localidad}|${c.provincia}`;
+              const estaAbierta = abierta === clave;
 
               return (
                 <li
                   key={`${c.localidad}-${c.provincia}`}
-                  className="flex items-center gap-4 px-4 py-2.5 border-b border-linea last:border-0 hover:bg-papel-hundido transition-colors"
+                  className="border-b border-linea last:border-0"
+                >
+                <button
+                  onClick={() => setAbierta(estaAbierta ? null : clave)}
+                  aria-expanded={estaAbierta}
+                  className={[
+                    "w-full flex items-center gap-4 px-4 py-2.5 text-left transition-colors",
+                    estaAbierta ? "bg-papel-hundido" : "hover:bg-papel-hundido",
+                  ].join(" ")}
                 >
                   <span className="numero text-xs text-tinta-suave w-8 shrink-0 text-right">
                     {i + 1}
@@ -195,6 +209,24 @@ function CanastaPage() {
                       </p>
                     )}
                   </div>
+
+                  <span
+                    className="text-tinta-suave text-xs shrink-0 w-4"
+                    aria-hidden="true"
+                  >
+                    {estaAbierta ? "−" : "+"}
+                  </span>
+                </button>
+
+                {estaAbierta && (
+                  <div className="px-4 pb-4">
+                    <DetalleCanasta
+                      localidad={c.localidad}
+                      provincia={c.provincia}
+                      total={c.costo_canasta_total}
+                    />
+                  </div>
+                )}
                 </li>
               );
             })}

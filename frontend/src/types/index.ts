@@ -91,6 +91,17 @@ export type ResultadoCanastaPersonalizada = {
   categorias_pedidas: number;
 };
 
+/** Una linea del desglose de la canasta de una localidad. */
+export type CanastaDetalle = {
+  categoria: string;
+  cantidad_necesaria: number;
+  precio_mediano_unidad: number;
+  costo_categoria: number;
+  /** Observaciones de precio sobre las que se calculo la mediana. Se muestra
+   *  para que el lector pueda juzgar cuan firme es cada linea. */
+  muestras: number;
+};
+
 export type LocalidadOpcion = {
   localidad: string;
   provincia: string;

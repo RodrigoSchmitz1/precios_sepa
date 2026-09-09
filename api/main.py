@@ -332,6 +332,39 @@ def obtener_canasta(
     return [dict(fila) for fila in resultados]
 
 
+@api.get("/canasta/detalle")
+@cachear
+def obtener_canasta_detalle(
+    localidad: str = Query(..., description="Localidad exacta"),
+    provincia: str = Query(..., description="Codigo ISO de provincia, ej AR-C"),
+):
+    """Desglose de la canasta de una localidad, categoria por categoria.
+
+    Un total de seis cifras sin nada detras es un numero que hay que creer. Con
+    el desglose el lector ve de que esta hecho, cuanto pesa cada categoria y
+    sobre cuantas observaciones se calculo, y decide por su cuenta si le cierra.
+    """
+    tabla = f"{PROYECTO}.dbt_precios.mart_canasta_detalle"
+    query = f"""
+        SELECT
+            categoria,
+            cantidad_necesaria,
+            precio_mediano_unidad,
+            costo_categoria,
+            muestras
+        FROM `{tabla}`
+        WHERE {solo_ultima_fecha(tabla)}
+            AND localidad = @localidad
+            AND provincia = @provincia
+        ORDER BY costo_categoria DESC
+    """
+    job_config = bigquery.QueryJobConfig(query_parameters=[
+        bigquery.ScalarQueryParameter("localidad", "STRING", localidad),
+        bigquery.ScalarQueryParameter("provincia", "STRING", provincia),
+    ])
+    return [dict(fila) for fila in cliente_bq.query(query, job_config=job_config).result()]
+
+
 @api.get("/inflacion")
 @cachear
 def obtener_inflacion(
