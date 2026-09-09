@@ -5,6 +5,7 @@ import type {
   Canasta,
   CanastaDetalle,
   Inflacion,
+  InflacionResumen,
   ItemCanastaIA,
   ResultadoCanastaPersonalizada,
   LocalidadOpcion,
@@ -99,17 +100,17 @@ export async function obtenerCanastaDetalle(
   return respuesta.json();
 }
 
+export async function obtenerInflacionResumen(): Promise<InflacionResumen[]> {
+  const respuesta = await fetch(`${API_BASE}/inflacion/resumen`);
+  if (!respuesta.ok) throw new Error(`Error al traer el resumen: ${respuesta.status}`);
+  return respuesta.json();
+}
+
 export async function obtenerInflacion(categoria: string): Promise<Inflacion[]> {
   const params = new URLSearchParams();
   if (categoria) params.set("categoria", categoria);
   const respuesta = await fetch(`${API_BASE}/inflacion?${params.toString()}`);
   if (!respuesta.ok) throw new Error(`Error al traer inflacion: ${respuesta.status}`);
-  return respuesta.json();
-}
-
-export async function obtenerCategoriasInflacion(): Promise<string[]> {
-  const respuesta = await fetch(`${API_BASE}/inflacion/categorias`);
-  if (!respuesta.ok) throw new Error(`Error al traer categorias: ${respuesta.status}`);
   return respuesta.json();
 }
 

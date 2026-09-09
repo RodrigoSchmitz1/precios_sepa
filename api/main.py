@@ -448,19 +448,75 @@ def obtener_inflacion(
     return [dict(fila) for fila in resultados]
 
 
-@api.get("/inflacion/categorias")
+@api.get("/inflacion/resumen")
 @cachear
-def obtener_categorias_inflacion():
-    # Solo las que tienen factor: una categoria que existe en el historico pero
-    # no se puede encadenar aparecia en el desplegable y devolvia cero filas.
-    query = f"""
-        SELECT DISTINCT categoria
-        FROM `{PROYECTO}.dbt_precios.historico_precios_cadena_categoria`
-        WHERE factor_vs_base IS NOT NULL
-        ORDER BY categoria
+def obtener_inflacion_resumen():
+    """Variacion de mercado por categoria, para leer de un vistazo.
+
+    La pagina antes obligaba a elegir una categoria y mostraba sus cadenas por
+    separado. Eso parte las series en grupos chicos y, como la mayoria de los
+    precios no se mueve de un dia al otro, casi siempre se veian ceros: habia
+    que adivinar que categoria mirar. Este endpoint responde la pregunta al
+    reves, que es la que trae al lector: QUE se movio.
+
+    El indice de una categoria es la media geometrica de los factores encadenados
+    de todas sus series (cadena x unidad) que tienen la cadena completa. Sin
+    datos de volumen de ventas no hay con que ponderar, asi que cada cadena pesa
+    igual; se devuelve la cantidad de series para que se vea sobre cuanto se
+    calculo.
     """
-    resultados = cliente_bq.query(query).result()
-    return [fila["categoria"] for fila in resultados]
+    tabla = f"{PROYECTO}.dbt_precios.historico_precios_cadena_categoria"
+    query = f"""
+        WITH periodo AS (
+            SELECT
+                MIN(fecha_base) AS fecha_inicio,
+                MAX(fecha_datos) AS fecha_fin,
+                COUNT(DISTINCT fecha_datos) AS eslabones_esperados
+            FROM `{tabla}`
+            WHERE factor_vs_base IS NOT NULL
+        ),
+        encadenado AS (
+            SELECT
+                categoria,
+                cadena,
+                unidad_normalizada,
+                EXP(SUM(LN(factor_vs_base))) AS factor_total,
+                COUNT(*) AS eslabones,
+                MIN(fecha_base) AS desde,
+                MAX(fecha_datos) AS hasta
+            FROM `{tabla}`
+            WHERE factor_vs_base IS NOT NULL
+            GROUP BY categoria, cadena, unidad_normalizada
+        ),
+        completas AS (
+            -- Solo series con la cadena entera: a una que le falta un eslabon no
+            -- se la puede encadenar, y multiplicar salteando el hueco daria un
+            -- numero inventado.
+            SELECT e.*
+            FROM encadenado AS e, periodo AS p
+            WHERE e.eslabones = p.eslabones_esperados
+                AND e.desde = p.fecha_inicio
+                AND e.hasta = p.fecha_fin
+        )
+        SELECT
+            c.categoria,
+            ROUND((EXP(AVG(LN(c.factor_total))) - 1) * 100, 2) AS variacion_pct,
+            COUNT(*) AS series,
+            COUNT(DISTINCT c.cadena) AS cadenas,
+            p.fecha_inicio,
+            p.fecha_fin
+        FROM completas AS c
+        CROSS JOIN periodo AS p
+        GROUP BY c.categoria, p.fecha_inicio, p.fecha_fin
+        -- Una categoria cubierta por una sola cadena no es "el mercado": es un
+        -- supermercado. Publicarla en un ranking de variacion del mercado seria
+        -- darle a un dato suelto la autoridad de un agregado. Con el corte en 3
+        -- cadenas hoy queda afuera 1 categoria de 54 (Leche en polvo, con 1);
+        -- 41 de las 54 tienen 8 cadenas o mas.
+        HAVING COUNT(DISTINCT c.cadena) >= 3
+        ORDER BY variacion_pct DESC
+    """
+    return [dict(fila) for fila in cliente_bq.query(query).result()]
 
 
 class DescripcionCanasta(BaseModel):

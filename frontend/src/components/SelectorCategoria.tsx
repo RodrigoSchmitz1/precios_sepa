@@ -1,6 +1,7 @@
 /*
-  Selector de categoria, compartido por "Mas barato" e "Inflacion": las dos
-  paginas tenian el mismo <select> con las mismas clases repetidas.
+  Selector de categoria. Nacio compartido con la pagina de inflacion, que desde
+  que abre con el ranking del mercado ya no lo necesita; queda como el <select>
+  con estilo propio de la aplicacion.
 */
 type Props = {
   categorias: string[];

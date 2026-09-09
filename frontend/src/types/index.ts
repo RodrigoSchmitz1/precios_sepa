@@ -55,6 +55,20 @@ export type Canasta = {
   costo_canasta_total: number;
 };
 
+export type InflacionResumen = {
+  categoria: string;
+  /** Variacion del mercado: media geometrica de los factores encadenados de
+   *  todas las series (cadena x unidad) de la categoria. Sin datos de volumen
+   *  de ventas no hay con que ponderar, asi que cada cadena pesa igual. */
+  variacion_pct: number;
+  /** Sobre cuantas series y cuantas cadenas se calculo. Se muestran para que el
+   *  lector pueda pesar un -2,9% sobre 7 cadenas contra uno sobre 14. */
+  series: number;
+  cadenas: number;
+  fecha_inicio: string;
+  fecha_fin: string;
+};
+
 export type Inflacion = {
   categoria: string;
   cadena: string;

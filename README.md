@@ -17,7 +17,7 @@ aplicación web.
 | **Canasta básica** | Cuánto cuesta la canasta alimentaria en cada localidad |
 | **Tu canasta** | Describís en lenguaje natural qué consumís, una IA arma tu canasta y se cotiza con precios reales |
 | **Supermercado más barato** | Qué cadena tiene el precio más bajo, comparando productos idénticos |
-| **Inflación por categoría** | Cómo se movieron los precios, con un índice encadenado |
+| **Qué se movió** | Ranking de las 53 categorías por variación de precio, con apertura por cadena |
 
 ---
 
@@ -25,7 +25,7 @@ aplicación web.
 
 ```
 Portal SEPA ──> Ingesta local ──> BigQuery ──> dbt ──> FastAPI + React
- (datos.gob)     (Python)          (crudo)    (19 modelos)   (Cloud Run)
+ (datos.gob)     (Python)          (crudo)    (20 modelos)   (Cloud Run)
                      │                             │
               Task Scheduler                GitHub Actions
                  07:00 ART                    08:00 ART
@@ -90,6 +90,15 @@ esporádicos —el 97,9% de los productos no cambia de un día al otro— así q
 mediana de los relativos vale 1,0 por construcción y daba 0,00% en 563 de 564
 series. Con Jevons pasan a 201 series con variación real.
 
+Ese mismo 97,9% define cómo se presenta. La primera versión de la página abría
+con un selector de categoría y mostraba sus 14 cadenas: como casi nada se mueve
+de un día al otro, cualquier categoría que uno eligiera daba una pantalla de
+ceros y encontrar la que sí se había movido era recorrer 53 a mano. La página
+ahora abre con **el ranking completo del mercado** —una categoría es la media
+geométrica de los factores de todas sus series— y la apertura por cadena es el
+segundo click. Sólo entran las categorías cubiertas por al menos 3 cadenas: con
+una sola, el número no es el mercado, es un supermercado.
+
 ### Datos que se pierden en silencio
 
 Lo más peligroso no es el dato que rompe la corrida, sino el que desaparece sin
@@ -128,7 +137,7 @@ respetando el barrio cuando la cadena sí lo informa bien.
 
 ## Calidad
 
-**19 modelos y 64 tests**, que corren en cada ejecución del pipeline.
+**20 modelos y 64 tests**, que corren en cada ejecución del pipeline.
 Además de los genéricos, hay tests singulares para las cosas que sólo se
 detectan mirando el resultado agregado: que la gama esté ordenada por precio por
 unidad, que el mapeo de unidades siga cubriendo el catálogo, que la
