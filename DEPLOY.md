@@ -1,11 +1,12 @@
 # Despliegue
 
-La API va a **Cloud Run** y el frontend a un hosting estático. Se eligió Cloud
-Run porque vive en el mismo proyecto de GCP que BigQuery (la service account ya
-existe, así que no hace falta que ande dando vueltas una clave privada), arranca
-en frío en un par de segundos y no tiene límite de duración por request. Las dos
-cosas importan: la portada depende de la API, y la canasta con IA llama a Gemini
-y puede tardar más de diez segundos.
+Todo el sitio (frontend y API) va en **un solo servicio de Cloud Run**. Se
+eligió Cloud Run porque vive en el mismo proyecto de GCP que BigQuery, así que la
+service account ya existe y no hace falta que ande dando vueltas una clave
+privada; arranca en frío en un par de segundos, y no tiene límite de duración por
+request. Las dos últimas cosas importan: la portada depende de la API, y la
+canasta con IA llama a Gemini y puede tardar más de diez segundos, que es el
+límite de las funciones serverless de los planes gratuitos.
 
 Datos del proyecto:
 
@@ -49,11 +50,18 @@ GitHub Actions falla y llega el mail. Es preferible eso a una factura.
 
 ---
 
-## 1. API en Cloud Run
+## 1. Desplegar
 
-Requiere el CLI de `gcloud` instalado ([guía oficial](https://cloud.google.com/sdk/docs/install)).
-No hace falta Docker local: `--source` hace que la imagen se construya en Cloud
-Build.
+Todo va en **un solo servicio de Cloud Run**: la misma imagen compila el
+frontend y lo sirve junto con la API, que queda bajo `/api`. Un solo servicio
+significa una sola URL y, sobre todo, **ningún CORS que configurar**, que es la
+causa más común de que un SPA desplegado no funcione.
+
+Por eso la API vive bajo `/api` y no en la raíz: las rutas se pisaban. `/canasta`,
+`/quien-gana` e `/inflacion` eran endpoint *y* pantalla al mismo tiempo.
+
+Requiere el CLI de `gcloud` ([instalador](https://cloud.google.com/sdk/docs/install)).
+No hace falta Docker local: `--source` construye la imagen en Cloud Build.
 
 ```bash
 gcloud auth login
@@ -63,87 +71,59 @@ gcloud config set project proyecto-precios-504221
 gcloud services enable run.googleapis.com cloudbuild.googleapis.com artifactregistry.googleapis.com secretmanager.googleapis.com
 ```
 
-La API necesita la key de Gemini. Va a Secret Manager y no como variable suelta,
-para que no quede en el historial de la terminal ni visible en la consola:
+La key de Gemini va a Secret Manager, no como variable suelta, para que no quede
+en el historial de la terminal ni visible en la consola:
 
 ```bash
-# Tomar el valor de orquestacion/.env (GEMINI_API_KEY)
-printf '%s' 'LA_KEY_DE_GEMINI' | gcloud secrets create gemini-api-key --data-file=-
-gcloud secrets add-iam-policy-binding gemini-api-key \
-  --member=serviceAccount:dbt-788@proyecto-precios-504221.iam.gserviceaccount.com \
-  --role=roles/secretmanager.secretAccessor
+printf '%s' 'LA_KEY_DE_GEMINI' | gcloud secrets create gemini-api-key --replication-policy=automatic --data-file=-
+gcloud secrets add-iam-policy-binding gemini-api-key --member=serviceAccount:dbt-788@proyecto-precios-504221.iam.gserviceaccount.com --role=roles/secretmanager.secretAccessor
 ```
 
-Desplegar:
+Desplegar, desde la raíz del repo:
 
 ```bash
-gcloud run deploy precios-sepa-api \
-  --source api \
-  --region us-central1 \
-  --allow-unauthenticated \
-  --service-account dbt-788@proyecto-precios-504221.iam.gserviceaccount.com \
-  --set-env-vars USAR_CREDENCIALES_DEL_ENTORNO=1 \
-  --set-secrets GEMINI_API_KEY=gemini-api-key:latest \
-  --memory 512Mi \
-  --max-instances 3
+gcloud run deploy precios-sepa-api --source . --region us-central1 --allow-unauthenticated --service-account dbt-788@proyecto-precios-504221.iam.gserviceaccount.com --set-env-vars USAR_CREDENCIALES_DEL_ENTORNO=1 --set-secrets GEMINI_API_KEY=gemini-api-key:latest --memory 512Mi --max-instances 3
 ```
 
 Detalles que importan:
 
 - `USAR_CREDENCIALES_DEL_ENTORNO=1` hace que la API use la identidad del propio
-  servicio en vez de una clave. **No se sube ninguna clave privada.**
-- `--max-instances 3` es un tope de seguridad: cada instancia tiene su propia
-  caché en memoria, así que muchas instancias significan más consultas repetidas
-  a BigQuery. Tres alcanzan y acotan el gasto.
-- `--allow-unauthenticated` es necesario: es una API pública leída por el
-  navegador.
+  servicio en vez de una clave. **No se sube ninguna clave privada**, y el
+  `.dockerignore` excluye `credenciales.json` y `.env` explícitamente por si acaso.
+- `--max-instances 3` acota el gasto: la caché es por proceso, así que más
+  instancias significan más consultas repetidas a BigQuery.
+- `--allow-unauthenticated` es necesario: es un sitio público.
+- `VITE_API_URL` no se configura en ningún lado. El Dockerfile la fija en `/api`
+  al compilar, así que la imagen funciona en cualquier URL donde se despliegue.
 
-El comando devuelve la URL del servicio. Guardala, hace falta en el paso 2.
-
----
-
-## 2. Frontend estático
-
-Sirve cualquier hosting estático (Cloudflare Pages, Vercel, Netlify). La única
-configuración es la URL de la API, que Vite incrusta **en tiempo de build**:
-
-| Ajuste | Valor |
-|---|---|
-| Directorio raíz | `frontend` |
-| Comando de build | `npm run build` |
-| Directorio de salida | `dist` |
-| Variable de entorno | `VITE_API_URL` = la URL de Cloud Run del paso 1 |
-
-Como se incrusta al compilar, si cambia la URL de la API hay que **volver a
-compilar**, no alcanza con cambiar la variable.
+Para actualizar el sitio después de un cambio, se repite sólo el `gcloud run
+deploy`.
 
 ---
 
-## 3. Cerrar el CORS
-
-Recién ahora se sabe el dominio del frontend. Sin este paso el navegador bloquea
-todas las llamadas:
+## 2. Verificar
 
 ```bash
-gcloud run services update precios-sepa-api \
-  --region us-central1 \
-  --update-env-vars ORIGENES_PERMITIDOS=https://EL-DOMINIO-DEL-FRONTEND
+curl https://LA-URL/api/health          # {"status":"ok"}
+curl "https://LA-URL/api/canasta?limite=3"
 ```
 
-Se pueden poner varios separados por coma (por ejemplo el dominio de producción
-y el de las preview builds).
+Y en el navegador: abrir la URL raíz y recorrer las cinco secciones, incluyendo
+recargar la página estando en una sección que no sea la portada (eso ejercita el
+fallback a `index.html` que necesita el router del frontend).
 
 ---
 
-## 4. Verificar
+## Desarrollo local
+
+Nada cambió: el frontend con `npm run dev` y la API con uvicorn. La única
+diferencia es que la API ahora vive bajo `/api` también en local, y el cliente
+del frontend ya apunta ahí por defecto.
 
 ```bash
-curl https://LA-URL-DE-CLOUD-RUN/health          # {"status":"ok"}
-curl "https://LA-URL-DE-CLOUD-RUN/canasta?limite=3"
+cd api && ./venv/Scripts/uvicorn.exe main:app --port 8000
+cd frontend && npm run dev
 ```
-
-Y en el navegador: abrir el frontend y recorrer las cinco secciones. Si el mapa
-carga pero las listas quedan vacías, casi siempre es el CORS del paso 3.
 
 ---
 

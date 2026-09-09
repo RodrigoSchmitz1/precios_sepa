@@ -4,6 +4,7 @@ import os
 import time
 
 from fastapi import FastAPI, Query
+from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from google.cloud import bigquery
 from google.oauth2 import service_account
@@ -12,7 +13,7 @@ from typing import Optional
 from interpretar_canasta import interpretar_descripcion
 from calcular_canasta import calcular_costo_canasta
 
-app = FastAPI(title="precios_sepa API")
+api = FastAPI(title="precios_sepa API")
 
 # Origenes permitidos: en desarrollo el dev server de Vite, en produccion el
 # dominio donde quede publicado el frontend. Se pasa por variable de entorno
@@ -23,7 +24,7 @@ ORIGENES = [
     if o.strip()
 ]
 
-app.add_middleware(
+api.add_middleware(
     CORSMiddleware,
     allow_origins=ORIGENES,
     allow_methods=["GET", "POST"],
@@ -117,12 +118,12 @@ def solo_ultima_fecha(tabla: str) -> str:
     return f"fecha_datos = (SELECT MAX(fecha_datos) FROM `{tabla}`)"
 
 
-@app.get("/health")
+@api.get("/health")
 def health():
     return {"status": "ok"}
 
 
-@app.get("/promos")
+@api.get("/promos")
 @cachear
 def obtener_promos(
     busqueda: Optional[str] = Query(None, description="Buscar en la descripcion del producto"),
@@ -162,7 +163,7 @@ def obtener_promos(
     return [dict(fila) for fila in resultados]
 
 
-@app.get("/promos/mapa")
+@api.get("/promos/mapa")
 @cachear
 def obtener_promos_mapa(
     busqueda: Optional[str] = Query(None, description="Buscar en la descripcion del producto"),
@@ -214,7 +215,7 @@ def obtener_promos_mapa(
     return {"promos": resultados, "hay_mas": hay_mas}
 
 
-@app.get("/gama")
+@api.get("/gama")
 @cachear
 def obtener_gama(
     categoria: Optional[str] = Query(None, description="Filtrar por categoria"),
@@ -247,7 +248,7 @@ def obtener_gama(
     return [dict(fila) for fila in resultados]
 
 
-@app.get("/quien-gana")
+@api.get("/quien-gana")
 @cachear
 def obtener_quien_gana(
     categoria: Optional[str] = Query(None, description="Filtrar por categoria exacta"),
@@ -281,7 +282,7 @@ def obtener_quien_gana(
     return [dict(fila) for fila in resultados]
 
 
-@app.get("/quien-gana/categorias")
+@api.get("/quien-gana/categorias")
 @cachear
 def obtener_categorias_disponibles():
     tabla = f"{PROYECTO}.dbt_precios.mart_quien_gana"
@@ -295,7 +296,7 @@ def obtener_categorias_disponibles():
     return [fila["categoria"] for fila in resultados]
 
 
-@app.get("/canasta")
+@api.get("/canasta")
 @cachear
 def obtener_canasta(
     busqueda: Optional[str] = Query(None, description="Buscar localidad por texto"),
@@ -331,7 +332,7 @@ def obtener_canasta(
     return [dict(fila) for fila in resultados]
 
 
-@app.get("/inflacion")
+@api.get("/inflacion")
 @cachear
 def obtener_inflacion(
     categoria: Optional[str] = Query(None, description="Filtrar por categoria exacta"),
@@ -414,7 +415,7 @@ def obtener_inflacion(
     return [dict(fila) for fila in resultados]
 
 
-@app.get("/inflacion/categorias")
+@api.get("/inflacion/categorias")
 @cachear
 def obtener_categorias_inflacion():
     # Solo las que tienen factor: una categoria que existe en el historico pero
@@ -438,17 +439,17 @@ class CalcularCanastaRequest(BaseModel):
     localidades: list
 
 
-@app.post("/canasta-personalizada/interpretar")
+@api.post("/canasta-personalizada/interpretar")
 def interpretar_canasta_personalizada(datos: DescripcionCanasta):
     return interpretar_descripcion(datos.descripcion)
 
 
-@app.post("/canasta-personalizada/calcular")
+@api.post("/canasta-personalizada/calcular")
 def calcular_canasta_personalizada(datos: CalcularCanastaRequest):
     return calcular_costo_canasta(cliente_bq, datos.items, datos.localidades)
 
 
-@app.get("/canasta-personalizada/localidades")
+@api.get("/canasta-personalizada/localidades")
 @cachear
 def obtener_localidades_disponibles(
     busqueda: Optional[str] = Query(None, description="Buscar localidad por texto"),
@@ -483,3 +484,53 @@ def obtener_localidades_disponibles(
     job_config = bigquery.QueryJobConfig(query_parameters=parametros)
     resultados = cliente_bq.query(query, job_config=job_config).result()
     return [dict(fila) for fila in resultados]
+
+
+# ---------------------------------------------------------------------------
+# App exterior: sirve el frontend compilado y monta la API bajo /api.
+#
+# Todo vive en un solo servicio de Cloud Run en vez de separar frontend y API en
+# dos plataformas. Al ser el mismo origen no hay CORS que configurar, que es la
+# fuente de errores mas comun al desplegar un SPA con su API, y hay una sola URL
+# que recordar y mantener.
+#
+# El prefijo /api no es cosmetico: las rutas de la API y las pantallas del
+# frontend se pisaban. "/canasta", "/quien-gana" y "/inflacion" eran las dos
+# cosas a la vez, y sin separarlas el navegador recibiria JSON donde espera una
+# pagina.
+# ---------------------------------------------------------------------------
+app = FastAPI(title="precios_sepa")
+app.mount("/api", api)
+
+ESTATICOS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+
+
+@app.get("/{ruta:path}")
+def servir_frontend(ruta: str):
+    """Sirve el frontend, con el fallback que necesita cualquier SPA.
+
+    Si la ruta corresponde a un archivo real (el bundle, el css, el favicon) se
+    devuelve ese archivo. Si no, se devuelve index.html: las rutas como
+    /canasta-personalizada no existen en el disco, las resuelve el router de
+    React una vez que la pagina cargo. Sin este fallback, entrar directo a una
+    URL que no sea la raiz, o recargar estando en una seccion, daria 404.
+    """
+    archivo = os.path.normpath(os.path.join(ESTATICOS, ruta))
+    # Se verifica que el archivo resuelto siga dentro de la carpeta de estaticos:
+    # sin esto, una ruta con ".." serviria cualquier archivo del contenedor.
+    if ruta and archivo.startswith(ESTATICOS) and os.path.isfile(archivo):
+        return FileResponse(archivo)
+
+    indice = os.path.join(ESTATICOS, "index.html")
+    if not os.path.isfile(indice):
+        # Desarrollo local: el frontend lo sirve Vite en otro puerto y la carpeta
+        # static/ solo existe dentro de la imagen. Se responde algo util en vez
+        # de reventar con un error de archivo no encontrado.
+        return JSONResponse(
+            status_code=404,
+            content={
+                "detalle": "El frontend compilado no esta en esta instancia.",
+                "sugerencia": "En desarrollo usa el dev server de Vite; la API vive bajo /api.",
+            },
+        )
+    return FileResponse(indice)

@@ -1,0 +1,28 @@
+# SECRETOS: nunca dentro de la imagen. Son claves privadas y API keys; si entran
+# al contenedor quedan embebidas y las tiene cualquiera que baje la imagen.
+# En Cloud Run el acceso a BigQuery sale de la identidad del propio servicio y
+# la key de Gemini de Secret Manager, asi que nada de esto hace falta adentro.
+**/credenciales.json
+**/.env
+**/*.env
+
+# Entornos y dependencias: se reinstalan dentro de la imagen. Ademas traen
+# binarios de Windows que no sirven en Linux, y pesan cientos de MB que
+# alargarian la subida del contexto de build.
+**/venv/
+**/node_modules/
+**/__pycache__/
+*.pyc
+
+# Artefactos de dbt y del pipeline, que no son parte de la aplicacion web.
+target/
+dbt_packages/
+logs/
+**/dbt.log
+orquestacion/scripts/sepa*/
+
+# El build del frontend se hace dentro de la imagen; el local solo confundiria.
+frontend/dist/
+
+.git/
+.github/

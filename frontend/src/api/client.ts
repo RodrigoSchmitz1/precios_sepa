@@ -15,7 +15,7 @@ import type {
   queda incrustado en el bundle: no es un secreto ni puede serlo, es la URL
   publica de la API.
 */
-const API_BASE = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000/api";
 
 type FiltrosPromos = {
   busqueda?: string;
