@@ -9,7 +9,13 @@ import type {
   LocalidadOpcion,
 } from "../types";
 
-const API_BASE = "http://127.0.0.1:8000";
+/*
+  En desarrollo apunta al uvicorn local; en produccion se define VITE_API_URL al
+  compilar. Vite reemplaza import.meta.env en tiempo de build, asi que el valor
+  queda incrustado en el bundle: no es un secreto ni puede serlo, es la URL
+  publica de la API.
+*/
+const API_BASE = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
 
 type FiltrosPromos = {
   busqueda?: string;

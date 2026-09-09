@@ -1,6 +1,12 @@
+import functools
+import json
+import os
+import time
+
 from fastapi import FastAPI, Query
 from fastapi.middleware.cors import CORSMiddleware
 from google.cloud import bigquery
+from google.oauth2 import service_account
 from pydantic import BaseModel
 from typing import Optional
 from interpretar_canasta import interpretar_descripcion
@@ -8,16 +14,72 @@ from calcular_canasta import calcular_costo_canasta
 
 app = FastAPI(title="precios_sepa API")
 
+# Origenes permitidos: en desarrollo el dev server de Vite, en produccion el
+# dominio donde quede publicado el frontend. Se pasa por variable de entorno
+# separada por comas para no tener que tocar el codigo al desplegar.
+ORIGENES = [
+    o.strip()
+    for o in os.getenv("ORIGENES_PERMITIDOS", "http://localhost:5173").split(",")
+    if o.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173"],
+    allow_origins=ORIGENES,
     allow_methods=["GET", "POST"],
     allow_headers=["*"],
 )
 
-cliente_bq = bigquery.Client.from_service_account_json("credenciales.json")
+# En local el archivo de credenciales esta al lado del codigo; en un hosting no
+# se sube un archivo con una clave privada, se inyecta por variable de entorno.
+_credenciales_json = os.getenv("GCP_SA_KEY")
+if _credenciales_json:
+    cliente_bq = bigquery.Client(
+        credentials=service_account.Credentials.from_service_account_info(
+            json.loads(_credenciales_json)
+        )
+    )
+else:
+    cliente_bq = bigquery.Client.from_service_account_json("credenciales.json")
 
 PROYECTO = "proyecto-precios-504221"
+
+# ---------------------------------------------------------------------------
+# Cache en memoria
+#
+# Los datos cambian UNA VEZ POR DIA, cuando corre el pipeline, pero cada request
+# lanzaba una consulta a BigQuery. El mapa de promos es el caso critico: escanea
+# 211,8 MB por request y se dispara cada vez que el usuario mueve el mapa, asi
+# que sin cache un rato jugando con el mapa cuesta varios GB.
+#
+# El TTL es de 6 horas: el pipeline corre una vez al dia, asi que servir un dato
+# de hasta 6 horas de antiguedad no cambia nada para el usuario y recorta el
+# gasto de forma brutal cuando varias visitas miran la misma zona.
+#
+# Es cache por proceso, no compartida: si el hosting levanta varias instancias
+# cada una tiene la suya. Alcanza de sobra para el trafico de un portfolio, y no
+# agrega una dependencia (Redis) que habria que sostener.
+# ---------------------------------------------------------------------------
+TTL_CACHE_SEGUNDOS = 6 * 3600
+_cache: dict = {}
+
+
+def cachear(fn):
+    """Cachea por argumentos. Solo para endpoints cuyo dato cambia una vez al dia."""
+
+    @functools.wraps(fn)
+    def envoltorio(*args, **kwargs):
+        clave = (fn.__name__, args, tuple(sorted(kwargs.items())))
+        ahora = time.time()
+        if clave in _cache:
+            guardado_en, valor = _cache[clave]
+            if ahora - guardado_en < TTL_CACHE_SEGUNDOS:
+                return valor
+        valor = fn(*args, **kwargs)
+        _cache[clave] = (ahora, valor)
+        return valor
+
+    return envoltorio
 
 
 def solo_ultima_fecha(tabla: str) -> str:
@@ -44,6 +106,7 @@ def health():
 
 
 @app.get("/promos")
+@cachear
 def obtener_promos(
     busqueda: Optional[str] = Query(None, description="Buscar en la descripcion del producto"),
     categoria: Optional[str] = Query(None, description="Filtrar por categoria exacta"),
@@ -83,6 +146,7 @@ def obtener_promos(
 
 
 @app.get("/promos/mapa")
+@cachear
 def obtener_promos_mapa(
     busqueda: Optional[str] = Query(None, description="Buscar en la descripcion del producto"),
     provincia: Optional[str] = Query(None, description="Filtrar por provincia (ej: AR-B)"),
@@ -134,6 +198,7 @@ def obtener_promos_mapa(
 
 
 @app.get("/gama")
+@cachear
 def obtener_gama(
     categoria: Optional[str] = Query(None, description="Filtrar por categoria"),
     gama: Optional[str] = Query(None, description="economico, medio o premium"),
@@ -166,6 +231,7 @@ def obtener_gama(
 
 
 @app.get("/quien-gana")
+@cachear
 def obtener_quien_gana(
     categoria: Optional[str] = Query(None, description="Filtrar por categoria exacta"),
 ):
@@ -199,6 +265,7 @@ def obtener_quien_gana(
 
 
 @app.get("/quien-gana/categorias")
+@cachear
 def obtener_categorias_disponibles():
     tabla = f"{PROYECTO}.dbt_precios.mart_quien_gana"
     query = f"""
@@ -212,6 +279,7 @@ def obtener_categorias_disponibles():
 
 
 @app.get("/canasta")
+@cachear
 def obtener_canasta(
     busqueda: Optional[str] = Query(None, description="Buscar localidad por texto"),
     provincia: Optional[str] = Query(None, description="Filtrar por provincia (ej: AR-B)"),
@@ -247,6 +315,7 @@ def obtener_canasta(
 
 
 @app.get("/inflacion")
+@cachear
 def obtener_inflacion(
     categoria: Optional[str] = Query(None, description="Filtrar por categoria exacta"),
 ):
@@ -329,6 +398,7 @@ def obtener_inflacion(
 
 
 @app.get("/inflacion/categorias")
+@cachear
 def obtener_categorias_inflacion():
     # Solo las que tienen factor: una categoria que existe en el historico pero
     # no se puede encadenar aparecia en el desplegable y devolvia cero filas.
@@ -362,6 +432,7 @@ def calcular_canasta_personalizada(datos: CalcularCanastaRequest):
 
 
 @app.get("/canasta-personalizada/localidades")
+@cachear
 def obtener_localidades_disponibles(
     busqueda: Optional[str] = Query(None, description="Buscar localidad por texto"),
     limite: int = Query(50, le=200, description="Cantidad maxima de resultados"),
