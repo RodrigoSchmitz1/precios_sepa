@@ -18,6 +18,16 @@ models:
           expression: "productos_ganados <= total_productos_categoria"
       - dbt_utils.expression_is_true:
           expression: "pct_victorias BETWEEN 0 AND 100"
+      # No se puede ganar mas veces de las que se compite. Si esto rompe, el
+      # denominador se desalineo del numerador.
+      - dbt_utils.expression_is_true:
+          expression: "productos_ganados <= productos_ofrecidos"
+      - dbt_utils.expression_is_true:
+          expression: "productos_ofrecidos <= total_productos_categoria"
+      - dbt_utils.expression_is_true:
+          expression: "pct_gana_cuando_compite BETWEEN 0 AND 100"
+      - dbt_utils.expression_is_true:
+          expression: "productos_ofrecidos >= 20"
     columns:
       - name: fecha_datos
         description: Fecha real de los precios comparados, no la de la corrida.

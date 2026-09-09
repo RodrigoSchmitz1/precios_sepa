@@ -6,7 +6,8 @@
       "field": "fecha_datos",
       "data_type": "date"
     },
-    partition_expiration_days=none
+    partition_expiration_days=none,
+    on_schema_change="append_new_columns"
   )
 }}
 
@@ -16,14 +17,23 @@
 -- reconstruiria la tabla desde cero y borraria TODA la historia acumulada,
 -- reemplazandola por la foto de hoy. Es irreversible.
 -- fecha_datos = fecha real de los precios (no la fecha de corrida del pipeline).
+--
+-- on_schema_change="append_new_columns": productos_ofrecidos y
+-- pct_gana_cuando_compite se agregaron el 2026-09-09, con la tabla ya creada.
+-- Con el "ignore" que trae dbt por defecto se ignorarian en silencio.
+-- Las filas anteriores no las tienen y su crudo ya expiro, asi que la tasa
+-- correcta ("cuando compite, gana X%") arranca en esa fecha. pct_victorias se
+-- conserva justamente para no cortar la serie que ya venia.
 
 SELECT
     categoria,
     rubro,
     cadena,
     productos_ganados,
+    productos_ofrecidos,
     total_productos_categoria,
     pct_victorias,
+    pct_gana_cuando_compite,
     fecha_datos
 FROM {{ ref("mart_quien_gana") }}
 

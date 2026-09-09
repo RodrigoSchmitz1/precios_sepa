@@ -25,8 +25,15 @@ $log = Join-Path $carpetaLog ("ingesta_" + (Get-Date -Format "yyyy-MM-dd") + ".l
 
 "=== Corrida $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss') ===" | Add-Content -Path $log -Encoding utf8
 
+# No se usa Tee-Object: en Windows PowerShell 5.1 escribe UTF-16 y el archivo
+# quedaba con la cabecera en UTF-8 y el cuerpo en UTF-16, ilegible con cualquier
+# herramienta que no adivine el encoding. Este ForEach hace lo mismo (muestra en
+# consola y agrega al log) forzando UTF-8 en las dos puntas.
 & "$raiz\venv\Scripts\python.exe" "$raiz\ingesta_backfill.py" 2>&1 |
-    Tee-Object -FilePath $log -Append
+    ForEach-Object {
+        Write-Output $_
+        Add-Content -Path $log -Value $_ -Encoding utf8
+    }
 
 $codigo = $LASTEXITCODE
 "=== Fin (exit $codigo) ===" | Add-Content -Path $log -Encoding utf8

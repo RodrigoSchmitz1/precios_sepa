@@ -3,6 +3,22 @@
 -- marca propia, donde una cadena "ganaria" solo por vender commodities
 -- baratos que otras ni ofrecen. Los empates cuentan a favor de todas las
 -- cadenas empatadas (no se fuerza un desempate arbitrario).
+--
+-- DOS TASAS, Y LA QUE IMPORTA ES LA SEGUNDA (agregado 2026-09-09):
+--   * pct_victorias = ganados / total comparables de la categoria. Mezcla
+--     precio con AMPLITUD DE SURTIDO: una cadena que ofrece 20 de 148
+--     comparables no puede pasar de 13,5% por barata que sea. Se conserva
+--     porque es la serie que ya venia acumulando el historico.
+--   * pct_gana_cuando_compite = ganados / ofrecidos. Responde la pregunta real:
+--     cuando esta cadena tiene el producto, cuan seguido es la mas barata.
+-- Medido sobre la fecha del 2026-09-08: la cadena tipica ofrece apenas el 36,9%
+-- de los comparables de su categoria, y el lider cambia en 22 de 58 categorias
+-- segun cual de las dos tasas se use. En Arroz, Express (Carrefour) pasa de
+-- 4,7% a 20,6% y Dia de 2,0% a 10,0%: no eran caras, ofrecian pocos productos.
+--
+-- Umbral de 20 productos ofrecidos, el mismo que usan los otros marts. Sin el,
+-- una cadena con un solo producto en la categoria y suerte figuraba con 100%
+-- (paso literal: "Pescado / Dia, gana 1 de 1").
 -- Devuelve UNA FILA POR FECHA: el crudo tiene varios dias conviviendo y cada
 -- uno se calcula por separado, para que el historico pueda recuperar una
 -- fecha que se haya perdido (backfill) y no solo la mas reciente.
@@ -75,6 +91,22 @@ con_categoria AS (
     WHERE cat.categoria IS NOT NULL AND cat.categoria != "Otros"
 ),
 
+ofrecidos_por_cadena AS (
+    -- Denominador correcto: los comparables que ESTA cadena efectivamente
+    -- ofrece. Sale de con_precio_minimo, que ya esta restringido a comparables,
+    -- y no de los ganadores, para contar tambien los que la cadena ofrece y
+    -- pierde.
+    SELECT
+        cpm.fecha_datos,
+        cat.categoria,
+        cpm.cadena,
+        COUNT(DISTINCT cpm.id_producto) AS productos_ofrecidos
+    FROM con_precio_minimo AS cpm
+    JOIN {{ ref("stg_categorias") }} AS cat ON cpm.id_producto = cat.id_producto
+    WHERE cat.categoria IS NOT NULL AND cat.categoria != "Otros"
+    GROUP BY cpm.fecha_datos, cat.categoria, cpm.cadena
+),
+
 total_por_categoria AS (
     SELECT
         pc.fecha_datos,
@@ -91,12 +123,21 @@ SELECT
     cc.rubro,
     cc.cadena,
     COUNT(DISTINCT cc.id_producto) AS productos_ganados,
+    opc.productos_ofrecidos,
     tpc.total_productos_categoria,
     ROUND(COUNT(DISTINCT cc.id_producto) / tpc.total_productos_categoria * 100, 1) AS pct_victorias,
+    ROUND(COUNT(DISTINCT cc.id_producto) / opc.productos_ofrecidos * 100, 1) AS pct_gana_cuando_compite,
     cc.fecha_datos
 FROM con_categoria AS cc
+JOIN ofrecidos_por_cadena AS opc
+    ON cc.categoria = opc.categoria
+    AND cc.cadena = opc.cadena
+    AND cc.fecha_datos = opc.fecha_datos
 LEFT JOIN total_por_categoria AS tpc
     ON cc.categoria = tpc.categoria
     AND cc.fecha_datos = tpc.fecha_datos
-GROUP BY cc.fecha_datos, cc.categoria, cc.rubro, cc.cadena, tpc.total_productos_categoria
-ORDER BY cc.fecha_datos, cc.categoria, pct_victorias DESC
+WHERE opc.productos_ofrecidos >= 20
+GROUP BY
+    cc.fecha_datos, cc.categoria, cc.rubro, cc.cadena,
+    opc.productos_ofrecidos, tpc.total_productos_categoria
+ORDER BY cc.fecha_datos, cc.categoria, pct_gana_cuando_compite DESC

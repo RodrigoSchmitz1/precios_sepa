@@ -179,11 +179,18 @@ def obtener_quien_gana(
 
     where = f"WHERE {' AND '.join(condiciones)}"
 
+    # Se ordena por pct_gana_cuando_compite, no por pct_victorias: esta ultima
+    # divide por todos los comparables de la categoria y no por los que la
+    # cadena ofrece, asi que premia el surtido amplio antes que el precio bajo.
+    # Con la tasa correcta el lider cambia en 22 de 58 categorias.
     query = f"""
-        SELECT categoria, rubro, cadena, productos_ganados, total_productos_categoria, pct_victorias
+        SELECT
+            categoria, rubro, cadena,
+            productos_ganados, productos_ofrecidos, total_productos_categoria,
+            pct_gana_cuando_compite, pct_victorias
         FROM `{tabla}`
         {where}
-        ORDER BY categoria, pct_victorias DESC
+        ORDER BY categoria, pct_gana_cuando_compite DESC
     """
 
     job_config = bigquery.QueryJobConfig(query_parameters=parametros) if parametros else None

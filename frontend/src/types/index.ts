@@ -36,7 +36,15 @@ export type QuienGana = {
   rubro: string;
   cadena: string;
   productos_ganados: number;
+  /** Comparables que ESTA cadena ofrece. Es el denominador correcto para medir
+   *  precio: total_productos_categoria mide ademas amplitud de surtido. */
+  productos_ofrecidos: number;
   total_productos_categoria: number;
+  /** ganados / ofrecidos: cuando la cadena tiene el producto, cuan seguido es
+   *  la mas barata. Es la tasa por la que se ordena. */
+  pct_gana_cuando_compite: number;
+  /** ganados / total comparables. Se conserva por continuidad del historico,
+   *  pero mezcla precio con surtido: no usar para rankear. */
   pct_victorias: number;
 };
 

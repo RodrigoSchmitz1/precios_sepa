@@ -57,9 +57,9 @@ function QuienGanaPage() {
   const vigente = estado?.categoria === categoriaElegida ? estado : null;
   const filas = vigente?.filas ?? [];
 
-  // Las barras se escalan contra la cadena que mas gana, no contra 100: los
-  // porcentajes rara vez pasan del 30% y contra 100 quedarian todas aplastadas.
-  const maximo = Math.max(...filas.map((r) => r.pct_victorias), 1);
+  // Ahora la tasa es sobre lo que cada cadena ofrece, asi que usa todo el rango
+  // de 0 a 100 y las barras van contra 100: escalarlas contra el maximo
+  // exageraria diferencias chicas.
   const lider = filas[0];
 
   return (
@@ -67,9 +67,11 @@ function QuienGanaPage() {
       <header className="mb-6">
         <h1 className="font-display text-4xl text-tinta mb-2">Supermercado mas barato</h1>
         <p className="text-tinta-media leading-relaxed">
-          Comparacion honesta: solo productos identicos, con el mismo codigo de barras,
-          presentes en dos o mas cadenas. Asi la marca propia de cada cadena no le
-          regala victorias.
+          Solo se comparan productos identicos, con el mismo codigo de barras, presentes
+          en dos o mas cadenas: asi la marca propia no le regala victorias a nadie. Y se
+          mide <strong className="font-semibold text-tinta">sobre los productos que cada
+          cadena efectivamente ofrece</strong>, no sobre el total de la categoria, para
+          que tener un surtido mas amplio no se confunda con ser mas barato.
         </p>
       </header>
 
@@ -104,7 +106,7 @@ function QuienGanaPage() {
               etiqueta="Gana mas seguido"
               tono="verde"
               valor={lider.cadena}
-              detalle={`el precio mas bajo en ${lider.pct_victorias}% de los productos`}
+              detalle={`la mas barata en ${lider.pct_gana_cuando_compite}% de los productos que ofrece`}
             />
             <TileKPI
               etiqueta="Productos comparables"
@@ -121,29 +123,33 @@ function QuienGanaPage() {
           </div>
 
           <div className="bg-papel border border-linea rounded-2xl p-5">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave mb-4">
-              Porcentaje de productos en los que cada cadena tiene el precio mas bajo
+            <h2 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave mb-1">
+              De los productos que ofrece, en cuantos tiene el precio mas bajo
             </h2>
+            <p className="text-xs text-tinta-suave mb-4">
+              El segundo numero es sobre cuantos productos compite cada una. La categoria
+              tiene {formatearNumero(lider.total_productos_categoria)} comparables en total.
+            </p>
 
             <div className="space-y-3.5">
               {filas.map((r) => (
                 <div
                   key={r.cadena}
-                  title={`${r.cadena}: gana en ${formatearNumero(r.productos_ganados)} de ${formatearNumero(r.total_productos_categoria)} productos (${r.pct_victorias}%)`}
+                  title={`${r.cadena}: es la mas barata en ${formatearNumero(r.productos_ganados)} de los ${formatearNumero(r.productos_ofrecidos)} productos comparables que ofrece (${r.pct_gana_cuando_compite}%). La categoria tiene ${formatearNumero(r.total_productos_categoria)} comparables en total.`}
                 >
                   <div className="flex justify-between items-baseline gap-3 text-sm mb-1.5">
                     <span className="text-tinta-media">{r.cadena}</span>
                     <span className="text-xs text-tinta-suave shrink-0">
                       <span className="numero">{formatearNumero(r.productos_ganados)}</span> de{" "}
-                      <span className="numero">{formatearNumero(r.total_productos_categoria)}</span>
+                      <span className="numero">{formatearNumero(r.productos_ofrecidos)}</span>
                       {" · "}
-                      <span className="numero font-semibold text-tinta">{r.pct_victorias}%</span>
+                      <span className="numero font-semibold text-tinta">{r.pct_gana_cuando_compite}%</span>
                     </span>
                   </div>
                   <div className="w-full bg-papel-hundido rounded-full h-2.5">
                     <div
-                      className={`h-2.5 rounded-full ${pasoDeEscala(r.pct_victorias, maximo)}`}
-                      style={{ width: `${(r.pct_victorias / maximo) * 100}%` }}
+                      className={`h-2.5 rounded-full ${pasoDeEscala(r.pct_gana_cuando_compite, 100)}`}
+                      style={{ width: `${r.pct_gana_cuando_compite}%` }}
                       role="presentation"
                     />
                   </div>
@@ -152,8 +158,9 @@ function QuienGanaPage() {
             </div>
 
             <p className="text-xs text-tinta-suave mt-5 pt-4 border-t border-linea">
-              Las barras estan a escala de la cadena que mas gana, no sobre 100%. Un producto
-              puede empatar en varias cadenas, asi que los porcentajes no suman 100.
+              Las barras van sobre 100%. Un producto puede empatar en varias cadenas, y cada
+              una mide sobre su propio surtido, asi que los porcentajes no suman 100. Solo
+              entran cadenas con al menos 20 productos comparables en la categoria.
             </p>
           </div>
         </>
