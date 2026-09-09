@@ -19,6 +19,24 @@
 -- Se prefiere esto sobre parsear la descripcion (texto libre): el dato ya viene
 -- estructurado en la fuente SEPA, es mas confiable que reconstruirlo con regex.
 -- unidad_normalizada in ("g", "cc", "unidad"); NULL si la unidad no es reconocida.
+--
+-- EL MAPEO SE AMPLIO EL 2026-09-09. Faltaban unidades que cubren el 18,4% del
+-- catalogo, y como todo lo que necesita cantidad (gama, canasta, indice de
+-- precios) descarta las filas sin unidad, ese 18% quedaba afuera de los
+-- calculos sin que nada lo avisara. Las que faltaban, verificadas contra las
+-- descripciones de la fuente:
+--   EA  (16,4% de los productos): codigo GS1/UN-CEFACT de "each". 16.136 de
+--       17.313 traen cantidad=1 y el resto son conteos ("ALWAYS TOALLAS XTRA
+--       NOCTURNAS 16U", "ACEITE PESCADO 60 UN").
+--   CU  (1,7%): "cada uno" ("PAAL G DERMACARE AP, HUGGIES, 48 cu").
+--   G   (0,1%): gramos a secas ("YERBA E500G" con cantidad 500).
+--   DM3 y CL: decimetro cubico (un litro) y centilitro. Poquisimos productos,
+--       pero son unidades estandar sin ambiguedad.
+--
+-- Quedan sin mapear A PROPOSITO, porque no se pueden convertir a masa, volumen
+-- ni conteo sin inventar: M, M2, MTR, MT, CMT, DMQ (largo y superficie, como
+-- rollos de aluminio o textiles), y PAR, CJ, PIE, HJS, MI, que son ambiguas.
+-- Entre todas suman menos del 0,3% de los productos.
 
 WITH base AS (
     SELECT
@@ -52,16 +70,18 @@ SELECT
     fecha_datos,
     CASE
         WHEN unidad_limpia IN ("KG", "KGM", "KGR", "KILO") THEN cantidad_pres * 1000
-        WHEN unidad_limpia IN ("GR", "GRM", "GRAMOS") THEN cantidad_pres
-        WHEN unidad_limpia IN ("LT", "LTR", "L", "LITRO") THEN cantidad_pres * 1000
+        WHEN unidad_limpia IN ("GR", "GRM", "GRAMOS", "G") THEN cantidad_pres
+        WHEN unidad_limpia IN ("LT", "LTR", "L", "LITRO", "DM3") THEN cantidad_pres * 1000
+        WHEN unidad_limpia = "CL" THEN cantidad_pres * 10
         WHEN unidad_limpia IN ("ML", "CM3", "CMQ", "CC") THEN cantidad_pres
-        WHEN unidad_limpia IN ("UNI", "UNIDAD", "UD", "UN") THEN cantidad_pres
+        WHEN unidad_limpia IN ("UNI", "UNIDAD", "UD", "UN", "EA", "CU") THEN cantidad_pres
         ELSE NULL
     END AS cantidad_normalizada,
     CASE
-        WHEN unidad_limpia IN ("KG", "KGM", "KGR", "KILO", "GR", "GRM", "GRAMOS") THEN "g"
-        WHEN unidad_limpia IN ("LT", "LTR", "L", "LITRO", "ML", "CM3", "CMQ", "CC") THEN "cc"
-        WHEN unidad_limpia IN ("UNI", "UNIDAD", "UD", "UN") THEN "unidad"
+        WHEN unidad_limpia IN ("KG", "KGM", "KGR", "KILO", "GR", "GRM", "GRAMOS", "G") THEN "g"
+        WHEN unidad_limpia IN ("LT", "LTR", "L", "LITRO", "DM3", "CL",
+                               "ML", "CM3", "CMQ", "CC") THEN "cc"
+        WHEN unidad_limpia IN ("UNI", "UNIDAD", "UD", "UN", "EA", "CU") THEN "unidad"
         ELSE NULL
     END AS unidad_normalizada
 FROM con_unidad_limpia
