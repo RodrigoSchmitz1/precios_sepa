@@ -60,6 +60,9 @@ WITH productos_canasta AS (
         ON cat.categoria = comp.categoria
         AND p.unidad_normalizada = comp.unidad
     WHERE gama.gama = "economico"
+        -- Solo las fechas que faltan en el historico, mas la ultima: recalcular
+        -- las que ya estan da identico y se paga todos los dias. Ver el macro.
+        AND p.fecha_datos IN ({{ fechas_a_calcular(ref("stg_productos"), "historico_canasta_localidad") }})
         AND p.cantidad_normalizada IS NOT NULL
         AND (
             (p.unidad_normalizada IN ("g", "cc") AND p.cantidad_normalizada BETWEEN 5 AND 10000)

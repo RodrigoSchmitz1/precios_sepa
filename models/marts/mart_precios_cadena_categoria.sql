@@ -36,6 +36,10 @@ WITH productos_filtrados AS (
     JOIN {{ ref("mart_gama_productos") }} AS gama ON p.id_producto = gama.id_producto
     JOIN {{ ref("stg_comercio") }} AS c ON p.id_comercio = c.id_comercio AND p.id_bandera = c.id_bandera
     WHERE gama.gama = "economico"
+        -- Fechas pendientes MAS la anterior: el indice encadenado compara cada
+        -- fecha contra la previa, asi que sin ese dia extra no habria contra
+        -- que parear y el factor quedaria nulo. Ver el macro.
+        AND p.fecha_datos IN ({{ fechas_a_calcular(ref("stg_productos"), "historico_precios_cadena_categoria", incluir_anterior=true) }})
         AND cat.categoria != "Otros"
         AND p.cantidad_normalizada IS NOT NULL
         AND (

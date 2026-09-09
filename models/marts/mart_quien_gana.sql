@@ -35,6 +35,8 @@
 -- criterio viejo y no son comparables con las nuevas; no se pueden recalcular
 -- porque el crudo de esos dias ya expiro.
 
+{% set fechas = fechas_a_calcular(ref("stg_productos"), "historico_quien_gana") %}
+
 WITH precio_por_producto_cadena AS (
     SELECT
         p.fecha_datos,
@@ -45,6 +47,11 @@ WITH precio_por_producto_cadena AS (
     JOIN {{ ref("stg_comercio") }} AS c
         ON p.id_comercio = c.id_comercio
         AND p.id_bandera = c.id_bandera
+    -- Solo las fechas que faltan en el historico, mas la ultima. Recalcular las
+    -- que ya estan da el mismo resultado y se paga todos los dias: el crudo
+    -- retiene 3 fechas, asi que en un dia normal esto escanea un tercio.
+    -- Ver el macro para el detalle y para que hacer si cambia una metodologia.
+    WHERE p.fecha_datos IN ({{ fechas }})
     GROUP BY p.fecha_datos, p.id_producto, c.nombre_comercial
 ),
 
