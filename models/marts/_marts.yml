@@ -132,11 +132,25 @@ models:
   - name: mart_gama_productos
     description: >
       Clasifica cada producto en economico/medio/premium segun el tercil de su
-      precio mediano dentro de su categoria. La mediana se toma entre cadenas,
-      sucursales y dias para que una promo puntual no cambie la gama.
+      PRECIO POR UNIDAD DE MEDIDA, dentro de su categoria y unidad. La mediana
+      se toma entre cadenas, sucursales y dias para que una promo puntual no
+      cambie la gama; medido, entre dos dias solo el 1,5% de los productos
+      cambia de tercil. Hasta el 2026-09-09 el tercil se calculaba sobre el
+      precio del envase, lo que en las categorias con tamanos dispares ordenaba
+      por tamano y no por nivel de precio (ver el encabezado del modelo).
+      El orden economico < premium por unidad lo verifica el test singular
+      gama_ordena_por_precio_unitario.
     columns:
       - name: id_producto
         tests: [not_null, unique]
+      - name: precio_por_unidad
+        description: Base del tercil. Es precio_mediano dividido por el tamano de envase.
+        tests: [not_null]
+      - name: unidad_normalizada
+        description: >
+          Parte de la particion del tercil: no tiene sentido ordenar un precio
+          por gramo contra uno por centimetro cubico o por unidad.
+        tests: [not_null]
       - name: gama
         tests:
           - accepted_values:
