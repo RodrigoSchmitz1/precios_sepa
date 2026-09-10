@@ -1,0 +1,41 @@
+# Que NO se sube a Cloud Build al desplegar con "gcloud run deploy --source".
+#
+# Sin este archivo gcloud usa solo el .gitignore de la raiz, que no excluye
+# frontend/node_modules (lo excluye el .gitignore de frontend/, que gcloud no
+# lee): cada deploy subia 6.551 archivos de dependencias que la imagen vuelve a
+# instalar con npm ci, y la subida tardaba minutos. Un deploy lanzado mientras
+# se editaban archivos llego a tomar un estado a medias y el build fallo.
+#
+# Al existir este archivo gcloud deja de aplicar el .gitignore por su cuenta,
+# asi que se lo incluye explicitamente, y los secretos se repiten abajo como
+# segunda barrera: que no entren a la imagen lo garantiza el .dockerignore, pero
+# tampoco tienen por que quedar en el paquete de codigo que guarda Cloud Build.
+#
+# Las rutas del proyecto van ancladas con "/" para no excluir por accidente una
+# carpeta con el mismo nombre dentro de api/ o frontend/.
+#!include:.gitignore
+
+# Secretos
+**/credenciales.json
+**/.env
+**/*.env
+
+# Dependencias y artefactos que la imagen reconstruye
+**/node_modules/
+**/venv/
+**/__pycache__/
+/frontend/dist/
+/target/
+/dbt_packages/
+/logs/
+
+# Lo que la imagen no usa: el Dockerfile solo copia api/ y frontend/
+/orquestacion/
+/models/
+/macros/
+/seeds/
+/tests/
+/analyses/
+/snapshots/
+/.github/
+/.git/
