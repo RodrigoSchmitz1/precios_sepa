@@ -50,7 +50,7 @@ si puede ser cierto. Estas son las principales y cómo se resolvieron.
 
 ### Comparar cosas que no son comparables
 
-El error recurrente, en cinco formas distintas:
+El error recurrente, en seis formas distintas:
 
 - **La canasta básica** sumaba las categorías que cada localidad tuviera, entre
   20 y 32, y comparaba esos totales entre sí. Una localidad con menos datos
@@ -90,6 +90,17 @@ El error recurrente, en cinco formas distintas:
   fechas ya publicadas se recalcularon con una variable de dbt, sin borrar
   filas del histórico a mano.
 
+- **"Carne vacuna" no era carne vacuna.** La taxonomía no tenía categoría para
+  el cerdo y la clasificación lo mandaba ahí, junto con achuras, cordero y
+  milanesas; "Pollo" mezclaba presas con nuggets y patitas rebozadas. La canasta
+  comparaba una carne abaratada contra un pollo encarecido: el pollo salía
+  $11.500/kg y la carne $8.390. Se agregaron Cerdo, Otras carnes, Achuras y
+  menudencias y Elaborados de carne, y se reclasificaron los 3.098 productos del
+  rubro con reglas explícitas para cada confusión que apareció (una "picada" no
+  es carne picada; una "milanesa de nalga" sin rebozar es un corte crudo). La
+  clasificación quedó versionada: se agregan filas en vez de pisar las
+  anteriores. Hoy el pollo económico cuesta $3.979/kg y la carne $9.990.
+
 ### El índice de precios
 
 Medir inflación restando promedios es incorrecto cuando el surtido cambia. El
@@ -128,6 +139,26 @@ avisar:
 
 Los dos casos tienen ahora un test que falla si vuelven a aparecer.
 
+### Cuando falta el dato
+
+Al depurar las carnes quedaron pocos productos económicos de pollo y pescado, y
+esos frescos se venden en pocas sucursales: con precio estrictamente local sólo
+16 localidades completaban la canasta, una de CABA. Se midieron tres salidas
+sobre los datos del 2026-09-09:
+
+- Ampliar a gama económica + media: 92 localidades, pero la canasta pasa a
+  $374.172 porque deja de ser la económica.
+- Tomar el tercio más barato de cada localidad: 72, pero el recorte de extremos
+  saca los pollos enteros y el pollo vuelve a salir más caro que la carne.
+- **Mantener la gama económica y usar la mediana provincial en hasta 2 de las
+  32 categorías: 96 localidades, mitad CABA y mitad interior, con una mediana
+  de $238.866.**
+
+Se eligió la última, como hacen los índices oficiales con los precios
+faltantes, con un tope: con 4 categorías provinciales se llegaba a 136
+localidades, pero una canasta así deja de describir a su localidad. Cada
+categoría imputada va marcada en el desglose del sitio.
+
 ### Ruido de la fuente
 
 - **SEPA mezcla importes de cuota en la columna de promoción.** La portada
@@ -151,10 +182,10 @@ respetando el barrio cuando la cadena sí lo informa bien.
 
 ## Calidad
 
-**20 modelos y 63 tests**, que corren en cada ejecución del pipeline.
+**20 modelos y 70 tests**, que corren en cada ejecución del pipeline.
 Además de los genéricos, hay tests singulares para las cosas que sólo se
-detectan mirando el resultado agregado: que la canasta económica no salga más
-cara que la gama media, que la gama esté ordenada por precio por unidad, que el
+detectan mirando el resultado agregado: que Carne vacuna y Pollo no mezclen
+otras carnes, que la canasta económica no salga más cara que la gama media, que la gama esté ordenada por precio por unidad, que el
 mapeo de unidades siga cubriendo el catálogo, que la categorización no se
 degrade a "Otros", y que los históricos hayan capturado la última fecha.
 
@@ -232,14 +263,14 @@ dbt build
 
 - **La cobertura fuera de CABA es más fina.** El point-in-polygon divide CABA en
   71 barrios con 13,2 sucursales promedio; el resto del país son 459 localidades
-  con 3,4. Con el umbral calibrado con evidencia entran 76 localidades con la
-  canasta completa: 44 barrios porteños y 32 del interior.
-- **"Carne vacuna" incluye cerdo y achuras.** La taxonomía de 58 categorías no
-  tiene una para el cerdo y la clasificación lo manda a vacuna: de los 335
-  productos económicos de la categoría, 138 son vacunos, 131 de cerdo, 57
-  achuras y 9 de cordero. Abarata la carne de la canasta: la mediana de los
-  vacunos es $9.099/kg, la del cerdo $8.800 y la de las achuras $6.490.
-  Corregirlo pide cambiar la taxonomía y la composición de la canasta.
+  con 3,4. Con precio estrictamente local sólo 16 localidades completan la
+  canasta; con la imputación provincial (ver arriba) son ~96.
+- **La clasificación la hace un modelo de lenguaje** y falla donde hace falta
+  conocer la marca: "Bondiola LÁBRATTO PZA", una bondiola curada, cae en Cerdo en
+  vez de Fiambres. Un test vigila que Carne vacuna y Pollo no tengan más de 2% de
+  productos con marcadores ajenos.
+- **El histórico del 2026-09-06 usa la taxonomía anterior.** Esa fecha ya no está
+  en el crudo, así que no se pudo recalcular con las carnes depuradas.
 - **Algunas combinaciones cadena × categoría tienen precios sistemáticamente
   fuera de mercado** (Dia en Gaseosas, por ejemplo), replicados en cientos de
   sucursales. Parece un error del maestro de precios de esa cadena y no se puede

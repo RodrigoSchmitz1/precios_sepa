@@ -81,11 +81,11 @@ después de las optimizaciones de ese día.
 
 **El valor no se elige mirando un día típico sino el presupuesto que queda: lo
 que falta del TiB gratuito dividido por los días que quedan del mes.** Una cuota
-de 25 GiB por día parece holgada, pero el 10 de septiembre ya se habían usado
-606 GiB y quedaban 20 GiB por día: con 25, el mes podía terminar pagando aunque
+de 25 GiB por día parece holgada, pero el 10 de septiembre cerraba con ~641
+GiB usados y quedaban 19 GiB por día: con 25, el mes podía terminar pagando aunque
 ningún día individual se pasara.
 
-Con 20 GiB por día el pipeline entra. Y como corre temprano en el día de la
+Con 19 GiB por día el pipeline entra. Y como corre temprano en el día de la
 cuota, que se reinicia a la medianoche del Pacífico (las 4 de la mañana en
 Argentina), si algo se pasa es el tráfico del sitio el que recibe el rechazo, no
 la ingesta.
@@ -95,7 +95,7 @@ ya supera el valor nuevo, BigQuery rechaza todo hasta la medianoche del
 Pacífico, incluida la corrida de dbt que falte.
 
 ```bash
-gcloud quotas preferences update --service=bigquery.googleapis.com --project=proyecto-precios-504221 --quota-id=QueryUsagePerDay --preferred-value=20480 --preference-id=limite-diario-consultas --allow-high-percentage-quota-decrease --allow-quota-decrease-below-usage
+gcloud quotas preferences update --service=bigquery.googleapis.com --project=proyecto-precios-504221 --quota-id=QueryUsagePerDay --preferred-value=19456 --preference-id=limite-diario-consultas --allow-high-percentage-quota-decrease --allow-quota-decrease-below-usage
 ```
 
 Si algún día la cuota corta el pipeline se nota enseguida: falla el workflow de
