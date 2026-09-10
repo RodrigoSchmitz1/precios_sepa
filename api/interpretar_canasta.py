@@ -20,6 +20,10 @@ CATEGORIAS_VALIDAS = [
     "Panales", "Papa y tuberculos", "Perfumeria", "Pescado", "Pollo",
     "Quesos", "Sal", "Snacks", "Te", "Textil y calzado", "Verduras",
     "Vinagre", "Vinos y licores", "Yerba mate", "Yogur",
+    # Agregadas el 2026-09-10 con la taxonomia de carnes de categorizar.py: el
+    # cerdo, las achuras y los elaborados dejaron de estar dentro de Carne
+    # vacuna y Pollo, asi que tienen que poder pedirse por separado.
+    "Achuras y menudencias", "Cerdo", "Elaborados de carne", "Otras carnes",
 ]
 
 REFERENCIAS_MENSUALES_PER_CAPITA = """Como referencia de cantidades MENSUALES razonables para UN adulto (basadas en consumo promedio real en Argentina), antes de ajustar segun lo que describa el usuario:
@@ -30,9 +34,12 @@ REFERENCIAS_MENSUALES_PER_CAPITA = """Como referencia de cantidades MENSUALES ra
 - Papa y tuberculos: 1500-2500g (NO mas de 3000g salvo consumo muy alto declarado)
 - Azucar: 400-600g
 - Aceite: 400-600cc
-- Carne vacuna: 1500-2500g
-- Pollo: 1000-1500g
+- Carne vacuna: 1500-2500g (solo cortes vacunos; el cerdo, las achuras y las milanesas o hamburguesas van en sus propias categorias)
+- Pollo: 1000-1500g (pollo entero y presas)
 - Pescado: 400-800g
+- Cerdo: 300-700g (si se consume)
+- Achuras y menudencias: 200-500g (si se consumen)
+- Elaborados de carne: 500-1000g (milanesas, hamburguesas, nuggets; si se consumen)
 - Huevos: 8-15 unidades
 - Leche fluida: 2000-3000cc
 - Quesos: 200-400g

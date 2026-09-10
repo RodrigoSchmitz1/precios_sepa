@@ -51,8 +51,10 @@ models:
 
   - name: stg_categorias
     description: >
-      Categoria y rubro de cada producto, clasificados con Gemini contra una
-      taxonomia cerrada de 58 categorias.
+      Categoria y rubro vigentes de cada producto, clasificados con Gemini
+      contra una taxonomia cerrada de 61 categorias. La fuente es de solo
+      agregado: si un producto se reclasifico, vale la clasificacion mas
+      reciente segun categorizado_en.
     columns:
       - name: id_producto
         tests:

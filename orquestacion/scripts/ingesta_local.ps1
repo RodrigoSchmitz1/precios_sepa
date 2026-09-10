@@ -11,7 +11,13 @@
 #
 # Para registrar la tarea (una sola vez, desde una consola como administrador):
 #
-#   schtasks /create /tn "Ingesta SEPA" /sc daily /st 07:00 /tr "powershell -NoProfile -ExecutionPolicy Bypass -File C:\Users\rschmitz\Desktop\precios_sepa\orquestacion\scripts\ingesta_local.ps1"
+#   schtasks /create /tn "Ingesta SEPA" /sc daily /st 07:00 /tr "powershell -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File C:\Users\rschmitz\Desktop\precios_sepa\orquestacion\scripts\ingesta_local.ps1"
+#
+# -WindowStyle Hidden no es cosmetico. La tarea corre en la sesion del usuario y
+# antes abria una consola visible al iniciar sesion: el 2026-09-10 esa ventana se
+# cerro a los pocos segundos y la ingesta murio con 0xC000013A sin cargar nada.
+# Se probo conhost --headless, que tambien oculta, pero devuelve siempre 0 y el
+# Programador de tareas dejaria de mostrar las fallas.
 #
 # Para probarla a mano:  schtasks /run /tn "Ingesta SEPA"
 # Para ver como le fue:  schtasks /query /tn "Ingesta SEPA" /v /fo list

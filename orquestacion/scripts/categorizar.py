@@ -1,6 +1,9 @@
-﻿import os
+﻿import argparse
+import collections
+import os
 import time
 import json
+from datetime import datetime, timezone
 from dotenv import load_dotenv
 from google import genai
 from google.cloud import bigquery
@@ -20,6 +23,14 @@ CATEGORIA_A_RUBRO = {
     "Yogur": "Lacteos", "Manteca y margarina": "Lacteos",
     "Carne vacuna": "Carnes", "Pollo": "Carnes", "Pescado": "Carnes",
     "Fiambres": "Carnes", "Embutidos": "Carnes",
+    # Agregadas el 2026-09-10. Sin una categoria para el cerdo, la clasificacion
+    # lo mandaba a Carne vacuna: de los 335 productos economicos de esa
+    # categoria, solo 138 eran vacunos (131 de cerdo, 57 achuras, 9 de cordero).
+    # Eso abarataba la carne de la canasta y hacia incoherente compararla con el
+    # pollo. Cada tipo de carne tiene ahora su categoria, y las achuras y los
+    # elaborados (que tienen otro precio por kilo) van aparte.
+    "Cerdo": "Carnes", "Otras carnes": "Carnes",
+    "Achuras y menudencias": "Carnes", "Elaborados de carne": "Carnes",
     "Arroz": "Almacen", "Fideos": "Almacen", "Harina": "Almacen",
     "Galletitas dulces": "Almacen", "Galletitas saladas": "Almacen",
     "Legumbres": "Almacen", "Conservas": "Almacen",
@@ -131,6 +142,14 @@ Reglas:
 - Los supermercados grandes venden mucho mas que comida: televisores, ropa, juguetes, utiles, ollas, herramientas. Clasifica eso en las categorias No alimentario (Electro, Textil y calzado, Jugueteria, Libreria, Bazar y hogar, Ferreteria), NO en "Otros".
 - "Bazar y hogar" incluye ollas, cubiertos, vasos, sahumerios, velas, adornos, y cositas de hogar.
 - Alimentos menos obvios: mani/papitas/palitos -> Snacks; caramelos/chocolates/alfajores -> Golosinas y chocolates; proteinas/creatina/frutos secos/pasta de mani fit -> Dietetica suplementos y frutos secos.
+- Carnes: cada tipo de carne va en su categoria, sin mezclar.
+  - "Carne vacuna": SOLO cortes de vaca, novillo o ternera, frescos o congelados, incluida la carne picada y la carne cruda cortada para milanesa sin rebozar. Nunca cerdo, cordero, pollo, achuras ni elaborados.
+  - "Cerdo": cortes de cerdo (bondiola, pechito, carre, solomillo, costillas, matambre de cerdo).
+  - "Pollo": SOLO pollo entero y presas (pechuga, suprema, muslo, pata muslo, alitas), frescos o congelados. Nunca menudencias ni elaborados.
+  - "Pescado": pescados y mariscos frescos o congelados, sin rebozar. El atun o la caballa en lata van en Conservas.
+  - "Otras carnes": cordero, chivito, conejo, pato, pavo y cualquier carne que no sea vaca, cerdo, pollo ni pescado.
+  - "Achuras y menudencias": higado, lengua, riñon, mondongo, chinchulines, mollejas, corazon, patitas y menudos, de cualquier animal.
+  - "Elaborados de carne": milanesas rebozadas, hamburguesas, medallones, nuggets, bocaditos, formitas, arrollados y comidas preparadas con carne o pescado. Los chorizos y salchichas van en Embutidos; jamon, salame y mortadela en Fiambres.
 - Usa "Otros" SOLO si realmente no encaja en ninguna (debe ser muy poco).
 
 Devolve UNICAMENTE un JSON valido: una lista donde cada elemento tiene "n" (numero del producto) y "categoria" (una de las categorias exactas de la lista). Sin texto adicional, sin markdown.
@@ -143,23 +162,81 @@ def guardar_en_bigquery(resultados):
     if not resultados:
         return
     tabla_destino = f"{PROYECTO}.sepa.producto_categoria"
+    # La tabla es de solo agregado: una reclasificacion suma filas nuevas en vez
+    # de pisar las viejas, y stg_categorias se queda con la mas reciente de cada
+    # producto. Pisar la tabla borraria el resultado de todas las corridas de
+    # Gemini anteriores, que no se pueden reconstruir gratis, y dejaria sin
+    # rastro que clasificacion tenia cada producto antes.
     config = bigquery.LoadJobConfig(
         write_disposition=bigquery.WriteDisposition.WRITE_APPEND,
+        # La columna de version se agrego el 2026-09-10; las filas anteriores la
+        # tienen en NULL y cuentan como las mas viejas.
+        schema_update_options=[bigquery.SchemaUpdateOption.ALLOW_FIELD_ADDITION],
         schema=[
             bigquery.SchemaField("id_producto", "STRING"),
             bigquery.SchemaField("descripcion", "STRING"),
             bigquery.SchemaField("marca", "STRING"),
             bigquery.SchemaField("categoria", "STRING"),
             bigquery.SchemaField("rubro", "STRING"),
+            bigquery.SchemaField("categorizado_en", "TIMESTAMP"),
         ],
     )
     job = cliente_bq.load_table_from_json(resultados, tabla_destino, job_config=config)
     job.result()
 
 
+def tiene_columna_de_version():
+    tabla = cliente_bq.get_table(f"{PROYECTO}.sepa.producto_categoria")
+    return any(campo.name == "categorizado_en" for campo in tabla.schema)
+
+
+def traer_productos_para_recategorizar(categorias):
+    """Productos cuya clasificacion VIGENTE esta en alguna de las categorias dadas.
+
+    Lee las descripciones de producto_categoria, que ya las guarda: no hace
+    falta escanear el crudo.
+    """
+    orden = "categorizado_en DESC NULLS LAST" if tiene_columna_de_version() else "id_producto"
+    query = f"""
+        SELECT id_producto, descripcion, marca, categoria AS categoria_anterior
+        FROM (
+            SELECT *
+            FROM `{PROYECTO}.sepa.producto_categoria`
+            WHERE TRUE
+            QUALIFY ROW_NUMBER() OVER (PARTITION BY id_producto ORDER BY {orden}) = 1
+        )
+        WHERE categoria IN UNNEST(@categorias)
+    """
+    config = bigquery.QueryJobConfig(
+        query_parameters=[bigquery.ArrayQueryParameter("categorias", "STRING", categorias)]
+    )
+    return list(cliente_bq.query(query, job_config=config).result())
+
+
+def parsear_argumentos():
+    parser = argparse.ArgumentParser(description="Categoriza productos con Gemini.")
+    parser.add_argument(
+        "--recategorizar",
+        default=None,
+        help="Categorias separadas por coma cuyos productos se vuelven a clasificar "
+             "con la taxonomia actual (por ejemplo, despues de agregar categorias).",
+    )
+    return parser.parse_args()
+
+
 def main():
-    print("Trayendo productos a categorizar desde BigQuery...")
-    productos = traer_productos_a_categorizar()
+    args = parsear_argumentos()
+
+    if args.recategorizar:
+        categorias = [c.strip() for c in args.recategorizar.split(",") if c.strip()]
+        desconocidas = [c for c in categorias if c not in CATEGORIA_A_RUBRO]
+        if desconocidas:
+            raise SystemExit(f"Categorias que no existen en la taxonomia: {desconocidas}")
+        print(f"Trayendo productos a RECATEGORIZAR de {categorias}...")
+        productos = traer_productos_para_recategorizar(categorias)
+    else:
+        print("Trayendo productos a categorizar desde BigQuery...")
+        productos = traer_productos_a_categorizar()
     print(f"  -> {len(productos)} productos para categorizar\n")
 
     if not productos:
@@ -168,6 +245,7 @@ def main():
 
     GUARDAR_CADA = 10
     buffer = []
+    transiciones = collections.Counter()
     total_guardado = 0
     total_lotes = (len(productos) + TAMANO_LOTE - 1) // TAMANO_LOTE
 
@@ -194,7 +272,11 @@ def main():
                         "marca": lote[n]["marca"],
                         "categoria": categoria,
                         "rubro": rubro,
+                        "categorizado_en": datetime.now(timezone.utc).isoformat(),
                     })
+                    anterior = lote[n].get("categoria_anterior")
+                    if anterior is not None:
+                        transiciones[(anterior, categoria)] += 1
             print(f"Lote {num_lote}/{total_lotes}: {len(categorias_lote)} categorizados")
         except Exception as e:
             print(f"Lote {num_lote}/{total_lotes}: ERROR -> {e}")
@@ -213,6 +295,15 @@ def main():
         print(f"  >> Guardado final: {len(buffer)} productos")
 
     print(f"\nListo! Total categorizado y guardado en esta corrida: {total_guardado} productos")
+
+    if transiciones:
+        print("\nCambios de categoria (anterior -> nueva):")
+        for (anterior, nueva), cantidad in sorted(transiciones.items(), key=lambda x: -x[1]):
+            marca = "" if anterior == nueva else "  <-- cambio"
+            print(f"  {cantidad:5}  {anterior} -> {nueva}{marca}")
+        sin_clasificar = len(productos) - sum(transiciones.values())
+        if sin_clasificar:
+            print(f"  {sin_clasificar} productos quedaron con la clasificacion anterior (lotes con error)")
 
 
 if __name__ == "__main__":
