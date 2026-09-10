@@ -1,5 +1,8 @@
 import argparse
+import csv
+import gzip
 import os
+import tempfile
 from datetime import date, timedelta
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
@@ -17,9 +20,8 @@ TABLAS_DIMENSIONES = ["sucursales", "comercio"]
 # Columnas del CSV de productos que se conservan. El archivo trae 4 mas
 # (productos_ean, productos_precio_referencia, productos_cantidad_referencia y
 # productos_unidad_medida_referencia) que no usa ningun modelo ni endpoint y
-# pesaban 0.86 GB del crudo. El CSV se carga entero a la landing (el esquema
-# tiene que coincidir posicionalmente con el archivo), y el descarte ocurre al
-# reconstruir la tabla final.
+# pesaban 0.86 GB del crudo. El descarte se hace aca, al armar el archivo que
+# se carga (ver cargar_productos).
 COLUMNAS_PRODUCTOS = [
     "id_comercio",
     "id_bandera",
@@ -37,10 +39,12 @@ COLUMNAS_PRODUCTOS = [
 ]
 
 
-def parsear_fecha():
+def parsear_argumentos():
     """
-    Lee la fecha de datos desde la línea de comandos: --fecha AAAA-MM-DD
-    Si no se pasa --fecha, usa ayer (para el pipeline automático).
+    --fecha AAAA-MM-DD: fecha de los datos. Si se omite, usa ayer.
+    --destino-productos: carga SOLO productos a otra tabla, sin tocar las
+        dimensiones ni la tabla de produccion. Existe para validar un cambio en
+        la carga contra lo que ya esta cargado.
     """
     parser = argparse.ArgumentParser(description="Carga datos SEPA a BigQuery.")
     parser.add_argument(
@@ -50,17 +54,22 @@ def parsear_fecha():
         help="Fecha de los datos (del ZIP de SEPA), formato AAAA-MM-DD. "
              "Si se omite, usa ayer.",
     )
+    parser.add_argument(
+        "--destino-productos",
+        required=False,
+        default=None,
+        help="Tabla alternativa (proyecto.dataset.tabla) para cargar solo productos.",
+    )
     args = parser.parse_args()
 
     if args.fecha is None:
-        # Modo automático: ayer
-        ayer = date.today() - timedelta(days=1)
-        print(f"(sin --fecha: usando ayer = {ayer})")
-        return ayer
+        fecha = date.today() - timedelta(days=1)
+        print(f"(sin --fecha: usando ayer = {fecha})")
+    else:
+        # date.fromisoformat valida el formato: si le pasás basura, falla acá
+        fecha = date.fromisoformat(args.fecha)
 
-    # Modo manual: la fecha que pasaste
-    # date.fromisoformat valida el formato: si le pasás basura, falla acá
-    return date.fromisoformat(args.fecha)
+    return fecha, args.destino_productos
 
 
 def esquema_desde_archivo(archivo):
@@ -197,80 +206,137 @@ def cargar_dimension(cliente, tabla):
     cliente.query(f"TRUNCATE TABLE `{landing}`").result()
 
 
-def cargar_productos(cliente, fecha):
-    """
-    Dos escalones, sin DML (compatible con BigQuery Sandbox):
-      1. Carga los 4 comercios a una tabla landing temporal (sin fecha).
-      2. Reconstruye productos por unión: (días anteriores ≠ fecha) + (día nuevo desde landing).
-         Al excluir la fecha que se carga, recargar un día no lo duplica (idempotente).
-    """
-    landing = f"{PROYECTO}.{DATASET}.productos_landing"
-    destino = f"{PROYECTO}.{DATASET}.{TABLA_HECHOS}"
+def asegurar_tabla_productos(cliente, destino):
+    """Crea la tabla destino con el esquema y la particion de produccion, si no existe."""
+    if existe_tabla(cliente, destino):
+        return
+    produccion = cliente.get_table(f"{PROYECTO}.{DATASET}.{TABLA_HECHOS}")
+    tabla = bigquery.Table(destino, schema=produccion.schema)
+    tabla.time_partitioning = produccion.time_partitioning
+    cliente.create_table(tabla)
+    print(f"  (se creo {destino} con el esquema de produccion)")
 
-    # --- Escalón 1: cargar el crudo a landing (truncate en el primero, append en el resto) ---
-    primera_carga = True
+
+def escribir_csv_productos(archivos, fecha, columnas, ruta):
+    """
+    Junta los CSV de todos los comercios en un solo archivo comprimido, con las
+    columnas en el orden de la tabla destino y la fecha ya estampada.
+
+    Las columnas se buscan por NOMBRE en el encabezado de cada archivo, no por
+    posicion: si un comercio publica las columnas en otro orden, no se corren.
+    Una fila con menos campos que el encabezado se completa con vacios (lo mismo
+    que hace BigQuery con allow_jagged_rows); una con mas campos no se puede
+    interpretar sin adivinar y se descarta, igual que un registro invalido.
+    """
+    csv.field_size_limit(10 * 1024 * 1024)
+    escritas = 0
+    descartadas = 0
+    vacias = 0
+    texto_fecha = fecha.isoformat()
+    with gzip.open(ruta, "wt", encoding="utf-8", newline="", compresslevel=1) as salida:
+        escritor = csv.writer(salida, delimiter="|", lineterminator="\n")
+        escritor.writerow(columnas)
+        for archivo in archivos:
+            with open(archivo, encoding="utf-8-sig", errors="replace", newline="") as entrada:
+                lector = csv.reader(entrada, delimiter="|")
+                encabezado = next(lector)
+                ancho = len(encabezado)
+                # None marca la columna de fecha, que no viene en el archivo.
+                indices = [None if c == "fecha_datos" else encabezado.index(c) for c in columnas]
+                for fila in lector:
+                    if not fila:
+                        vacias += 1
+                        continue
+                    if len(fila) > ancho:
+                        descartadas += 1
+                        continue
+                    if len(fila) < ancho:
+                        fila = fila + [""] * (ancho - len(fila))
+                    escritor.writerow([texto_fecha if i is None else fila[i] for i in indices])
+                    escritas += 1
+    return escritas, descartadas, vacias
+
+
+def cargar_productos(cliente, fecha, destino=None):
+    """
+    Carga la fecha como UNA particion, con un load job directo y sin consultas.
+
+    POR QUE ASI (2026-09-10): antes se cargaba el CSV a una landing y despues se
+    reconstruia la tabla entera con CREATE OR REPLACE ... AS SELECT (dias
+    anteriores) UNION ALL (landing), porque en el Sandbox de BigQuery no habia
+    DML. Esa consulta leia las tres particiones cada dia para agregar una: 4,07
+    GiB por corrida, la partida mas grande del pipeline despues de dbt. Los load
+    jobs no consumen cuota de consultas, asi que ahora cuesta cero.
+
+    El archivo se arma aca con las columnas que se conservan y la fecha, y se
+    carga sobre la particion de esa fecha (productos$AAAAMMDD) con WRITE_TRUNCATE:
+      - idempotente: recargar una fecha reemplaza su particion, no la duplica;
+      - atomico: es un solo job, asi que una falla no deja la particion a medias;
+      - las demas fechas no se tocan.
+    Se comprime antes de subir: el CSV del dia pesa del orden de 2 GB y la
+    subida sale de una conexion domestica.
+    """
+    destino = destino or f"{PROYECTO}.{DATASET}.{TABLA_HECHOS}"
+    asegurar_tabla_productos(cliente, destino)
+    esquema = cliente.get_table(destino).schema
+    columnas = [campo.name for campo in esquema]
+
+    archivos = []
     for comercio in COMERCIOS:
         archivo = f"{comercio}/{TABLA_HECHOS}.csv"
-        if not os.path.exists(archivo):
+        if os.path.exists(archivo):
+            archivos.append(archivo)
+        else:
             print(f"  (sin {archivo}: ese comercio no vino en el ZIP de esta fecha, se omite)")
-            continue
 
-        modo = (
-            bigquery.WriteDisposition.WRITE_TRUNCATE
-            if primera_carga
-            else bigquery.WriteDisposition.WRITE_APPEND
-        )
-        esquema = esquema_desde_archivo(archivo)
-        config = config_carga(esquema, modo)
-
-        with open(archivo, "rb") as f:
-            print(f"Cargando {archivo} en landing (modo: {'reemplazar' if primera_carga else 'anexar'})...")
-            job = cliente.load_table_from_file(f, landing, job_config=config)
-            job.result()
-            print(f"  -> OK: {job.output_rows} filas cargadas a landing")
-
-        primera_carga = False
-
-    # Sin esta guarda, si no se cargo nada la landing conservaria los datos de la
-    # corrida anterior y el paso siguiente los estamparia con la fecha de hoy.
-    if primera_carga:
+    # Sin esta guarda se cargaria una particion vacia sobre una fecha que quiza
+    # ya tenia datos.
+    if not archivos:
         raise RuntimeError(
             f"No se encontro ningun archivo {TABLA_HECHOS}.csv para {fecha}. "
-            f"Se aborta para no cargar datos de otra fecha."
+            f"Se aborta para no pisar la particion."
         )
 
-    # --- Escalón 2: reconstruir productos por unión (CTAS, sin DML) ---
-    print(f"Reconstruyendo {TABLA_HECHOS} con la partición {fecha}...")
-    columnas = ",\n            ".join(COLUMNAS_PRODUCTOS)
-    reconstruir = f"""
-        CREATE OR REPLACE TABLE `{destino}`
-        PARTITION BY fecha_datos
-        OPTIONS (partition_expiration_days = 3) AS
-        SELECT
-            {columnas},
-            fecha_datos
-        FROM `{destino}`
-        WHERE fecha_datos != DATE(@fecha)
-        UNION ALL
-        SELECT
-            {columnas},
-            DATE(@fecha) AS fecha_datos
-        FROM `{landing}`
-    """
-    params = [bigquery.ScalarQueryParameter("fecha", "DATE", fecha)]
-    job_config = bigquery.QueryJobConfig(query_parameters=params)
+    descriptor, ruta = tempfile.mkstemp(suffix=".csv.gz")
+    os.close(descriptor)
+    try:
+        print(f"Armando el archivo de {len(archivos)} comercios para {fecha}...")
+        escritas, descartadas, vacias = escribir_csv_productos(archivos, fecha, columnas, ruta)
+        tam_mb = os.path.getsize(ruta) / (1024 * 1024)
+        print(f"  -> {escritas:,} filas ({tam_mb:.0f} MB comprimido); "
+              f"descartadas por exceso de campos: {descartadas}; lineas vacias: {vacias}")
 
-    cliente.query(reconstruir, job_config=job_config).result()
-    print(f"  -> OK: partición {fecha} cargada")
+        config = bigquery.LoadJobConfig(
+            source_format=bigquery.SourceFormat.CSV,
+            field_delimiter="|",
+            skip_leading_rows=1,
+            autodetect=False,
+            write_disposition=bigquery.WriteDisposition.WRITE_TRUNCATE,
+            allow_quoted_newlines=True,
+            encoding="UTF-8",
+            max_bad_records=1000,
+            schema=esquema,
+        )
+        particion = f"{destino}${fecha:%Y%m%d}"
+        print(f"Cargando la particion {particion}...")
+        with open(ruta, "rb") as f:
+            job = cliente.load_table_from_file(f, particion, job_config=config)
+            job.result()
+        errores = len(job.errors or [])
+        print(f"  -> OK: {job.output_rows:,} filas en la particion {fecha} "
+              f"(registros rechazados por BigQuery: {errores})")
+    finally:
+        os.remove(ruta)
 
-
-    print(f"Vaciando productos_landing para liberar espacio...")
-    cliente.query(f"TRUNCATE TABLE `{landing}`").result()
-    print(f"  -> OK: landing vaciada")
 
 def main():
-    fecha = parsear_fecha()
+    fecha, destino_productos = parsear_argumentos()
     cliente = bigquery.Client.from_service_account_json(CREDENCIALES)
+
+    if destino_productos:
+        print(f"=== Carga de validacion: solo productos de {fecha} a {destino_productos} ===\n")
+        cargar_productos(cliente, fecha, destino_productos)
+        return
 
     print(f"=== Carga SEPA para la fecha {fecha} ===\n")
 
