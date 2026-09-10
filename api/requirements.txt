@@ -14,3 +14,7 @@ python-dotenv==1.2.3
 # desarrollo no se notaba.
 # DEUDA CONOCIDA: esta libreria esta discontinuada, hay que migrar a google-genai.
 google-generativeai==0.8.6
+# Zonas horarias para decir a que hora vuelve el sitio cuando se agota la cuota
+# de BigQuery. zoneinfo usa la base del sistema operativo, y ni Windows ni la
+# imagen python-slim la traen completa: sin este paquete, ZoneInfo falla.
+tzdata==2026.3

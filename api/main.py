@@ -2,10 +2,13 @@ import functools
 import json
 import os
 import time
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
-from fastapi import FastAPI, Query
+from fastapi import FastAPI, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from google.api_core.exceptions import GoogleAPICallError
 from google.cloud import bigquery
 from google.oauth2 import service_account
 from pydantic import BaseModel
@@ -83,21 +86,92 @@ _cache: dict = {}
 
 
 def cachear(fn):
-    """Cachea por argumentos. Solo para endpoints cuyo dato cambia una vez al dia."""
+    """Cachea por argumentos. Solo para endpoints cuyo dato cambia una vez al dia.
+
+    Si BigQuery falla al refrescar y hay un valor guardado, se sirve ese valor
+    aunque tenga mas de 6 horas. El caso que lo motiva es la cuota diaria: cuando
+    se agota, BigQuery rechaza todo hasta la medianoche del Pacifico, y antes de
+    esto el sitio respondia 500 aunque tuviera en memoria un dato de hace un rato
+    que seguia siendo valido, porque el pipeline actualiza una vez por dia.
+    Mostrar el dato de ayer es mejor que mostrar un error; si no hay nada
+    guardado, el error sigue su curso y lo responde el manejador de abajo.
+    """
 
     @functools.wraps(fn)
     def envoltorio(*args, **kwargs):
         clave = (fn.__name__, args, tuple(sorted(kwargs.items())))
         ahora = time.time()
-        if clave in _cache:
-            guardado_en, valor = _cache[clave]
-            if ahora - guardado_en < TTL_CACHE_SEGUNDOS:
-                return valor
-        valor = fn(*args, **kwargs)
+        guardado = _cache.get(clave)
+        if guardado and ahora - guardado[0] < TTL_CACHE_SEGUNDOS:
+            return guardado[1]
+        try:
+            valor = fn(*args, **kwargs)
+        except GoogleAPICallError:
+            if guardado:
+                return guardado[1]
+            raise
         _cache[clave] = (ahora, valor)
         return valor
 
     return envoltorio
+
+
+# ---------------------------------------------------------------------------
+# Errores de BigQuery
+#
+# El proyecto tiene una cuota diaria de consultas para que no pueda generar
+# costos. Cuando se agota, BigQuery responde 403 con reason "quotaExceeded" y,
+# sin manejarlo, FastAPI devolvia "500 Internal Server Error": el sitio parecia
+# roto cuando en realidad estaba funcionando el limite que lo protege. Ahora se
+# responde 503 con un mensaje que el frontend muestra tal cual, y con la hora a
+# la que vuelven los datos.
+#
+# Cualquier otro error de BigQuery tambien responde 503, pero sin detalles: el
+# mensaje interno puede incluir nombres de tablas o del proyecto.
+# ---------------------------------------------------------------------------
+def _reinicio_de_cuota() -> tuple[str, int]:
+    """Hora de Argentina a la que se reinicia la cuota, y segundos que faltan.
+
+    La cuota diaria de BigQuery se reinicia a la medianoche del Pacifico, que en
+    Argentina son las 04:00 o las 05:00 segun el horario de verano de EE.UU.
+    """
+    pacifico = ZoneInfo("America/Los_Angeles")
+    ahora = datetime.now(pacifico)
+    medianoche = (ahora + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    hora = medianoche.astimezone(ZoneInfo("America/Argentina/Buenos_Aires")).strftime("%H:%M")
+    return hora, max(int((medianoche - ahora).total_seconds()), 0)
+
+
+def _es_cuota_agotada(error: GoogleAPICallError) -> bool:
+    detalles = getattr(error, "errors", None) or []
+    return any(isinstance(d, dict) and d.get("reason") == "quotaExceeded" for d in detalles)
+
+
+@api.exception_handler(GoogleAPICallError)
+async def responder_error_de_bigquery(request: Request, error: GoogleAPICallError):
+    if not _es_cuota_agotada(error):
+        return JSONResponse(
+            status_code=503,
+            content={"detail": "No se pudo consultar la base de datos. Proba de nuevo en unos minutos."},
+        )
+    try:
+        hora, segundos = _reinicio_de_cuota()
+        cuando = f"a las {hora} (hora de Argentina)"
+        encabezados = {"Retry-After": str(segundos)}
+    except Exception:
+        cuando = "a la medianoche del Pacifico"
+        encabezados = {}
+    return JSONResponse(
+        status_code=503,
+        headers=encabezados,
+        content={
+            "detail": (
+                "El sitio alcanzo el limite diario de consultas a la base de datos, "
+                "que existe para que el proyecto no genere costos. Los datos vuelven "
+                f"a estar disponibles {cuando}."
+            )
+        },
+    )
 
 
 def solo_ultima_fecha(tabla: str) -> str:
