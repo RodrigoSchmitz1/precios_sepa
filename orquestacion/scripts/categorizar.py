@@ -1,5 +1,6 @@
 ﻿import argparse
 import collections
+from concurrent.futures import ThreadPoolExecutor, as_completed
 import os
 import time
 import json
@@ -149,19 +150,51 @@ Reglas:
 - "Bazar y hogar" incluye ollas, cubiertos, vasos, sahumerios, velas, adornos, y cositas de hogar.
 - Alimentos menos obvios: mani/papitas/palitos -> Snacks; caramelos/chocolates/alfajores -> Golosinas y chocolates; proteinas/creatina/frutos secos/pasta de mani fit -> Dietetica suplementos y frutos secos.
 - Carnes: cada tipo de carne va en su categoria, sin mezclar.
-  - "Carne vacuna": SOLO cortes de vaca, novillo o ternera, frescos o congelados, incluida la carne picada y la carne cruda cortada para milanesa sin rebozar. Nunca cerdo, cordero, pollo, achuras ni elaborados.
-  - "Cerdo": cortes de cerdo (bondiola, pechito, carre, solomillo, costillas, matambre de cerdo).
-  - "Pollo": SOLO pollo entero y presas (pechuga, suprema, muslo, pata muslo, alitas), frescos o congelados. Nunca menudencias ni elaborados.
-  - "Pescado": pescados y mariscos frescos o congelados, sin rebozar. El atun o la caballa en lata van en Conservas.
-  - "Otras carnes": cordero, chivito, conejo, pato, pavo y cualquier carne que no sea vaca, cerdo, pollo ni pescado.
-  - "Achuras y menudencias": higado, lengua, riñon, mondongo, chinchulines, mollejas, corazon, patitas y menudos, de cualquier animal.
-  - "Elaborados de carne": milanesas rebozadas, hamburguesas, medallones, nuggets, bocaditos, formitas, arrollados y comidas preparadas con carne o pescado. Los chorizos y salchichas van en Embutidos; jamon, salame y mortadela en Fiambres.
+  - "Carne vacuna": SOLO cortes crudos de vaca, novillo o ternera, frescos o congelados, incluida la carne picada. "MILANESA DE NALGA" o "MILANESA DE CUADRADA" sin la palabra rebozada o empanada es carne cruda cortada para milanesa: va aca. Un "medallon de lomo" es un corte crudo: va aca. Nunca cerdo, cordero, pollo, achuras, fiambres ni elaborados.
+  - "Cerdo": cortes crudos de cerdo, frescos o congelados (bondiola fresca, pechito, carre, solomillo, costillas, matambre de cerdo, cerdo feteado crudo).
+  - "Pollo": SOLO pollo entero y presas crudas (pechuga, suprema, muslo, pata muslo, alitas), frescos o congelados.
+  - "Pescado": pescados y mariscos crudos, frescos o congelados, sin rebozar. Los enlatados van en Conservas.
+  - "Otras carnes": cortes crudos de cordero, chivito, cabrito, conejo, pato, pavo y cualquier carne que no sea vaca, cerdo, pollo ni pescado.
+  - "Achuras y menudencias": higado, lengua, riñon, mondongo, chinchulines, mollejas, corazon, sesos y menudos, de cualquier animal. Las "patitas de pollo" son un rebozado con forma, NO una achura: van en Elaborados de carne.
+  - "Elaborados de carne": productos preparados con carne o pescado que se cocinan antes de comer: milanesas y supremas rebozadas o empanadas, hamburguesas, medallones formados, nuggets, bocaditos, patitas y formitas de pollo, chicken fingers, albondigas, rebozados de pescado y comidas preparadas con carne.
+  - "Fiambres": lo que se come frio y feteado, curado, cocido o ahumado: jamon cocido y crudo, paleta cocida, salame, salamin, longaniza, mortadela, bondiola curada, lomo curado o ahumado, leberwurst, queso de cerdo, arrollados y matambres cocidos, pechuga de pavo o de pollo cocida, y las "picadas" (tablas de fiambres y quesos). Una "picada" NO es carne picada.
+  - "Embutidos": los que se cocinan antes de comer: chorizo fresco, morcilla, salchichas.
+  - Los sandwiches (de miga, triples) no son fiambres ni elaborados de carne: van en Otros.
 - Usa "Otros" SOLO si realmente no encaja en ninguna (debe ser muy poco).
 
 Devolve UNICAMENTE un JSON valido: una lista donde cada elemento tiene "n" (numero del producto) y "categoria" (una de las categorias exactas de la lista). Sin texto adicional, sin markdown.
 
 Productos:
 {texto_productos}"""
+
+
+# Espera antes de cada reintento, en segundos.
+ESPERAS_REINTENTO = [15, 45, 120]
+
+
+def clasificar_lote(lote):
+    """Pide a Gemini la categoria de cada producto del lote.
+
+    Reintenta ante cualquier falla: un 503 por alta demanda, un 429 por cuota o
+    una respuesta que no es JSON. El 2026-09-10 un solo 503 dejaba 50 productos
+    con la clasificacion vieja sin volver a intentarlo. Si despues de los
+    reintentos sigue fallando, el error sube y el lote se informa como fallido.
+    """
+    prompt = construir_prompt(lote)
+    ultimo_error = None
+    for espera in [0] + ESPERAS_REINTENTO:
+        if espera:
+            time.sleep(espera)
+        try:
+            respuesta = cliente_ia.models.generate_content(model=MODELO, contents=prompt)
+            texto = respuesta.text.strip().replace("```json", "").replace("```", "").strip()
+            resultado = json.loads(texto)
+            if not isinstance(resultado, list):
+                raise ValueError("la respuesta no es una lista")
+            return resultado
+        except Exception as e:
+            ultimo_error = e
+    raise ultimo_error
 
 
 def guardar_en_bigquery(resultados):
@@ -227,6 +260,12 @@ def parsear_argumentos():
         help="Categorias separadas por coma cuyos productos se vuelven a clasificar "
              "con la taxonomia actual (por ejemplo, despues de agregar categorias).",
     )
+    parser.add_argument(
+        "--hilos",
+        type=int,
+        default=4,
+        help="Lotes que se mandan a Gemini en paralelo (default 4).",
+    )
     return parser.parse_args()
 
 
@@ -253,47 +292,50 @@ def main():
     buffer = []
     transiciones = collections.Counter()
     total_guardado = 0
-    total_lotes = (len(productos) + TAMANO_LOTE - 1) // TAMANO_LOTE
+    lotes = [productos[i:i + TAMANO_LOTE] for i in range(0, len(productos), TAMANO_LOTE)]
+    total_lotes = len(lotes)
+    fallidos = []
 
-    for i in range(0, len(productos), TAMANO_LOTE):
-        lote = productos[i:i + TAMANO_LOTE]
-        num_lote = i // TAMANO_LOTE + 1
-        prompt = construir_prompt(lote)
+    # Los lotes van en paralelo: cada llamada a Gemini tarda cerca de un minuto,
+    # y reclasificar 3.100 productos de a uno llevaba mas de una hora. Los
+    # resultados se procesan en este hilo, asi que el buffer y los contadores no
+    # necesitan sincronizacion.
+    with ThreadPoolExecutor(max_workers=args.hilos) as pool:
+        futuros = {pool.submit(clasificar_lote, lote): (num, lote) for num, lote in enumerate(lotes, 1)}
+        for completados, futuro in enumerate(as_completed(futuros), 1):
+            num_lote, lote = futuros[futuro]
+            try:
+                categorias_lote = futuro.result()
+                agregados = 0
+                for item in categorias_lote:
+                    n = item["n"] - 1
+                    if 0 <= n < len(lote):
+                        categoria = item["categoria"]
+                        if categoria not in CATEGORIA_A_RUBRO:
+                            categoria = "Otros"
+                        rubro = CATEGORIA_A_RUBRO[categoria]
+                        buffer.append({
+                            "id_producto": lote[n]["id_producto"],
+                            "descripcion": lote[n]["descripcion"],
+                            "marca": lote[n]["marca"],
+                            "categoria": categoria,
+                            "rubro": rubro,
+                            "categorizado_en": datetime.now(timezone.utc).isoformat(),
+                        })
+                        agregados += 1
+                        anterior = lote[n].get("categoria_anterior")
+                        if anterior is not None:
+                            transiciones[(anterior, categoria)] += 1
+                print(f"Lote {num_lote}/{total_lotes}: {agregados} categorizados")
+            except Exception as e:
+                fallidos.append(num_lote)
+                print(f"Lote {num_lote}/{total_lotes}: ERROR tras reintentos -> {e}")
 
-        try:
-            respuesta = cliente_ia.models.generate_content(model=MODELO, contents=prompt)
-            texto = respuesta.text.strip().replace("```json", "").replace("```", "").strip()
-            categorias_lote = json.loads(texto)
-
-            for item in categorias_lote:
-                n = item["n"] - 1
-                if 0 <= n < len(lote):
-                    categoria = item["categoria"]
-                    if categoria not in CATEGORIA_A_RUBRO:
-                        categoria = "Otros"
-                    rubro = CATEGORIA_A_RUBRO[categoria]
-                    buffer.append({
-                        "id_producto": lote[n]["id_producto"],
-                        "descripcion": lote[n]["descripcion"],
-                        "marca": lote[n]["marca"],
-                        "categoria": categoria,
-                        "rubro": rubro,
-                        "categorizado_en": datetime.now(timezone.utc).isoformat(),
-                    })
-                    anterior = lote[n].get("categoria_anterior")
-                    if anterior is not None:
-                        transiciones[(anterior, categoria)] += 1
-            print(f"Lote {num_lote}/{total_lotes}: {len(categorias_lote)} categorizados")
-        except Exception as e:
-            print(f"Lote {num_lote}/{total_lotes}: ERROR -> {e}")
-
-        if num_lote % GUARDAR_CADA == 0 and buffer:
-            guardar_en_bigquery(buffer)
-            total_guardado += len(buffer)
-            print(f"  >> Guardado parcial: {len(buffer)} productos (acumulado: {total_guardado})")
-            buffer = []
-
-        time.sleep(4)
+            if completados % GUARDAR_CADA == 0 and buffer:
+                guardar_en_bigquery(buffer)
+                total_guardado += len(buffer)
+                print(f"  >> Guardado parcial: {len(buffer)} productos (acumulado: {total_guardado})")
+                buffer = []
 
     if buffer:
         guardar_en_bigquery(buffer)
@@ -301,6 +343,8 @@ def main():
         print(f"  >> Guardado final: {len(buffer)} productos")
 
     print(f"\nListo! Total categorizado y guardado en esta corrida: {total_guardado} productos")
+    if fallidos:
+        print(f"Lotes que fallaron despues de reintentar: {sorted(fallidos)}")
 
     if transiciones:
         print("\nCambios de categoria (anterior -> nueva):")
