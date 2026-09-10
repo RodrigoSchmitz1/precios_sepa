@@ -21,6 +21,9 @@ logs/
 **/dbt.log
 orquestacion/scripts/sepa*/
 
+# Los tests de la API se corren en desarrollo; la imagen no los necesita.
+api/test_*.py
+
 # El build del frontend se hace dentro de la imagen; el local solo confundiria.
 frontend/dist/
 
