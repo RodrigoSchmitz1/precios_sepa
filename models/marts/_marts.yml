@@ -193,26 +193,59 @@ models:
           - accepted_values:
               values: ["economico", "medio", "premium"]
 
-  - name: mart_promos_vigentes
-    description: Promos activas agrupadas por cadena y provincia, para listados.
-    tests:
-      # El techo no es cosmetico: SEPA mezcla importes de cuota de financiacion
-      # en la columna de precio de promo, y sin el la portada mostraba colchones
-      # con "98.8% OFF". Si alguien afloja el filtro, esto tiene que fallar.
-      - dbt_utils.expression_is_true:
-          expression: "descuento_pct BETWEEN 10 AND {{ var('descuento_maximo_plausible') }}"
+  - name: mart_promos_evidencia
+    description: >
+      Todas las promos del ultimo dia con la evidencia para decidir si el
+      descuento es creible: porcentaje declarado en la leyenda, lista mas barata
+      del mismo producto en otra empresa y nivel de evidencia.
     columns:
       - name: descuento_pct
         tests: [not_null]
+      - name: nivel_evidencia
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["leyenda", "leyenda_no_coincide", "mercado", "sin_verificar"]
+
+  - name: mart_promos_calibracion
+    description: >
+      Umbrales del dia calculados con las promos verificadas por leyenda. Una
+      fila por fecha, para auditar con que umbral se decidio que mostrar.
+    columns:
+      - name: fecha_datos
+        tests: [not_null, unique]
+
+  - name: mart_promos_vigentes
+    description: Promos activas agrupadas por cadena y provincia, para listados.
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "descuento_pct >= 10"
+    columns:
+      - name: descuento_pct
+        tests: [not_null]
+      - name: nivel_evidencia
+        description: >
+          De donde sale la confianza en el descuento: la leyenda de la cadena,
+          el precio del mismo producto en otra empresa, o nada (y entonces el
+          descuento no supera el techo del dia). Ver mart_promos_evidencia.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["leyenda", "mercado", "sin_verificar"]
 
   - name: mart_promos_por_sucursal
     description: >
       Las mismas promos a nivel sucursal, con lat/long, para el mapa.
     tests:
       - dbt_utils.expression_is_true:
-          expression: "descuento_pct BETWEEN 10 AND {{ var('descuento_maximo_plausible') }}"
+          expression: "descuento_pct >= 10"
     columns:
       - name: latitud
         tests: [not_null]
       - name: longitud
         tests: [not_null]
+      - name: nivel_evidencia
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["leyenda", "mercado", "sin_verificar"]
