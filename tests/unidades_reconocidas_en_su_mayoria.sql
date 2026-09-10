@@ -15,10 +15,16 @@
 -- El umbral de 2% deja margen de sobra sobre ese 0,18% y sigue siendo mucho
 -- menor que cualquier unidad nueva que aparezca con volumen real.
 
+-- Se mide sobre la ultima fecha: una unidad nueva de la fuente aparece ahi, y
+-- escanear las tres fechas costaba el triple por el mismo resultado.
+
+{% set fecha = ultima_fecha(ref('stg_productos')) %}
+
 WITH cobertura AS (
     SELECT
         COUNTIF(unidad_normalizada IS NULL) / COUNT(*) AS proporcion_sin_unidad
     FROM {{ ref('stg_productos') }}
+    WHERE fecha_datos = DATE('{{ fecha }}')
 )
 
 SELECT proporcion_sin_unidad

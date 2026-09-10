@@ -17,6 +17,12 @@
 --    Medido el 2026-09-09: 0,15%. El umbral de 5% distingue el atraso normal de
 --    un problema real.
 
+-- El backlog se mide sobre los productos de la ultima fecha, que son los que
+-- entran a los calculos de hoy. Leer id_producto de las tres fechas costaba
+-- 0,6 GiB por corrida para responder lo mismo.
+
+{% set fecha = ultima_fecha(ref("stg_productos")) %}
+
 WITH otros AS (
     SELECT
         "demasiados productos en Otros" AS problema,
@@ -29,7 +35,9 @@ sin_categoria AS (
         "demasiados productos sin categorizar" AS problema,
         COUNTIF(c.id_producto IS NULL) / COUNT(*) AS proporcion
     FROM (
-        SELECT DISTINCT id_producto FROM {{ ref("stg_productos") }}
+        SELECT DISTINCT id_producto
+        FROM {{ ref("stg_productos") }}
+        WHERE fecha_datos = DATE('{{ fecha }}')
     ) AS p
     LEFT JOIN {{ ref("stg_categorias") }} AS c USING (id_producto)
 )

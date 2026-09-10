@@ -8,18 +8,13 @@ models:
       fuente, no de parsear la descripcion en texto libre.
       Particionada por fecha_datos: sin particion, consultar un solo dia
       obligaba a escanear las 43 millones de filas.
+    # Los chequeos de integridad (id y precio no nulos, unidad valida) estan en
+    # tests/stg_productos_ultima_fecha_valida.sql y miran solo la ultima fecha.
+    # Como tests genericos escaneaban las tres fechas en cada corrida: 1,12 GiB
+    # por dia. Ver el encabezado de ese test.
     columns:
-      - name: id_producto
-        tests: [not_null]
-      - name: precio
-        tests: [not_null]
       - name: unidad_normalizada
         description: NULL cuando la unidad de la fuente no es reconocible.
-        tests:
-          - accepted_values:
-              values: ["g", "cc", "unidad"]
-              config:
-                where: "unidad_normalizada IS NOT NULL"
 
   - name: stg_comercio
     description: >
