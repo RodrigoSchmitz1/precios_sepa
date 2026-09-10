@@ -234,8 +234,11 @@ def obtener_gama(
 
     where = f"WHERE {' AND '.join(condiciones)}" if condiciones else ""
 
+    # La unidad va en la respuesta porque es parte del grano: un mismo producto
+    # puede tener una gama en gramos y otra por unidad (ver mart_gama_productos).
     query = f"""
-        SELECT id_producto, categoria, rubro, precio_mediano, gama
+        SELECT id_producto, categoria, rubro, unidad_normalizada,
+               precio_mediano, precio_por_unidad, gama
         FROM `{PROYECTO}.dbt_precios.mart_gama_productos`
         {where}
         ORDER BY precio_mediano DESC

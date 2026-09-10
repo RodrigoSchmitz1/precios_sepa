@@ -36,7 +36,13 @@ WITH productos_filtrados AS (
         p.precio / p.cantidad_normalizada AS precio_por_unidad
     FROM {{ ref("stg_productos") }} AS p
     JOIN {{ ref("stg_categorias") }} AS cat ON p.id_producto = cat.id_producto
-    JOIN {{ ref("mart_gama_productos") }} AS gama ON p.id_producto = gama.id_producto
+    -- La gama se une por producto Y unidad: un mismo producto puede venir en
+    -- gramos en una cadena y como "1 unidad" en otra, y cada unidad tiene su
+    -- propia gama. Unir solo por producto metia milanesas en el pollo
+    -- economico. Ver mart_gama_productos.
+    JOIN {{ ref("mart_gama_productos") }} AS gama
+        ON p.id_producto = gama.id_producto
+        AND p.unidad_normalizada = gama.unidad_normalizada
     JOIN {{ ref("stg_sucursales") }} AS s
         ON p.id_comercio = s.id_comercio AND p.id_sucursal = s.id_sucursal
     WHERE p.fecha_datos = DATE('{{ fecha }}')

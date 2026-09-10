@@ -140,11 +140,21 @@ models:
       por tamano y no por nivel de precio (ver el encabezado del modelo).
       El orden economico < premium por unidad lo verifica el test singular
       gama_ordena_por_precio_unitario.
+      El grano es producto x unidad desde el 2026-09-10: un mismo producto puede
+      venir en gramos en una cadena y como "1 unidad" en otra, y clasificarlo
+      con una sola unidad metia productos caros en la gama economica.
+    tests:
+      # Si el grano vuelve a ser solo id_producto, los tres modelos que la unen
+      # por producto y unidad dejan de encontrar la mitad de las filas.
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [id_producto, unidad_normalizada]
     columns:
       - name: id_producto
-        tests: [not_null, unique]
+        tests: [not_null]
       - name: precio_por_unidad
-        description: Base del tercil. Es precio_mediano dividido por el tamano de envase.
+        description: >
+          Base del tercil. Mediana del precio por unidad de medida de cada fila
+          del producto en esa unidad.
         tests: [not_null]
       - name: unidad_normalizada
         description: >

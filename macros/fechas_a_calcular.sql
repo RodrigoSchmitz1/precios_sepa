@@ -24,9 +24,15 @@
 
       OJO AL CAMBIAR UNA METODOLOGIA
       Con este filtro, una fecha que ya esta en el historico NO se vuelve a
-      calcular. Si se cambia como se calcula algo y hay que rehacer fechas
-      anteriores, primero hay que borrar esas filas del historico; despues la
-      corrida siguiente las recalcula sola por estar pendientes.
+      calcular. Si se corrige como se calcula algo y hay que rehacer fechas
+      anteriores, se fuerzan con la variable recalcular_fechas:
+
+        dbt run --select <modelos> --vars '{recalcular_fechas: ["2026-09-07", "2026-09-08"]}'
+
+      insert_overwrite reemplaza exactamente esas particiones del historico. No
+      hace falta borrar filas a mano, que era la alternativa: un DELETE sobre la
+      unica data irrecuperable del proyecto. Una fecha forzada que ya no esta en
+      la fuente se ignora, asi que el historico conserva lo que tenia.
 
       incluir_anterior=true agrega la fecha inmediatamente anterior a la primera
       pendiente. Lo necesita mart_precios_cadena_categoria, cuyo indice
@@ -81,6 +87,15 @@
     {%- if ultima not in pendientes -%}
         {%- do pendientes.append(ultima) -%}
     {%- endif -%}
+
+    {#- Fechas forzadas para recalcular (ver OJO AL CAMBIAR UNA METODOLOGIA).
+        Solo entran las que existen en la fuente. -#}
+    {%- for texto in var("recalcular_fechas", []) -%}
+        {%- set forzada = modules.datetime.date.fromisoformat(texto | string) -%}
+        {%- if forzada in ordenadas and forzada not in pendientes -%}
+            {%- do pendientes.append(forzada) -%}
+        {%- endif -%}
+    {%- endfor -%}
 
     {%- if incluir_anterior -%}
         {%- set primera_pendiente = (pendientes | sort) | first -%}

@@ -18,10 +18,12 @@
 -- unicamente localidades con la canasta COMPLETA, que son las unicas cuyo costo
 -- se puede comparar contra otra localidad o contra si misma en otra fecha.
 --
--- ATENCION: las filas anteriores al 2026-09-08 se calcularon con la metodologia
--- vieja (se sumaban las categorias que cada localidad tuviera, entre 20 y 30 de
--- 32) y NO son comparables con las nuevas. Una localidad podia figurar barata
--- solo porque le faltaban categorias.
+-- Todas las filas actuales (2026-09-06 a 2026-09-08) se recalcularon el
+-- 2026-09-10 con la gama corregida a producto x unidad (ver
+-- mart_gama_productos), forzando las fechas con la variable recalcular_fechas.
+-- La version anterior clasificaba como economicos productos caros que venian
+-- en dos unidades distintas segun la cadena: inflaba pollo, pan y papa, y el
+-- costo mediano de la canasta daba 34% mas alto.
 
 SELECT
     localidad,
