@@ -322,7 +322,8 @@ def obtener_canasta(
     where = f"WHERE {' AND '.join(condiciones)}"
 
     query = f"""
-        SELECT localidad, provincia, categorias_en_canasta, costo_canasta_total
+        SELECT localidad, provincia, categorias_en_canasta, categorias_imputadas,
+               costo_canasta_total
         FROM `{tabla}`
         {where}
         ORDER BY costo_canasta_total ASC
@@ -354,7 +355,8 @@ def obtener_canasta_detalle(
             cantidad_necesaria,
             precio_mediano_unidad,
             costo_categoria,
-            muestras
+            muestras,
+            origen_precio
         FROM `{tabla}`
         WHERE {solo_ultima_fecha(tabla)}
             AND localidad = @localidad

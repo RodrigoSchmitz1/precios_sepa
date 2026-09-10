@@ -75,6 +75,14 @@ function DetalleCanasta({ localidad, provincia, total }: Props) {
               <div className="flex items-baseline justify-between gap-3 text-xs mb-0.5">
                 <span className="text-tinta-media truncate">
                   {f.categoria}
+                  {f.origen_precio === "provincia" && (
+                    <span
+                      className="ml-1.5 text-[10px] font-medium uppercase tracking-wide text-aviso bg-aviso-tenue rounded px-1 py-px"
+                      title="Esta localidad no junta 6 observaciones de la categoria: se usa la mediana de la provincia"
+                    >
+                      provincia
+                    </span>
+                  )}
                   <span className="text-tinta-suave">
                     {" "}
                     {formatearNumero(Math.round(f.cantidad_necesaria))} ×{" "}
@@ -110,7 +118,11 @@ function DetalleCanasta({ localidad, provincia, total }: Props) {
                 */}
                 <span
                   className="numero text-[10px] text-tinta-suave w-16 text-right"
-                  title={`Mediana calculada sobre ${formatearNumero(f.muestras)} observaciones de precio`}
+                  title={
+                    f.origen_precio === "provincia"
+                      ? `Mediana de la provincia, sobre ${formatearNumero(f.muestras)} observaciones de precio`
+                      : `Mediana calculada sobre ${formatearNumero(f.muestras)} observaciones de precio`
+                  }
                 >
                   {formatearNumero(f.muestras)} obs.
                 </span>
@@ -123,7 +135,10 @@ function DetalleCanasta({ localidad, provincia, total }: Props) {
       <p className="text-[11px] text-tinta-suave mt-3 pt-3 border-t border-linea">
         Cada categoria se valua con la mediana del precio por unidad de los productos de
         gama economica de esa localidad, tras recortar el decil mas caro y el mas barato.
-        Las cantidades salen de la canasta basica del INDEC, adaptada.
+        Las cantidades salen de la canasta basica del INDEC, adaptada. Cuando la localidad no
+        junta 6 observaciones de una categoria (pasa sobre todo con el pollo y el pescado
+        frescos, que se venden en pocas sucursales) se usa la mediana de la provincia, en hasta
+        2 de las 32 categorias: van marcadas.
       </p>
     </div>
   );

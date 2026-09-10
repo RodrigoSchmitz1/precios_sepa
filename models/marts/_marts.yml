@@ -89,6 +89,11 @@ models:
       - dbt_utils.expression_is_true:
           expression: >
             categorias_en_canasta = (SELECT COUNT(*) FROM {{ ref("composicion_canasta") }})
+      # Una canasta con mas precios provinciales que locales deja de describir a
+      # su localidad. El tope esta en mart_canasta_detalle; si alguien lo afloja,
+      # esto falla.
+      - dbt_utils.expression_is_true:
+          expression: "categorias_imputadas BETWEEN 0 AND 2"
     columns:
       - name: localidad
         description: >
@@ -104,6 +109,28 @@ models:
         tests: [not_null]
       - name: fecha_datos
         tests: [not_null]
+
+  - name: mart_canasta_detalle
+    description: >
+      Desglose de la canasta: una fila por localidad, fecha y categoria, con la
+      cantidad, el precio por unidad usado, sobre cuantas observaciones se
+      calculo y si ese precio es de la localidad o de su provincia.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fecha_datos, localidad, provincia, categoria]
+      - dbt_utils.expression_is_true:
+          expression: "precio_mediano_unidad > 0"
+      - dbt_utils.expression_is_true:
+          expression: "muestras >= 6"
+    columns:
+      - name: origen_precio
+        description: >
+          "localidad" si la localidad junta 6 o mas observaciones de la
+          categoria; "provincia" si se imputo con la mediana provincial.
+        tests:
+          - not_null
+          - accepted_values:
+              values: ["localidad", "provincia"]
 
   - name: mart_precio_categoria_localidad
     description: >

@@ -52,6 +52,9 @@ export type Canasta = {
   localidad: string;
   provincia: string;
   categorias_en_canasta: number;
+  /** Categorias valuadas con la mediana de la provincia porque la localidad no
+   *  junta suficientes observaciones. Como mucho 2 de las 32. */
+  categorias_imputadas: number;
   costo_canasta_total: number;
 };
 
@@ -114,6 +117,9 @@ export type CanastaDetalle = {
   /** Observaciones de precio sobre las que se calculo la mediana. Se muestra
    *  para que el lector pueda juzgar cuan firme es cada linea. */
   muestras: number;
+  /** "provincia" cuando la localidad no junta 6 observaciones de la categoria y
+   *  se usa la mediana provincial; en ese caso muestras es la de la provincia. */
+  origen_precio: "localidad" | "provincia";
 };
 
 export type LocalidadOpcion = {

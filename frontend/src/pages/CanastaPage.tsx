@@ -90,7 +90,8 @@ function CanastaPage() {
               Se comparan unicamente las localidades donde se puede medir la canasta
               <strong className="font-semibold text-tinta"> completa, las {canasta} categorias</strong>:
               sumar solo las categorias que cada localidad tiene haria parecer mas baratas
-              a las que tienen menos datos.
+              a las que tienen menos datos. Si una localidad no junta suficientes precios de
+              una categoria se usa la mediana de su provincia, en hasta 2 de las {canasta}.
             </>
           )}
         </p>
@@ -187,6 +188,12 @@ function CanastaPage() {
                     <p className="text-sm font-medium text-tinta truncate">{c.localidad}</p>
                     <p className="text-xs text-tinta-suave truncate">
                       {nombreProvincia(c.provincia)}
+                      {c.categorias_imputadas > 0 && (
+                        <span title="Categorias valuadas con la mediana de la provincia, porque la localidad no junta suficientes observaciones">
+                          {" "}
+                          · {c.categorias_imputadas} con precio provincial
+                        </span>
+                      )}
                     </p>
                   </div>
 
