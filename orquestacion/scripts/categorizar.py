@@ -36,6 +36,12 @@ CATEGORIA_A_RUBRO = {
     "Legumbres": "Almacen", "Conservas": "Almacen",
     "Golosinas y chocolates": "Almacen", "Snacks": "Almacen",
     "Dietetica suplementos y frutos secos": "Almacen",
+    # Huevos y Dulces y mermeladas faltaban en esta lista aunque tienen productos
+    # (192 y 512) y las dos estan en la canasta basica: una version anterior del
+    # prompt las tenia y se perdieron. Sin ellas, un producto nuevo de esas
+    # categorias caia en otra sin que nada fallara. Detectado el 2026-09-10
+    # comparando las categorias de los datos contra esta lista.
+    "Huevos": "Almacen", "Dulces y mermeladas": "Almacen",
     "Pan": "Panaderia", "Facturas y reposteria": "Panaderia",
     "Verduras": "Verduleria y frutas", "Frutas": "Verduleria y frutas",
     "Papa y tuberculos": "Verduleria y frutas",
