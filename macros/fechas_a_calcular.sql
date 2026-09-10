@@ -1,4 +1,4 @@
-{% macro fechas_a_calcular(fuente, nombre_historico, incluir_anterior=false) %}
+{% macro fechas_a_calcular(fuente, nombre_historico, incluir_anterior=false, dataset_historico=none) %}
     {#
       Devuelve, como lista de literales DATE, las fechas que un mart tiene que
       calcular hoy: las que estan en el crudo pero todavia NO llegaron al
@@ -39,6 +39,10 @@
       encadenado compara cada fecha contra la anterior: sin ese dia extra no
       tendria contra que parear.
 
+      dataset_historico hace falta cuando la tabla destino no esta en el mismo
+      dataset que la fuente. Es el caso de stg_productos: lee del crudo en sepa
+      y vive en dbt_precios. Sin el parametro se asume el dataset de la fuente.
+
       El historico se pasa por NOMBRE y no con ref(). Con ref() dbt agregaria una
       dependencia del mart hacia su propio historico, que ya depende del mart:
       un ciclo, y la corrida no compilaria. Aca solo se leen sus particiones, que
@@ -48,12 +52,20 @@
         {{ return("DATE('1970-01-01')") }}
     {%- endif -%}
 
+    {%- set esquema_historico = dataset_historico or fuente.schema -%}
     {%- set consulta_particiones -%}
         SELECT
-            table_name,
+            'fuente' AS origen,
             PARSE_DATE('%Y%m%d', partition_id) AS fecha
         FROM `{{ fuente.database }}.{{ fuente.schema }}`.INFORMATION_SCHEMA.PARTITIONS
-        WHERE table_name IN ('{{ fuente.identifier }}', '{{ nombre_historico }}')
+        WHERE table_name = '{{ fuente.identifier }}'
+          AND partition_id NOT IN ('__NULL__', '__UNPARTITIONED__')
+        UNION ALL
+        SELECT
+            'historico' AS origen,
+            PARSE_DATE('%Y%m%d', partition_id) AS fecha
+        FROM `{{ fuente.database }}.{{ esquema_historico }}`.INFORMATION_SCHEMA.PARTITIONS
+        WHERE table_name = '{{ nombre_historico }}'
           AND partition_id NOT IN ('__NULL__', '__UNPARTITIONED__')
     {%- endset -%}
 
@@ -61,7 +73,7 @@
     {%- set en_crudo = [] -%}
     {%- set en_historico = [] -%}
     {%- for fila in filas.rows -%}
-        {%- if fila[0] == fuente.identifier -%}
+        {%- if fila[0] == 'fuente' -%}
             {%- do en_crudo.append(fila[1]) -%}
         {%- else -%}
             {%- do en_historico.append(fila[1]) -%}

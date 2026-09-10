@@ -1,13 +1,33 @@
 {{
   config(
-    materialized="table",
+    materialized="incremental",
+    incremental_strategy="insert_overwrite",
     partition_by={
       "field": "fecha_datos",
-      "data_type": "date"
-    }
+      "data_type": "date",
+      "copy_partitions": true
+    },
+    partition_expiration_days=3
   )
 }}
 
+-- INCREMENTAL DESDE EL 2026-09-10. Antes se reconstruia entera todos los dias:
+-- leer las tres fechas del crudo costaba 2,14 GiB, cuando dos de ellas ya
+-- estaban calculadas y no cambian. Medido con dry run, una sola fecha cuesta
+-- 0,72 GiB.
+--
+-- - Se calculan las fechas del crudo que todavia no estan aca, mas siempre la
+--   ultima (macro fechas_a_calcular, que lee metadata y no gasta cuota).
+-- - copy_partitions: dbt reemplaza cada particion con un copy job, que no
+--   consume cuota. Con el MERGE por defecto se volveria a leer la particion
+--   destino y se perderia buena parte del ahorro.
+-- - Expira a los 3 dias, igual que el crudo: esta tabla tiene que tener las
+--   mismas fechas que su fuente. Sin expiracion acumularia fechas para siempre,
+--   y mart_gama_productos, que calcula medianas sobre todas, se encareceria
+--   solo y cambiaria de ventana sin que nadie lo decida.
+--
+-- A diferencia de los historicos, esta tabla SI se puede reconstruir con
+-- --full-refresh: todo lo que tiene sale del crudo.
 -- Particionada por fecha_datos a proposito: sin particion, cualquier consulta
 -- que quiera un solo dia escanea las 57 millones de filas igual. La API de
 -- canasta personalizada hacia exactamente eso, una vez por categoria.
@@ -51,6 +71,9 @@ WITH base AS (
     FROM {{ source("sepa", "productos") }}
     WHERE productos_precio_lista IS NOT NULL
         AND CAST(productos_precio_lista AS FLOAT64) > 1
+        {% if is_incremental() %}
+        AND fecha_datos IN ({{ fechas_a_calcular(source("sepa", "productos"), this.identifier, dataset_historico=this.schema) }})
+        {% endif %}
 ),
 
 con_unidad_limpia AS (
