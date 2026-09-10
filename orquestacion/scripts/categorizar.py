@@ -48,6 +48,21 @@ CATEGORIA_A_RUBRO = {
 CATEGORIAS = list(CATEGORIA_A_RUBRO.keys())
 
 
+def ultima_fecha_cruda():
+    """Ultima particion cargada en el crudo, leida de la metadata.
+
+    INFORMATION_SCHEMA.PARTITIONS no escanea datos. Consultar MAX(fecha_datos)
+    sobre la tabla costaria leer esa columna entera.
+    """
+    query = f"""
+        SELECT MAX(PARSE_DATE('%Y%m%d', partition_id)) AS fecha
+        FROM `{PROYECTO}.sepa.INFORMATION_SCHEMA.PARTITIONS`
+        WHERE table_name = 'productos'
+          AND partition_id NOT IN ('__NULL__', '__UNPARTITIONED__')
+    """
+    return list(cliente_bq.query(query).result())[0].fecha
+
+
 def traer_productos_a_categorizar():
     tabla_cat = f"{PROYECTO}.sepa.producto_categoria"
     try:
@@ -65,18 +80,38 @@ def traer_productos_a_categorizar():
     else:
         filtro = ""
 
+    # Solo la ultima fecha del crudo, no las tres que retiene. BigQuery cobra
+    # por columna leida y no por fila devuelta, asi que el NOT IN no abarata
+    # nada: leer descripcion y marca de las 3 particiones costaba 2,22 GiB por
+    # corrida, casi la octava parte del pipeline diario. Con una sola particion
+    # es un tercio.
+    #
+    # No se pierde nada. Un producto de una fecha anterior ya paso por aca el
+    # dia en que llego. Si un lote de Gemini fallo ese dia, el producto se
+    # reintenta en cuanto vuelva a aparecer en una fecha nueva, y los que ya no
+    # se venden no afectan ningun calculo: los marts leen las fechas recientes.
+    #
+    # La fecha va como parametro y no como subconsulta: con MAX() adentro de la
+    # consulta BigQuery no poda particiones y escanea la tabla entera igual.
+    fecha = ultima_fecha_cruda()
+    print(f"  (se revisa la ultima fecha del crudo: {fecha})")
+
     query = f"""
         SELECT
             id_producto,
             ANY_VALUE(productos_descripcion) AS descripcion,
             ANY_VALUE(productos_marca) AS marca
         FROM `{PROYECTO}.sepa.productos`
-        WHERE id_producto IS NOT NULL
+        WHERE fecha_datos = @fecha
+          AND id_producto IS NOT NULL
           AND productos_descripcion IS NOT NULL
           {filtro}
         GROUP BY id_producto
     """
-    return list(cliente_bq.query(query).result())
+    config = bigquery.QueryJobConfig(
+        query_parameters=[bigquery.ScalarQueryParameter("fecha", "DATE", fecha)]
+    )
+    return list(cliente_bq.query(query, job_config=config).result())
 
 
 def construir_prompt(lote):
