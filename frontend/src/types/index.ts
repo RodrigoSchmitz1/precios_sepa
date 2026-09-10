@@ -134,3 +134,36 @@ export type LocalidadOpcion = {
   localidad: string;
   provincia: string;
 };
+
+/** Un producto con precio en dos o mas cadenas, para el buscador y las listas. */
+export type ProductoComparado = {
+  /** Codigo de barras, como texto: los ceros a la izquierda importan. */
+  id_producto: string;
+  descripcion: string;
+  marca: string | null;
+  categoria: string | null;
+  cadenas: number;
+  /** Extremos entre las medianas de cada cadena, no entre sucursales sueltas. */
+  precio_mas_bajo: number;
+  precio_mas_alto: number;
+  diferencia_pct: number;
+  /** Si el precio mas bajo y el mas alto salen de 3 o mas sucursales. Sin eso
+   *  la diferencia puede depender de un precio mal cargado: se muestra, pero no
+   *  se destaca. */
+  extremos_respaldados: boolean;
+};
+
+export type PrecioEnCadena = {
+  cadena: string;
+  /** Mediana entre las sucursales de la cadena. */
+  precio_mediano: number;
+  precio_minimo: number;
+  precio_maximo: number;
+  sucursales: number;
+};
+
+export type ProductoDetalle = ProductoComparado & {
+  fecha_datos: string;
+  /** De menor a mayor precio. */
+  precios: PrecioEnCadena[];
+};

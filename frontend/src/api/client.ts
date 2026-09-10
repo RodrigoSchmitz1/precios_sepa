@@ -10,6 +10,8 @@ import type {
   ResultadoCanastaPersonalizada,
   LocalidadOpcion,
   CategoriaCanasta,
+  ProductoComparado,
+  ProductoDetalle,
 } from "../types";
 
 /*
@@ -169,5 +171,24 @@ export async function buscarLocalidades(busqueda: string): Promise<LocalidadOpci
 export async function obtenerCategoriasCanasta(): Promise<CategoriaCanasta[]> {
   const respuesta = await fetch(`${API_BASE}/canasta-personalizada/categorias`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer las categorias");
+  return respuesta.json();
+}
+
+export async function buscarProductos(consulta: string): Promise<ProductoComparado[]> {
+  const params = new URLSearchParams({ q: consulta.trim() });
+  const respuesta = await fetch(`${API_BASE}/mismo-producto/buscar?${params.toString()}`);
+  if (!respuesta.ok) await fallar(respuesta, "Error al buscar productos");
+  return respuesta.json();
+}
+
+export async function obtenerProductosDestacados(): Promise<ProductoComparado[]> {
+  const respuesta = await fetch(`${API_BASE}/mismo-producto/destacados`);
+  if (!respuesta.ok) await fallar(respuesta, "Error al traer los destacados");
+  return respuesta.json();
+}
+
+export async function obtenerProducto(idProducto: string): Promise<ProductoDetalle> {
+  const respuesta = await fetch(`${API_BASE}/mismo-producto/${encodeURIComponent(idProducto)}`);
+  if (!respuesta.ok) await fallar(respuesta, "Error al traer el producto");
   return respuesta.json();
 }

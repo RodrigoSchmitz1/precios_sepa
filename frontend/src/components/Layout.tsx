@@ -5,6 +5,7 @@ const SECCIONES = [
   { ruta: "/canasta", nombre: "Canasta basica" },
   { ruta: "/canasta-personalizada", nombre: "Tu canasta" },
   { ruta: "/quien-gana", nombre: "Mas barato" },
+  { ruta: "/mismo-producto", nombre: "Mismo producto" },
   { ruta: "/inflacion", nombre: "Inflacion" },
 ];
 

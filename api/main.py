@@ -15,6 +15,7 @@ from pydantic import BaseModel
 from typing import Optional
 from interpretar_canasta import CATEGORIAS, interpretar_descripcion
 from calcular_canasta import calcular_costo_canasta
+import mismo_producto
 
 api = FastAPI(title="precios_sepa API")
 
@@ -666,6 +667,54 @@ def obtener_localidades_disponibles(
     job_config = bigquery.QueryJobConfig(query_parameters=parametros)
     resultados = cliente_bq.query(query, job_config=job_config).result()
     return [dict(fila) for fila in resultados]
+
+
+# ---------------------------------------------------------------------------
+# El mismo producto
+#
+# La tabla se carga entera y se busca en memoria (ver mismo_producto.py). Los
+# tres endpoints comparten la misma carga cacheada, asi que buscar, abrir un
+# producto y ver los destacados no suma consultas a BigQuery.
+#
+# Las rutas fijas (/buscar, /destacados) van antes que /{id_producto}: FastAPI
+# resuelve en orden de declaracion y si no "buscar" se tomaria como un id.
+# ---------------------------------------------------------------------------
+@cachear
+def _indice_mismo_producto():
+    tabla = f"{PROYECTO}.dbt_precios.mart_mismo_producto"
+    query = f"""
+        SELECT
+            id_producto, descripcion, marca, categoria, cadena,
+            precio_mediano, precio_minimo, precio_maximo, sucursales,
+            cadenas, precio_mas_bajo, precio_mas_alto, diferencia_pct, fecha_datos
+        FROM `{tabla}`
+        WHERE {solo_ultima_fecha(tabla)}
+    """
+    return mismo_producto.armar_indice(dict(fila) for fila in cliente_bq.query(query).result())
+
+
+@api.get("/mismo-producto/buscar")
+def buscar_mismo_producto(
+    q: str = Query(..., min_length=2, max_length=80, description="Palabras de la descripcion o la marca"),
+    limite: int = Query(20, ge=1, le=50),
+):
+    return mismo_producto.buscar(_indice_mismo_producto(), q, limite)
+
+
+@api.get("/mismo-producto/destacados")
+def obtener_productos_destacados(limite: int = Query(12, ge=1, le=30)):
+    return mismo_producto.destacados(_indice_mismo_producto(), limite)
+
+
+@api.get("/mismo-producto/{id_producto}")
+def obtener_mismo_producto(id_producto: str):
+    resultado = mismo_producto.detalle(_indice_mismo_producto(), id_producto)
+    if resultado is None:
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "Ese producto no tiene precio en dos o mas cadenas en el ultimo dia."},
+        )
+    return resultado
 
 
 # ---------------------------------------------------------------------------
