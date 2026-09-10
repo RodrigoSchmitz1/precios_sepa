@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from "react";
 import MapaPromos from "../components/MapaPromos";
 import type { BoundingBox } from "../components/MapaPromos";
 import PromoCard from "../components/PromoCard";
+import Presentacion from "../components/Presentacion";
 import Filtros from "../components/Filtros";
 import FiltroCategorias from "../components/FiltroCategorias";
 import { obtenerPromosMapa } from "../api/client";
@@ -85,8 +86,14 @@ function PromosPage() {
 
   return (
     <div className="max-w-5xl mx-auto">
-      <header className="mb-6">
-        <h1 className="font-display text-4xl text-tinta mb-2">Promos vigentes</h1>
+      <Presentacion />
+
+      {/*
+        El titulo de la portada es la presentacion del sitio; las promos pasan a
+        ser su primera seccion, asi que su encabezado baja a h2.
+      */}
+      <header className="mb-6 pt-8 border-t border-linea">
+        <h2 className="font-display text-3xl text-tinta mb-2">Promos vigentes</h2>
         <p className="text-tinta-media">
           Descuentos publicados hoy por las cadenas. Movete por el mapa para ver los de tu zona.
         </p>
