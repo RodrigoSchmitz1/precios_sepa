@@ -9,11 +9,10 @@ google-cloud-bigquery==3.45.0
 # dependencia de bigquery, pero lo que se importa se declara.
 google-auth==2.57.0
 python-dotenv==1.2.3
-# FALTABA, y el contenedor arrancaba y se caia: interpretar_canasta.py la importa
-# para la canasta con IA. En el venv local estaba instalada a mano, asi que en
-# desarrollo no se notaba.
-# DEUDA CONOCIDA: esta libreria esta discontinuada, hay que migrar a google-genai.
-google-generativeai==0.8.6
+# Gemini para la canasta con IA (interpretar_canasta.py). Hasta el 2026-09-10 se
+# usaba google-generativeai, cuyo soporte termino. Misma version que usa la
+# categorizacion en GitHub Actions (orquestacion/requirements.txt).
+google-genai==2.17.0
 # Zonas horarias para decir a que hora vuelve el sitio cuando se agota la cuota
 # de BigQuery. zoneinfo usa la base del sistema operativo, y ni Windows ni la
 # imagen python-slim la traen completa: sin este paquete, ZoneInfo falla.

@@ -13,7 +13,7 @@ from google.cloud import bigquery
 from google.oauth2 import service_account
 from pydantic import BaseModel
 from typing import Optional
-from interpretar_canasta import interpretar_descripcion
+from interpretar_canasta import CATEGORIAS, interpretar_descripcion
 from calcular_canasta import calcular_costo_canasta
 
 api = FastAPI(title="precios_sepa API")
@@ -615,6 +615,20 @@ def interpretar_canasta_personalizada(datos: DescripcionCanasta):
 @api.post("/canasta-personalizada/calcular")
 def calcular_canasta_personalizada(datos: CalcularCanastaRequest):
     return calcular_costo_canasta(cliente_bq, datos.items, datos.localidades)
+
+
+@api.get("/canasta-personalizada/categorias")
+def obtener_categorias_canasta():
+    """Categorias que se pueden agregar a mano a Tu canasta.
+
+    Cada una con la unidad en la que se cotiza y una cantidad mensual sugerida.
+    Sale del mismo diccionario que usa la IA, asi que lo que se agrega a mano y lo
+    que propone el modelo siempre coinciden en la unidad. No consulta BigQuery.
+    """
+    return [
+        {"categoria": nombre, "unidad": datos["unidad"], "cantidad_sugerida": datos["cantidad"]}
+        for nombre, datos in sorted(CATEGORIAS.items())
+    ]
 
 
 @api.get("/canasta-personalizada/localidades")

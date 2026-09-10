@@ -9,6 +9,7 @@ import type {
   ItemCanastaIA,
   ResultadoCanastaPersonalizada,
   LocalidadOpcion,
+  CategoriaCanasta,
 } from "../types";
 
 /*
@@ -162,5 +163,11 @@ export async function buscarLocalidades(busqueda: string): Promise<LocalidadOpci
   if (busqueda.trim()) params.set("busqueda", busqueda.trim());
   const respuesta = await fetch(`${API_BASE}/canasta-personalizada/localidades?${params.toString()}`);
   if (!respuesta.ok) await fallar(respuesta, "Error al buscar localidades");
+  return respuesta.json();
+}
+
+export async function obtenerCategoriasCanasta(): Promise<CategoriaCanasta[]> {
+  const respuesta = await fetch(`${API_BASE}/canasta-personalizada/categorias`);
+  if (!respuesta.ok) await fallar(respuesta, "Error al traer las categorias");
   return respuesta.json();
 }

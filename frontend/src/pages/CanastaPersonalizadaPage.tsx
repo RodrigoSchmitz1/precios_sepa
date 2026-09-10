@@ -3,11 +3,18 @@ import {
   interpretarCanasta,
   calcularCanastaPersonalizada,
   buscarLocalidades,
+  obtenerCategoriasCanasta,
 } from "../api/client";
-import type { ItemCanastaIA, ResultadoCanastaPersonalizada, LocalidadOpcion } from "../types";
+import type {
+  ItemCanastaIA,
+  ResultadoCanastaPersonalizada,
+  LocalidadOpcion,
+  CategoriaCanasta,
+} from "../types";
 import { nombreProvincia } from "../utils/provincias";
 import { formatearPesos } from "../utils/formato";
 import ItemCanastaEditable from "../components/ItemCanastaEditable";
+import AgregarCategoria from "../components/AgregarCategoria";
 import {
   canastaAUrl,
   canastaDesdeUrl,
@@ -77,6 +84,21 @@ function CanastaPersonalizadaPage() {
   const [calculando, setCalculando] = useState(false);
   const [errorCalcular, setErrorCalcular] = useState<string | null>(null);
   const [linkCopiado, setLinkCopiado] = useState(false);
+  // Catalogo para agregar categorias a mano. Si no carga, el buscador no se
+  // muestra: la canasta con IA sigue funcionando igual.
+  const [catalogo, setCatalogo] = useState<CategoriaCanasta[]>([]);
+
+  useEffect(() => {
+    let cancelado = false;
+    obtenerCategoriasCanasta()
+      .then((lista) => {
+        if (!cancelado) setCatalogo(lista);
+      })
+      .catch(() => {});
+    return () => {
+      cancelado = true;
+    };
+  }, []);
 
   /*
     Se saca el parametro de la barra de direcciones una vez consumido: en cuanto
@@ -166,6 +188,22 @@ function CanastaPersonalizadaPage() {
     setItems([...items, item]);
   }
 
+  function agregarCategoria(categoria: CategoriaCanasta) {
+    if (items.some((i) => i.categoria === categoria.categoria)) return;
+    setItems([
+      ...items,
+      {
+        categoria: categoria.categoria,
+        cantidad: categoria.cantidad_sugerida,
+        unidad: categoria.unidad,
+        gama: "economico",
+        razon: "Agregada por vos",
+      },
+    ]);
+    // Si estaba entre las quitadas, deja de ofrecerse para restaurar: ya volvio.
+    setQuitados(quitados.filter((q) => q.categoria !== categoria.categoria));
+  }
+
   function handleCalcular() {
     if (items.length === 0 || localidadesElegidas.length === 0) return;
     setCalculando(true);
@@ -210,6 +248,8 @@ function CanastaPersonalizadaPage() {
     setErrorCalcular(null);
     borrarDelNavegador();
   }
+
+  const disponibles = catalogo.filter((c) => !items.some((i) => i.categoria === c.categoria));
 
   const resultadoVigente =
     resultado !== null && firmaResultado === firmaDe(items, localidadesElegidas);
@@ -273,6 +313,20 @@ function CanastaPersonalizadaPage() {
             No se pudo generar la canasta: {errorGenerar}
           </p>
         )}
+
+        {/*
+          Armarla a mano, sin la IA: con la primera categoria agregada aparecen
+          los pasos siguientes, igual que despues de generar.
+        */}
+        {items.length === 0 && !generando && disponibles.length > 0 && (
+          <div className="mt-6 pt-5 border-t border-linea">
+            <AgregarCategoria
+              categorias={disponibles}
+              onAgregar={agregarCategoria}
+              etiqueta="¿Preferis armarla vos? Agrega las categorias que compras"
+            />
+          </div>
+        )}
       </section>
 
       {items.length > 0 && (
@@ -312,6 +366,16 @@ function CanastaPersonalizadaPage() {
                     + {item.categoria}
                   </button>
                 ))}
+              </div>
+            )}
+
+            {disponibles.length > 0 && (
+              <div className="mt-4">
+                <AgregarCategoria
+                  categorias={disponibles}
+                  onAgregar={agregarCategoria}
+                  etiqueta="¿Falta algo? Agrega una categoria"
+                />
               </div>
             )}
           </section>

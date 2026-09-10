@@ -15,7 +15,7 @@ aplicación web.
 |---|---|
 | **Promos vigentes** | Qué descuentos hay hoy cerca mío, sobre un mapa |
 | **Canasta básica** | Cuánto cuesta la canasta alimentaria en cada localidad |
-| **Tu canasta** | Describís en lenguaje natural qué consumís, una IA arma tu canasta y se cotiza con precios reales |
+| **Tu canasta** | Describís en lenguaje natural qué consumís (o elegís las categorías a mano), una IA arma tu canasta y se cotiza con precios reales |
 | **Supermercado más barato** | Qué cadena tiene el precio más bajo, comparando productos idénticos |
 | **Qué se movió** | Ranking de todas las categorías por variación de precio, con apertura por cadena |
 
@@ -280,8 +280,6 @@ dbt build
   presentarlo como dato confiable.
 - **El histórico es corto.** Empezó a acumularse hace pocos días, así que las
   variaciones todavía no representan inflación mensual real.
-- La librería `google-generativeai` está discontinuada; hay que migrar a
-  `google-genai`.
 
 ---
 

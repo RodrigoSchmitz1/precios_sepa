@@ -1,30 +1,104 @@
-import os
+"""Traduce una descripcion en lenguaje natural a una canasta de categorias con Gemini.
+
+Usa google-genai, la libreria vigente. Hasta el 2026-09-10 usaba
+google-generativeai, cuyo soporte termino: cualquier actualizacion podia dejar
+Tu canasta sin funcionar. La categorizacion del pipeline ya estaba en la nueva.
+"""
+
 import json
-import google.generativeai as genai
+import os
+
 from dotenv import load_dotenv
+from google import genai
+from google.genai import types
 
 load_dotenv()
-genai.configure(api_key=os.getenv("GEMINI_API_KEY"))
 
-CATEGORIAS_VALIDAS = [
-    "Accesorios mascotas", "Aceite", "Aguas", "Alimento para mascotas",
-    "Alimentos para bebe", "Arroz", "Azucar", "Bazar y hogar", "Cacao",
-    "Cafe", "Carne vacuna", "Cerveza", "Conservas", "Descartables",
-    "Dietetica suplementos y frutos secos", "Dulces y mermeladas", "Electro",
-    "Embutidos", "Facturas y reposteria", "Ferreteria", "Fiambres", "Fideos",
-    "Frutas", "Galletitas dulces", "Galletitas saladas", "Gaseosas",
-    "Golosinas y chocolates", "Harina", "Higiene bebe", "Higiene personal",
-    "Huevos", "Jugos", "Jugueteria", "Lavanderia", "Leche en polvo",
-    "Leche fluida", "Legumbres", "Libreria", "Limpieza del hogar",
-    "Manteca y margarina", "Otras grasas", "Otros condimentos", "Pan",
-    "Panales", "Papa y tuberculos", "Perfumeria", "Pescado", "Pollo",
-    "Quesos", "Sal", "Snacks", "Te", "Textil y calzado", "Verduras",
-    "Vinagre", "Vinos y licores", "Yerba mate", "Yogur",
-    # Agregadas el 2026-09-10 con la taxonomia de carnes de categorizar.py: el
-    # cerdo, las achuras y los elaborados dejaron de estar dentro de Carne
-    # vacuna y Pollo, asi que tienen que poder pedirse por separado.
-    "Achuras y menudencias", "Cerdo", "Elaborados de carne", "Otras carnes",
-]
+MODELO = "gemini-flash-lite-latest"
+
+# Unidad en la que se cotiza cada categoria y cantidad mensual sugerida para un
+# adulto. Es la unica fuente de tres cosas: la lista de categorias que el modelo
+# puede usar, la unidad que tiene que devolver para cada una, y lo que se ofrece
+# al agregar una categoria a mano.
+#
+# La unidad es la dominante en los precios de SEPA, medida el 2026-09-10 sobre
+# los 14,4 millones de precios del 2026-09-09 (Carne vacuna 93% en gramos,
+# Huevos 100% por unidad, Aceite 67% en cc). Importa porque la canasta se cotiza
+# por categoria x gama x UNIDAD: pedir Yogur en cc cuando el 71% de sus precios
+# esta en gramos dejaba la categoria sin cotizar, sin que nada lo avisara, y el
+# prompt anterior sugeria justamente cc.
+#
+# Las cantidades de las categorias con referencia de consumo son el punto medio
+# de los rangos del prompt. El resto es un punto de partida razonable para que el
+# usuario ajuste. En las categorias por unidad, la unidad es la pieza: un panal,
+# una toallita.
+CATEGORIAS = {
+    "Accesorios mascotas": {"unidad": "unidad", "cantidad": 1},
+    "Aceite": {"unidad": "cc", "cantidad": 500},
+    "Achuras y menudencias": {"unidad": "g", "cantidad": 400},
+    "Aguas": {"unidad": "cc", "cantidad": 7500},
+    "Alimento para mascotas": {"unidad": "g", "cantidad": 3000},
+    "Alimentos para bebe": {"unidad": "cc", "cantidad": 1000},
+    "Arroz": {"unidad": "g", "cantidad": 700},
+    "Azucar": {"unidad": "g", "cantidad": 500},
+    "Bazar y hogar": {"unidad": "unidad", "cantidad": 1},
+    "Cacao": {"unidad": "g", "cantidad": 400},
+    "Cafe": {"unidad": "g", "cantidad": 200},
+    "Carne vacuna": {"unidad": "g", "cantidad": 2000},
+    "Cerdo": {"unidad": "g", "cantidad": 500},
+    "Cerveza": {"unidad": "cc", "cantidad": 2000},
+    "Conservas": {"unidad": "g", "cantidad": 500},
+    "Descartables": {"unidad": "unidad", "cantidad": 50},
+    "Dietetica suplementos y frutos secos": {"unidad": "g", "cantidad": 300},
+    "Dulces y mermeladas": {"unidad": "g", "cantidad": 400},
+    "Elaborados de carne": {"unidad": "g", "cantidad": 800},
+    "Electro": {"unidad": "unidad", "cantidad": 1},
+    "Embutidos": {"unidad": "g", "cantidad": 500},
+    "Facturas y reposteria": {"unidad": "g", "cantidad": 500},
+    "Ferreteria": {"unidad": "unidad", "cantidad": 1},
+    "Fiambres": {"unidad": "g", "cantidad": 400},
+    "Fideos": {"unidad": "g", "cantidad": 800},
+    "Frutas": {"unidad": "g", "cantidad": 2500},
+    "Galletitas dulces": {"unidad": "g", "cantidad": 500},
+    "Galletitas saladas": {"unidad": "g", "cantidad": 500},
+    "Gaseosas": {"unidad": "cc", "cantidad": 1500},
+    "Golosinas y chocolates": {"unidad": "g", "cantidad": 300},
+    "Harina": {"unidad": "g", "cantidad": 500},
+    "Higiene bebe": {"unidad": "unidad", "cantidad": 100},
+    "Higiene personal": {"unidad": "unidad", "cantidad": 2},
+    "Huevos": {"unidad": "unidad", "cantidad": 12},
+    "Jugos": {"unidad": "cc", "cantidad": 1500},
+    "Jugueteria": {"unidad": "unidad", "cantidad": 1},
+    "Lavanderia": {"unidad": "cc", "cantidad": 1500},
+    "Leche en polvo": {"unidad": "g", "cantidad": 800},
+    "Leche fluida": {"unidad": "cc", "cantidad": 2500},
+    "Legumbres": {"unidad": "g", "cantidad": 300},
+    "Libreria": {"unidad": "unidad", "cantidad": 1},
+    "Limpieza del hogar": {"unidad": "unidad", "cantidad": 2},
+    "Manteca y margarina": {"unidad": "g", "cantidad": 200},
+    "Otras carnes": {"unidad": "g", "cantidad": 500},
+    "Otras grasas": {"unidad": "cc", "cantidad": 500},
+    "Otros condimentos": {"unidad": "g", "cantidad": 200},
+    "Pan": {"unidad": "g", "cantidad": 1800},
+    "Panales": {"unidad": "unidad", "cantidad": 150},
+    "Papa y tuberculos": {"unidad": "g", "cantidad": 2000},
+    "Perfumeria": {"unidad": "cc", "cantidad": 250},
+    "Pescado": {"unidad": "g", "cantidad": 600},
+    "Pollo": {"unidad": "g", "cantidad": 1300},
+    "Quesos": {"unidad": "g", "cantidad": 300},
+    "Sal": {"unidad": "g", "cantidad": 250},
+    "Snacks": {"unidad": "g", "cantidad": 300},
+    "Te": {"unidad": "g", "cantidad": 100},
+    "Textil y calzado": {"unidad": "unidad", "cantidad": 1},
+    "Verduras": {"unidad": "g", "cantidad": 2500},
+    "Vinagre": {"unidad": "cc", "cantidad": 500},
+    "Vinos y licores": {"unidad": "cc", "cantidad": 1500},
+    "Yerba mate": {"unidad": "g", "cantidad": 400},
+    "Yogur": {"unidad": "g", "cantidad": 500},
+}
+
+GAMAS = ("economico", "medio", "premium")
+MASA_O_VOLUMEN = {"g", "cc"}
 
 REFERENCIAS_MENSUALES_PER_CAPITA = """Como referencia de cantidades MENSUALES razonables para UN adulto (basadas en consumo promedio real en Argentina), antes de ajustar segun lo que describa el usuario:
 - Pan: 1500-2000g
@@ -43,7 +117,7 @@ REFERENCIAS_MENSUALES_PER_CAPITA = """Como referencia de cantidades MENSUALES ra
 - Huevos: 8-15 unidades
 - Leche fluida: 2000-3000cc
 - Quesos: 200-400g
-- Yogur: 300-600cc
+- Yogur: 300-600g
 - Frutas: 2000-3000g
 - Verduras: 2000-3000g
 - Aguas: 6000-9000cc (2-3 litros por dia)
@@ -56,18 +130,18 @@ Estos son valores de referencia para UNA persona por UN mes. Multiplica proporci
 
 PROMPT_BASE = """Sos un asistente que arma canastas de compra personalizadas para supermercados en Argentina.
 
-El usuario va a describir en lenguaje natural que consume o que necesita. Tu trabajo es traducir eso a una lista de categorias de productos, con una cantidad mensual estimada (en gramos, cc, o unidades segun corresponda) y un nivel de gama (economico, medio o premium).
+El usuario va a describir en lenguaje natural que consume o que necesita. Tu trabajo es traducir eso a una lista de categorias de productos, con una cantidad mensual estimada y un nivel de gama (economico, medio o premium).
 
 {referencias}
 
 REGLAS ESTRICTAS:
-1. SOLO podes usar categorias de esta lista exacta, tal cual estan escritas: {categorias}
+1. SOLO podes usar categorias de esta lista exacta, tal cual estan escritas. Entre parentesis figura la unidad en la que se mide cada una: {categorias}
 2. NUNCA inventes una categoria que no este en la lista.
 3. Usa las referencias de cantidad de arriba como punto de partida, multiplicando por la cantidad de personas que el usuario menciona (si no menciona, asumi 1 adulto), y ajustando segun lo que describa.
-4. La unidad debe ser "g" (gramos), "cc" (mililitros/centimetros cubicos), o "unidad" (para productos que se cuentan, como huevos).
+4. La unidad de cada item tiene que ser EXACTAMENTE la que figura entre parentesis para su categoria: "g" (gramos), "cc" (mililitros) o "unidad".
 5. El campo "gama" debe ser "economico", "medio", o "premium" segun el presupuesto que el usuario describa. Si no lo menciona, usa "economico".
 6. Da una razon breve (una frase) de por que incluiste cada categoria.
-7. Responde UNICAMENTE con un JSON valido, sin texto adicional antes ni despues, sin bloques de markdown. El formato exacto es:
+7. Responde UNICAMENTE con un JSON valido con este formato exacto:
 
 {{
   "items": [
@@ -78,34 +152,74 @@ REGLAS ESTRICTAS:
 Descripcion del usuario: "{descripcion}"
 """
 
-modelo = genai.GenerativeModel("gemini-flash-lite-latest")
+_cliente = None
 
 
-def interpretar_descripcion(descripcion: str) -> dict:
-    prompt = PROMPT_BASE.format(
+def _cliente_gemini():
+    """El cliente se crea en el primer uso y no al importar: asi el modulo se puede
+    importar (tests, el endpoint de categorias) sin necesitar la API key."""
+    global _cliente
+    if _cliente is None:
+        _cliente = genai.Client(api_key=os.getenv("GEMINI_API_KEY"))
+    return _cliente
+
+
+def construir_prompt(descripcion: str) -> str:
+    categorias = ", ".join(f"{nombre} ({datos['unidad']})" for nombre, datos in sorted(CATEGORIAS.items()))
+    return PROMPT_BASE.format(
         referencias=REFERENCIAS_MENSUALES_PER_CAPITA,
-        categorias=", ".join(CATEGORIAS_VALIDAS),
+        categorias=categorias,
         descripcion=descripcion,
     )
 
-    respuesta = modelo.generate_content(prompt)
-    texto = respuesta.text.strip()
 
+def normalizar_items(datos: dict) -> dict:
+    """Valida lo que devolvio el modelo y corrige la unidad cuando no coincide.
+
+    - Categoria fuera de la lista, gama invalida o cantidad no positiva: se descarta.
+    - Unidad distinta de la de la categoria:
+        g <-> cc: se usa la unidad de la categoria sin tocar la cantidad. En los
+            alimentos donde se confunden (yogur, aceite, dulces) un cc pesa cerca
+            de un gramo, y es mejor que dejar el item sin cotizar.
+        entre "unidad" y g/cc: no hay conversion posible sin inventar un peso por
+            pieza, asi que se usa la cantidad sugerida de la categoria.
+    """
+    items = []
+    crudos = datos.get("items") if isinstance(datos, dict) else None
+    for item in crudos if isinstance(crudos, list) else []:
+        if not isinstance(item, dict):
+            continue
+        categoria = item.get("categoria")
+        referencia = CATEGORIAS.get(categoria)
+        cantidad = item.get("cantidad")
+        if referencia is None or item.get("gama") not in GAMAS:
+            continue
+        if isinstance(cantidad, bool) or not isinstance(cantidad, (int, float)) or cantidad <= 0:
+            continue
+        unidad = item.get("unidad")
+        if unidad != referencia["unidad"]:
+            if not ({unidad, referencia["unidad"]} <= MASA_O_VOLUMEN):
+                cantidad = referencia["cantidad"]
+            unidad = referencia["unidad"]
+        items.append({
+            "categoria": categoria,
+            "cantidad": cantidad,
+            "unidad": unidad,
+            "gama": item["gama"],
+            "razon": item.get("razon", "") if isinstance(item.get("razon", ""), str) else "",
+        })
+    return {"items": items}
+
+
+def interpretar_descripcion(descripcion: str) -> dict:
+    respuesta = _cliente_gemini().models.generate_content(
+        model=MODELO,
+        contents=construir_prompt(descripcion),
+        # Modo JSON: el modelo devuelve JSON sin envolverlo en bloques de markdown,
+        # que antes habia que limpiar a mano y era la parte fragil del parseo.
+        config=types.GenerateContentConfig(response_mime_type="application/json"),
+    )
+    texto = (respuesta.text or "").strip()
     if texto.startswith("```"):
-        texto = texto.split("```")[1]
-        if texto.startswith("json"):
-            texto = texto[4:]
-        texto = texto.strip()
-
-    datos = json.loads(texto)
-
-    items_validados = [
-        item for item in datos.get("items", [])
-        if item.get("categoria") in CATEGORIAS_VALIDAS
-        and item.get("unidad") in ("g", "cc", "unidad")
-        and item.get("gama") in ("economico", "medio", "premium")
-        and isinstance(item.get("cantidad"), (int, float))
-        and item.get("cantidad") > 0
-    ]
-
-    return {"items": items_validados}
+        texto = texto.strip("`").removeprefix("json").strip()
+    return normalizar_items(json.loads(texto))

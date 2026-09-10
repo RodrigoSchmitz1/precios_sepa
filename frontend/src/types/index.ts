@@ -95,6 +95,14 @@ export type ItemCanastaIA = {
   razon: string;
 };
 
+/** Categoria que se puede agregar a mano a Tu canasta. */
+export type CategoriaCanasta = {
+  categoria: string;
+  /** Unidad en la que se cotiza: "g", "cc" o "unidad". */
+  unidad: string;
+  cantidad_sugerida: number;
+};
+
 export type ItemCanastaCalculado = ItemCanastaIA & {
   precio_unitario: number;
   costo_categoria: number;
