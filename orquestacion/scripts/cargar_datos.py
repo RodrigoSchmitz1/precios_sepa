@@ -227,6 +227,11 @@ def escribir_csv_productos(archivos, fecha, columnas, ruta):
     Una fila con menos campos que el encabezado se completa con vacios (lo mismo
     que hace BigQuery con allow_jagged_rows); una con mas campos no se puede
     interpretar sin adivinar y se descarta, igual que un registro invalido.
+
+    Las lineas vacias se omiten. El camino anterior las cargaba como filas con
+    todas las columnas en NULL (7 el 2026-09-09) que stg_productos descartaba
+    por no tener precio. Al validar las dos cargas de esa fecha fue la unica
+    diferencia.
     """
     csv.field_size_limit(10 * 1024 * 1024)
     escritas = 0

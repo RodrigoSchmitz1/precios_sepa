@@ -72,8 +72,8 @@ GROUP BY dia ORDER BY dia
 | Concepto | Consumo |
 |---|---|
 | Corrida diaria en GitHub Actions (categorización, dbt, tests) | ~14 GiB |
-| Carga diaria del crudo (reconstruye `sepa.productos`) | ~4,1 GiB |
-| **Un día tranquilo, sólo pipeline** | **~18 GiB** |
+| Carga diaria del crudo (load job directo, sin consultas) | ~0 GiB |
+| **Un día tranquilo, sólo pipeline** | **~14 GiB** |
 | Un día de desarrollo | 60 a 155 GiB |
 
 Los valores del pipeline salen de sumar lo medido paso por paso el 2026-09-10,

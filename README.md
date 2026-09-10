@@ -178,7 +178,7 @@ de una vez.
 
 | | Uso | Límite gratuito |
 |---|---|---|
-| Procesamiento | ~18 GiB/día (~540 GiB/mes) | 1 TiB/mes |
+| Procesamiento | ~14 GiB/día (~420 GiB/mes) | 1 TiB/mes |
 | Almacenamiento | 7,2 GB | 10 GB |
 
 Decisiones que salieron de ahí:
@@ -187,6 +187,11 @@ Decisiones que salieron de ahí:
   día, así que una ventana de 4 días llevaría el almacenamiento a 8,7 GB.
 - Los marts recalculan **sólo las fechas que faltan** en el histórico, no las
   tres de la ventana. Bajó la corrida diaria de 15,6 a 12,25 GB.
+- El crudo se carga con un **load job directo a la partición del día**, que no
+  consume cuota, en vez de reconstruir la tabla entera con `CREATE OR REPLACE`
+  para sumar un día: 4,07 → 0 GiB. Antes de activarlo se cargó la misma fecha
+  por los dos caminos y se comparó comercio por comercio: mismas filas y misma
+  huella de todas las columnas.
 - `stg_productos` es **incremental** y reemplaza particiones con copy jobs, que
   no consumen cuota: 2,14 → 0,85 GiB por corrida.
 - La categorización y los tests de staging leen **sólo la última fecha**:
