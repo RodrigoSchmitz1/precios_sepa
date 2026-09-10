@@ -138,10 +138,21 @@ precio_mediano_categoria_localidad AS (
     -- mediana del costo se mueve 0,9% ($365.943 -> $369.188), el percentil 10
     -- queda igual, y NINGUNA de las 51 localidades nuevas cae fuera del rango
     -- del grupo original. O sea que 20 era mucho mas conservador que necesario.
+    --
+    -- Recalibrado de 8 a 6 el 2026-09-10, con el mismo criterio. Los numeros de
+    -- arriba se midieron con la gama rota (ver mart_gama_productos), que metia
+    -- productos caros como economicos y por eso sobraban observaciones. Con la
+    -- gama corregida, 8 dejaba 55 localidades (19 del interior), bloqueadas por
+    -- categorias con pocos productos economicos: Leche fluida, Manteca, Huevos
+    -- y Azucar. Medido sobre el 2026-09-08: con 6 entran 76 (32 del interior),
+    -- la mediana del costo se mueve 0,2% ($245.317 -> $244.883), el percentil
+    -- 10 un 1,4%, y de las 21 nuevas solo una cae fuera del rango del grupo
+    -- original: San Isidro, 0,5% por debajo del minimo. Con 5 entraban 85, pero
+    -- el percentil 10 bajaba 3%.
     -- El umbral es unico para todo el pais a proposito: uno distinto para CABA
     -- y para el interior haria que las cifras no sean comparables entre si, que
     -- es justamente lo que este modelo existe para garantizar.
-    HAVING COUNT(*) >= 8
+    HAVING COUNT(*) >= 6
 ),
 
 costo_por_categoria AS (
