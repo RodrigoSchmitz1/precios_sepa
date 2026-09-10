@@ -18,12 +18,13 @@
 -- unicamente localidades con la canasta COMPLETA, que son las unicas cuyo costo
 -- se puede comparar contra otra localidad o contra si misma en otra fecha.
 --
--- Todas las filas actuales (2026-09-06 a 2026-09-08) se recalcularon el
--- 2026-09-10 con la gama corregida a producto x unidad (ver
--- mart_gama_productos), forzando las fechas con la variable recalcular_fechas.
--- La version anterior clasificaba como economicos productos caros que venian
--- en dos unidades distintas segun la cadena: inflaba pollo, pan y papa, y el
--- costo mediano de la canasta daba 34% mas alto.
+-- La serie arranca el 2026-09-07. El 2026-09-10 se recalcularon todas las
+-- fechas con tres correcciones: la gama por producto x unidad (inflaba pollo,
+-- pan y papa, y el costo mediano daba 34% mas alto), las carnes depuradas de
+-- cerdo, achuras y elaborados, y la imputacion provincial. Se forzaron con la
+-- variable recalcular_fechas. El 2026-09-06 ya no estaba en el crudo para
+-- recalcularlo con la taxonomia nueva y se borro, para no dejar una serie que
+-- mezcle dos definiciones de la canasta.
 
 SELECT
     localidad,

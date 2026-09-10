@@ -269,8 +269,10 @@ dbt build
   conocer la marca: "Bondiola LÁBRATTO PZA", una bondiola curada, cae en Cerdo en
   vez de Fiambres. Un test vigila que Carne vacuna y Pollo no tengan más de 2% de
   productos con marcadores ajenos.
-- **El histórico del 2026-09-06 usa la taxonomía anterior.** Esa fecha ya no está
-  en el crudo, así que no se pudo recalcular con las carnes depuradas.
+- **Los históricos arrancan el 2026-09-07.** La fecha anterior se había calculado
+  con la taxonomía vieja y ya no estaba en el crudo para recalcularla con las
+  carnes depuradas, así que se borró en vez de dejar una serie que mezcla dos
+  definiciones de "Carne vacuna".
 - **Algunas combinaciones cadena × categoría tienen precios sistemáticamente
   fuera de mercado** (Dia en Gaseosas, por ejemplo), replicados en cientos de
   sucursales. Parece un error del maestro de precios de esa cadena y no se puede
