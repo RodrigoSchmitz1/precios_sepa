@@ -17,7 +17,7 @@ aplicación web.
 | **Canasta básica** | Cuánto cuesta la canasta alimentaria en cada localidad |
 | **Tu canasta** | Describís en lenguaje natural qué consumís, una IA arma tu canasta y se cotiza con precios reales |
 | **Supermercado más barato** | Qué cadena tiene el precio más bajo, comparando productos idénticos |
-| **Qué se movió** | Ranking de las 53 categorías por variación de precio, con apertura por cadena |
+| **Qué se movió** | Ranking de todas las categorías por variación de precio, con apertura por cadena |
 
 ---
 
@@ -50,7 +50,7 @@ si puede ser cierto. Estas son las principales y cómo se resolvieron.
 
 ### Comparar cosas que no son comparables
 
-El error recurrente, en cuatro formas distintas:
+El error recurrente, en cinco formas distintas:
 
 - **La canasta básica** sumaba las categorías que cada localidad tuviera, entre
   20 y 32, y comparaba esos totales entre sí. Una localidad con menos datos
@@ -76,6 +76,20 @@ El error recurrente, en cuatro formas distintas:
   "económico" salía **más caro por unidad** que el "premium". Como la canasta
   filtra por económico, el sesgo llegaba al número publicado.
 
+- **Un mismo producto venía en dos unidades.** Al reconocer `EA` ("each"), el
+  mismo producto pasó a llegar como "380 GR" en una cadena y como "1 EA" en
+  otra: el 13,3% de los productos, que son el 50,2% de las filas. La gama
+  tomaba una unidad cualquiera y dividía el precio por una mediana de
+  cantidades que mezclaba gramos con conteos, así que unas milanesas quedaban
+  "económicas" y entraban a la canasta como pollo a $20.566/kg. Lo publicado:
+  el pollo más caro que la carne y la canasta 34% más cara de lo real (mediana
+  de $371.128 contra $245.352). Ningún test fallaba, porque cada tabla era
+  consistente por separado: el error estaba en cómo se unían. Hoy la gama
+  tiene grano producto × unidad, y un test compara la canasta económica contra
+  la gama media; contra las tablas viejas fallaba en 6 de 32 categorías. Las
+  fechas ya publicadas se recalcularon con una variable de dbt, sin borrar
+  filas del histórico a mano.
+
 ### El índice de precios
 
 Medir inflación restando promedios es incorrecto cuando el surtido cambia. El
@@ -93,7 +107,7 @@ series. Con Jevons pasan a 201 series con variación real.
 Ese mismo 97,9% define cómo se presenta. La primera versión de la página abría
 con un selector de categoría y mostraba sus 14 cadenas: como casi nada se mueve
 de un día al otro, cualquier categoría que uno eligiera daba una pantalla de
-ceros y encontrar la que sí se había movido era recorrer 53 a mano. La página
+ceros y encontrar la que sí se había movido era recorrer más de 50 a mano. La página
 ahora abre con **el ranking completo del mercado** —una categoría es la media
 geométrica de los factores de todas sus series— y la apertura por cadena es el
 segundo click. Sólo entran las categorías cubiertas por al menos 3 cadenas: con
@@ -137,12 +151,18 @@ respetando el barrio cuando la cadena sí lo informa bien.
 
 ## Calidad
 
-**20 modelos y 64 tests**, que corren en cada ejecución del pipeline.
+**20 modelos y 63 tests**, que corren en cada ejecución del pipeline.
 Además de los genéricos, hay tests singulares para las cosas que sólo se
-detectan mirando el resultado agregado: que la gama esté ordenada por precio por
-unidad, que el mapeo de unidades siga cubriendo el catálogo, que la
-categorización no se degrade a "Otros", y que los históricos hayan capturado la
-última fecha.
+detectan mirando el resultado agregado: que la canasta económica no salga más
+cara que la gama media, que la gama esté ordenada por precio por unidad, que el
+mapeo de unidades siga cubriendo el catálogo, que la categorización no se
+degrade a "Otros", y que los históricos hayan capturado la última fecha.
+
+Los tests sobre `stg_productos` miran sólo la última fecha: la transformación es
+la misma para todas, así que cada fecha se validó el día en que fue la última.
+No se resolvió con `where` en el YAML porque esa config se renderiza al parsear,
+cuando la macro de fecha todavía no consultó nada: el test pasaría siempre sin
+mirar un dato.
 
 Los tests corren **después** de `dbt run` y no como `dbt build`, a propósito: si
 un test falla a mitad del DAG, `build` saltea los modelos de abajo y ese día no
@@ -158,7 +178,7 @@ de una vez.
 
 | | Uso | Límite gratuito |
 |---|---|---|
-| Procesamiento | ~505 GB/mes | 1 TB/mes |
+| Procesamiento | ~18 GiB/día (~540 GiB/mes) | 1 TiB/mes |
 | Almacenamiento | 7,2 GB | 10 GB |
 
 Decisiones que salieron de ahí:
@@ -167,13 +187,22 @@ Decisiones que salieron de ahí:
   día, así que una ventana de 4 días llevaría el almacenamiento a 8,7 GB.
 - Los marts recalculan **sólo las fechas que faltan** en el histórico, no las
   tres de la ventana. Bajó la corrida diaria de 15,6 a 12,25 GB.
+- `stg_productos` es **incremental** y reemplaza particiones con copy jobs, que
+  no consumen cuota: 2,14 → 0,85 GiB por corrida.
+- La categorización y los tests de staging leen **sólo la última fecha**:
+  2,23 → 0,86 GiB y ~2,1 → ~1,1 GiB.
+- Cada ahorro se midió con dry run o contra `INFORMATION_SCHEMA.JOBS`, no se
+  estimó. Leer una partición no cuesta un tercio de la tabla: `id_producto` de
+  una fecha cuesta 0,30 GiB y de las tres, 0,60.
 - El índice encadenado se calculó **dentro** de un modelo existente en vez de
   agregar uno nuevo: BigQuery cobra por bytes leídos, no por agregar, así que
   costó 0 GB extra frente a los +63 GB/mes de un modelo aparte.
 - La API cachea 6 horas. El mapa de promos escanea 212 MB por request y se
   dispara en cada movimiento del mapa.
 - Hay una **cuota dura** a nivel proyecto: es lo único que garantiza que un bot
-  no genere un cargo.
+  no genere un cargo. Se calcula como lo que queda del TiB gratuito dividido
+  por los días que faltan del mes, y no mirando un día típico: todos los días
+  pueden quedar bajo un techo razonable y el mes igual terminar pagando.
 
 ---
 
@@ -198,7 +227,14 @@ dbt build
 
 - **La cobertura fuera de CABA es más fina.** El point-in-polygon divide CABA en
   71 barrios con 13,2 sucursales promedio; el resto del país son 459 localidades
-  con 3,4. Aun con el umbral calibrado con evidencia, el interior entra menos.
+  con 3,4. Con el umbral calibrado con evidencia entran 76 localidades con la
+  canasta completa: 44 barrios porteños y 32 del interior.
+- **"Carne vacuna" incluye cerdo y achuras.** La taxonomía de 58 categorías no
+  tiene una para el cerdo y la clasificación lo manda a vacuna: de los 335
+  productos económicos de la categoría, 138 son vacunos, 131 de cerdo, 57
+  achuras y 9 de cordero. Abarata la carne de la canasta: la mediana de los
+  vacunos es $9.099/kg, la del cerdo $8.800 y la de las achuras $6.490.
+  Corregirlo pide cambiar la taxonomía y la composición de la canasta.
 - **Algunas combinaciones cadena × categoría tienen precios sistemáticamente
   fuera de mercado** (Dia en Gaseosas, por ejemplo), replicados en cientos de
   sucursales. Parece un error del maestro de precios de esa cadena y no se puede

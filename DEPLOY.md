@@ -71,16 +71,31 @@ GROUP BY dia ORDER BY dia
 
 | Concepto | Consumo |
 |---|---|
-| Corrida diaria de dbt | ~15,6 GiB |
-| Reconstrucción diaria del crudo | ~4,6 GiB |
-| **Un día tranquilo, sólo pipeline** | **~23 GiB** (medido el 2026-09-04) |
+| Corrida diaria en GitHub Actions (categorización, dbt, tests) | ~14 GiB |
+| Carga diaria del crudo (reconstruye `sepa.productos`) | ~4,1 GiB |
+| **Un día tranquilo, sólo pipeline** | **~18 GiB** |
 | Un día de desarrollo | 60 a 155 GiB |
 
-Con el sitio ya andando y sin desarrollo pesado, **25 GiB por día** es el valor
-que corresponde: ~750 GiB al mes, cómodo bajo el TiB gratuito. Para ajustarlo:
+Los valores del pipeline salen de sumar lo medido paso por paso el 2026-09-10,
+después de las optimizaciones de ese día.
+
+**El valor no se elige mirando un día típico sino el presupuesto que queda: lo
+que falta del TiB gratuito dividido por los días que quedan del mes.** Una cuota
+de 25 GiB por día parece holgada, pero el 10 de septiembre ya se habían usado
+606 GiB y quedaban 20 GiB por día: con 25, el mes podía terminar pagando aunque
+ningún día individual se pasara.
+
+Con 20 GiB por día el pipeline entra. Y como corre temprano en el día de la
+cuota, que se reinicia a la medianoche del Pacífico (las 4 de la mañana en
+Argentina), si algo se pasa es el tráfico del sitio el que recibe el rechazo, no
+la ingesta.
+
+**Bajarla sólo después de que termine la corrida del día.** Si el consumo de hoy
+ya supera el valor nuevo, BigQuery rechaza todo hasta la medianoche del
+Pacífico, incluida la corrida de dbt que falte.
 
 ```bash
-gcloud quotas preferences update --service=bigquery.googleapis.com --project=proyecto-precios-504221 --quota-id=QueryUsagePerDay --preferred-value=25600 --preference-id=limite-diario-consultas --allow-high-percentage-quota-decrease --allow-quota-decrease-below-usage
+gcloud quotas preferences update --service=bigquery.googleapis.com --project=proyecto-precios-504221 --quota-id=QueryUsagePerDay --preferred-value=20480 --preference-id=limite-diario-consultas --allow-high-percentage-quota-decrease --allow-quota-decrease-below-usage
 ```
 
 Si algún día la cuota corta el pipeline se nota enseguida: falla el workflow de
