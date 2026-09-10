@@ -71,13 +71,13 @@ GROUP BY dia ORDER BY dia
 
 | Concepto | Consumo |
 |---|---|
-| Corrida diaria en GitHub Actions (categorización, dbt, tests) | ~14 GiB |
+| Corrida diaria en GitHub Actions (categorización, dbt, tests) | ~11,3 GiB |
 | Carga diaria del crudo (load job directo, sin consultas) | ~0 GiB |
-| **Un día tranquilo, sólo pipeline** | **~14 GiB** |
+| **Un día tranquilo, sólo pipeline** | **~11 GiB** |
 | Un día de desarrollo | 60 a 155 GiB |
 
-Los valores del pipeline salen de sumar lo medido paso por paso el 2026-09-10,
-después de las optimizaciones de ese día.
+La corrida de Actions se midió en `INFORMATION_SCHEMA.JOBS` el 2026-09-10, la
+primera con todas las optimizaciones: 11,31 GiB, contra 17,68 el día anterior.
 
 **El valor no se elige mirando un día típico sino el presupuesto que queda: lo
 que falta del TiB gratuito dividido por los días que quedan del mes.** Una cuota

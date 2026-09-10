@@ -209,7 +209,7 @@ de una vez.
 
 | | Uso | Límite gratuito |
 |---|---|---|
-| Procesamiento | ~14 GiB/día (~420 GiB/mes) | 1 TiB/mes |
+| Procesamiento | ~11 GiB/día (~340 GiB/mes) | 1 TiB/mes |
 | Almacenamiento | 7,2 GB | 10 GB |
 
 Decisiones que salieron de ahí:
