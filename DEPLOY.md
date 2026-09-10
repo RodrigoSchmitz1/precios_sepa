@@ -95,8 +95,12 @@ ya supera el valor nuevo, BigQuery rechaza todo hasta la medianoche del
 Pacífico, incluida la corrida de dbt que falte.
 
 ```bash
-gcloud quotas preferences update --service=bigquery.googleapis.com --project=proyecto-precios-504221 --quota-id=QueryUsagePerDay --preferred-value=19456 --preference-id=limite-diario-consultas --allow-high-percentage-quota-decrease --allow-quota-decrease-below-usage
+gcloud quotas preferences update limite-diario-consultas --service=bigquery.googleapis.com --project=proyecto-precios-504221 --quota-id=QueryUsagePerDay --preferred-value=19456 --allow-high-percentage-quota-decrease --allow-quota-decrease-below-usage
 ```
+
+En `update` el ID de la preferencia va como argumento posicional, no con
+`--preference-id` (ese flag existe solo en `create`). Con `--validate-only` se
+puede probar el comando sin aplicar el cambio.
 
 Si algún día la cuota corta el pipeline se nota enseguida: falla el workflow de
 GitHub Actions y llega el mail. Es preferible eso a una factura.
