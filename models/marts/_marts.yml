@@ -205,12 +205,13 @@ models:
         tests:
           - not_null
           - accepted_values:
-              values: ["leyenda", "leyenda_no_coincide", "mercado", "sin_verificar"]
+              values: ["leyenda", "mercado", "sin_verificar"]
 
   - name: mart_promos_calibracion
     description: >
-      Umbrales del dia calculados con las promos verificadas por leyenda. Una
-      fila por fecha, para auditar con que umbral se decidio que mostrar.
+      Colas de las promos verificadas por leyenda, una fila por fecha, para
+      vigilarlas. No decide que se muestra: los umbrales son fijos
+      (dbt_project.yml).
     columns:
       - name: fecha_datos
         tests: [not_null, unique]

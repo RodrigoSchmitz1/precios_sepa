@@ -11,7 +11,7 @@
 -- - El problema es solo de Carrefour (sus 4 banderas). Dia, La Anonima y
 --   Cooperativa Obrera declaran el porcentaje en la leyenda ("50% de descuento.
 --   2X1 TANG", "Descuentazo 30%") y coincide con el calculado en el 99,5% al
---   100% de 965.175 promos, incluidas promos reales de 70% que el tope tiraba.
+--   100% de 965.175 promos. La mas agresiva de esas promos es de 70%.
 -- - Carrefour pone la misma leyenda generica en todas ("Promo A valida desde...")
 --   y mezcla promos reales (Kolynos $2.400 -> $1.440, verificada en su web) con
 --   valores que no son precios (una notebook de $1.439.000 "a $214.900", un
@@ -23,14 +23,17 @@
 --   leche de marca propia o fruta de Coto.
 --
 -- El nivel de evidencia de cada promo, del mas firme al mas debil:
---   leyenda              la cadena declara el % y coincide (+-3 puntos)
---   leyenda_no_coincide  declara un % distinto (compras multiples mal
---                        expresadas); se descarta
---   mercado              el mismo producto tiene precio en otra empresa; se
---                        compara contra la lista mas barata de esa otra empresa
---   sin_verificar        no hay con que contrastarla
--- La decision de mostrar o no esta en promos_validas, con los umbrales de
--- mart_promos_calibracion.
+--   leyenda        la cadena declara el % y coincide (+-3 puntos)
+--   mercado        el mismo producto tiene precio en otra empresa; se compara
+--                  contra la lista mas barata de esa otra empresa
+--   sin_verificar  no hay con que contrastarla
+-- Una leyenda con un % que no coincide no confirma ni desmiente el precio, y la
+-- promo pasa al nivel siguiente. Son compras multiples de Dia ("75% de
+-- descuento. LLEVANDO 2" con el precio unitario 25% abajo): el 2026-09-09 eran
+-- 3.941 filas de 7 productos, todas creibles frente a otra empresa, y
+-- descartarlas las sacaba del sitio.
+-- La decision de mostrar o no esta en promos_validas, con los umbrales fijos de
+-- dbt_project.yml.
 
 {% set fecha = ultima_fecha(source("sepa", "productos")) %}
 
@@ -128,7 +131,6 @@ SELECT
     *,
     CASE
         WHEN descuento_declarado IS NOT NULL AND ABS(descuento_declarado - descuento_pct) <= 3 THEN "leyenda"
-        WHEN descuento_declarado IS NOT NULL THEN "leyenda_no_coincide"
         WHEN lista_referencia_mercado IS NOT NULL THEN "mercado"
         ELSE "sin_verificar"
     END AS nivel_evidencia,

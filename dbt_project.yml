@@ -34,25 +34,30 @@ clean-targets:         # directories to be removed by `dbt clean`
 # insert_overwrite + particion sin expiracion) en cada archivo, para que la
 # regla de "nunca --full-refresh" quede visible junto al SQL.
 
-# Validacion de promos por evidencia (2026-09-10).
+# Validacion de promos por evidencia (2026-09-10; umbrales fijos desde el 09-11).
 #
-# Reemplaza al tope fijo de 70% que habia hasta entonces: el analisis esta en el
-# encabezado de mart_promos_evidencia. Los umbrales se calibran cada dia en
-# mart_promos_calibracion con las promos cuya leyenda confirma el descuento.
-# Estos son solo los valores de RESPALDO para un dia con pocas promos
-# verificadas, medidos sobre el 2026-09-09:
+# Reemplaza al tope de 70% igual para todas las cadenas: el analisis esta en el
+# encabezado de mart_promos_evidencia. Umbrales medidos sobre las promos
+# verificadas por leyenda del 2026-09-09:
 #
-# - promos_piso_cociente_respaldo: percentil 0,1 de precio promo / lista mas
-#   barata del mismo producto en otra empresa, entre 805.041 promos
-#   verificadas: 0,519.
-# - promos_techo_descuento_respaldo: percentil 99,9 del descuento de 965.175
-#   promos verificadas: 50.
-# - promos_muestra_minima: por debajo de esta cantidad de promos verificadas se
-#   usa el respaldo en vez de la calibracion del dia. Un dia normal tiene
-#   cientos de miles; 10.000 solo se incumple si algo se rompio en la carga.
+# - promos_piso_cociente_mercado: percentil 0,1 de precio promo / lista mas
+#   barata del mismo producto en otra empresa, entre 805.041 verificadas: 0,519.
+# - promos_techo_descuento_sin_verificar: percentil 99,9 del descuento de 965.175
+#   verificadas: 50.
+# - promos_descuento_maximo_mercado: la verificada mas agresiva: 70.
+#
+# Son FIJOS porque esas colas no son estables. El 2026-09-10 Dia paso de 224 a
+# 4.069 verificadas por encima de 50%: el P99,9 salto a 74,3 y el P0,1 bajo a
+# 0,339, y recalculados ese dia dejaban a Carrefour con 17.283 filas de 50% o mas,
+# mas que el tope viejo. Con estos valores fijos fueron 1.812 el 09-09 y 1.799 el
+# 09-10. mart_promos_calibracion sigue midiendo las colas para vigilarlas.
+#
+# - promos_muestra_minima: por debajo de esta cantidad de promos verificadas en
+#   un dia, calibracion_de_promos_con_muestra_suficiente avisa.
 vars:
-  promos_piso_cociente_respaldo: 0.519
-  promos_techo_descuento_respaldo: 50
+  promos_piso_cociente_mercado: 0.519
+  promos_techo_descuento_sin_verificar: 50
+  promos_descuento_maximo_mercado: 70
   promos_muestra_minima: 10000
 
 models:

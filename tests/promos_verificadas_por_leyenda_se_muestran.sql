@@ -1,11 +1,10 @@
 -- Las promos cuya leyenda confirma el descuento se muestran siempre, sea cual
 -- sea el descuento.
 --
--- Hasta el 2026-09-10 habia un tope fijo de 70% para todas las cadenas, y tiraba
--- promos reales: "70% de descuento con cualquier medio de pago" de La Anonima,
--- "70% AGUA MICELAR" de Dia. Cuando la cadena declara el porcentaje y coincide
--- con el precio, no hay nada que sospechar. Si alguien vuelve a poner un tope
--- para todas, este test falla.
+-- Cuando la cadena declara el porcentaje y coincide con el precio no hay nada
+-- que sospechar, aunque sea alto: "70% de descuento con cualquier medio de pago"
+-- de La Anonima, "70% AGUA MICELAR" de Dia. Si alguien vuelve a poner un tope
+-- para todas las cadenas por debajo de esas promos, este test falla.
 
 SELECT
     e.id_producto,
