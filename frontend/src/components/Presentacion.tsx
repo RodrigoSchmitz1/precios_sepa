@@ -144,7 +144,7 @@ function Presentacion() {
     <section className="mb-10" aria-labelledby="titulo-portada">
       <p className="text-xs font-semibold uppercase tracking-wider text-tinta-suave mb-3">
         Datos oficiales del SEPA
-        {masBarata && ` · precios del ${fechaEnPalabras(masBarata.fecha_datos)}`}
+        {masBarata && fechaEnPalabras(masBarata.fecha_datos) && ` · precios del ${fechaEnPalabras(masBarata.fecha_datos)}`}
       </p>
 
       <h1

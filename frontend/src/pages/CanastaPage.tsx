@@ -91,7 +91,14 @@ function CanastaPage() {
       <Titular
         antetitulo={
           todas.length > 0
-            ? `Canasta basica · ${categorias} categorias · ${formatearNumero(todas.length)} localidades · precios del ${fechaEnPalabras(masBarata.fecha_datos)}`
+            ? [
+                `Canasta basica`,
+                `${categorias} categorias`,
+                `${formatearNumero(todas.length)} localidades`,
+                fechaEnPalabras(masBarata.fecha_datos) && `precios del ${fechaEnPalabras(masBarata.fecha_datos)}`,
+              ]
+                .filter(Boolean)
+                .join(" · ")
             : "Canasta basica"
         }
         bajada={
