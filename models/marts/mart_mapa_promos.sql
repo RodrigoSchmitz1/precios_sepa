@@ -1,11 +1,5 @@
--- Promos vigentes a nivel sucursal individual, con ubicacion geografica.
--- Complementa a mart_promos_vigentes (que agrupa por cadena+provincia para
--- listados legibles): este modelo mantiene el detalle por sucursal porque
--- el mapa SI necesita el punto exacto -- es un uso distinto del mismo dato,
--- no un cambio de opinion sobre el agrupado. No agrega costo de storage:
--- usa la misma ventana de 3 dias ya cargada.
--- El join a stg_comercio usa id_comercio + id_bandera (no solo id_comercio)
--- para no multiplicar cada fila por cada bandera de la cadena.
+-- Promos del mapa, una fila por promo con las sucursales donde vale. La API la carga
+-- entera en memoria (api/mapa_promos.py): la misma promo se repite en cientos de sucursales.
 
 {% set fecha = ultima_fecha(source("sepa", "productos")) %}
 
@@ -20,14 +14,12 @@ WITH base AS (
         CAST(p.productos_precio_unitario_promo2 AS FLOAT64) AS precio_promo2,
         p.productos_leyenda_promo2 AS leyenda_promo2,
         p.id_comercio,
-        p.id_bandera,
         p.id_sucursal,
         p.fecha_datos
     FROM {{ source("sepa", "productos") }} AS p
-    -- Fecha literal, no subconsulta: con "= (SELECT MAX(...))" BigQuery no
-    -- poda particiones y escanea los 3 dias (3.9 GB en vez de 1.3 GB).
+    -- Fecha literal, no subconsulta: con "= (SELECT MAX(...))" BigQuery no poda particiones.
     WHERE p.fecha_datos = DATE('{{ fecha }}')
-      AND p.productos_precio_lista IS NOT NULL
+        AND p.productos_precio_lista IS NOT NULL
 ),
 
 promos_separadas AS (
@@ -36,7 +28,7 @@ promos_separadas AS (
         precio_promo1 AS precio_promo,
         leyenda_promo1 AS leyenda,
         "promo1" AS tipo_promo,
-        id_comercio, id_bandera, id_sucursal, fecha_datos
+        id_comercio, id_sucursal, fecha_datos
     FROM base
     WHERE precio_promo1 IS NOT NULL AND precio_promo1 > 0
 
@@ -47,7 +39,7 @@ promos_separadas AS (
         precio_promo2 AS precio_promo,
         leyenda_promo2 AS leyenda,
         "promo2" AS tipo_promo,
-        id_comercio, id_bandera, id_sucursal, fecha_datos
+        id_comercio, id_sucursal, fecha_datos
     FROM base
     WHERE precio_promo2 IS NOT NULL AND precio_promo2 > 0
 ),
@@ -66,28 +58,20 @@ SELECT
     d.marca,
     cat.categoria,
     cat.rubro,
-    c.nombre_comercial AS cadena,
-    s.nombre_sucursal,
-    s.calle,
-    s.numero,
-    s.barrio,
-    s.localidad,
-    s.provincia,
-    s.latitud,
-    s.longitud,
     d.precio_lista,
     d.precio_promo,
     d.descuento_pct,
     d.leyenda,
     d.tipo_promo,
+    ARRAY_AGG(DISTINCT s.sucursal) AS sucursales,
     d.fecha_datos
 FROM con_descuento AS d
-LEFT JOIN {{ ref("stg_categorias") }} AS cat ON d.id_producto = cat.id_producto
-LEFT JOIN {{ ref("stg_sucursales") }} AS s ON d.id_comercio = s.id_comercio AND d.id_sucursal = s.id_sucursal
-LEFT JOIN {{ ref("stg_comercio") }} AS c ON d.id_comercio = c.id_comercio AND d.id_bandera = c.id_bandera
--- El techo descarta las promos inverosimiles: SEPA mezcla en esta columna
--- importes de cuota de financiacion (ver descuento_maximo_plausible en
--- dbt_project.yml, que documenta la evidencia).
+JOIN {{ ref("mart_mapa_sucursales") }} AS s
+    ON s.sucursal = CONCAT(d.id_comercio, "-", d.id_sucursal)
+LEFT JOIN {{ ref("stg_categorias") }} AS cat
+    ON d.id_producto = cat.id_producto
+-- El techo descarta promos inverosimiles: ver descuento_maximo_plausible en dbt_project.yml.
 WHERE d.descuento_pct BETWEEN 10 AND {{ var("descuento_maximo_plausible") }}
-  AND s.latitud IS NOT NULL
-  AND s.longitud IS NOT NULL
+GROUP BY
+    d.id_comercio, d.id_producto, d.descripcion, d.marca, cat.categoria, cat.rubro,
+    d.precio_lista, d.precio_promo, d.descuento_pct, d.leyenda, d.tipo_promo, d.fecha_datos

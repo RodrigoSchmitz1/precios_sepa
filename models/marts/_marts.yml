@@ -205,14 +205,23 @@ models:
       - name: descuento_pct
         tests: [not_null]
 
-  - name: mart_promos_por_sucursal
+  - name: mart_mapa_sucursales
     description: >
-      Las mismas promos a nivel sucursal, con lat/long, para el mapa.
-    tests:
-      - dbt_utils.expression_is_true:
-          expression: "descuento_pct BETWEEN 10 AND {{ var('descuento_maximo_plausible') }}"
+      Sucursales con coordenadas para el mapa de promos. La clave sucursal
+      (id_comercio-id_sucursal) es la que lista mart_mapa_promos.
     columns:
+      - name: sucursal
+        tests: [unique, not_null]
       - name: latitud
         tests: [not_null]
       - name: longitud
         tests: [not_null]
+
+  - name: mart_mapa_promos
+    description: >
+      Las promos del mapa, una fila por promo con las sucursales donde vale. La
+      API la carga entera en memoria (api/mapa_promos.py) para que mover el mapa
+      no consulte BigQuery.
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "descuento_pct BETWEEN 10 AND {{ var('descuento_maximo_plausible') }}"

@@ -1,6 +1,7 @@
 import functools
 import json
 import os
+import threading
 import time
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -15,6 +16,7 @@ from pydantic import BaseModel
 from typing import Optional
 from interpretar_canasta import CATEGORIAS, interpretar_descripcion
 from calcular_canasta import calcular_costo_canasta
+import mapa_promos
 
 api = FastAPI(title="precios_sepa API")
 
@@ -237,8 +239,31 @@ def obtener_promos(
     return [dict(fila) for fila in resultados]
 
 
-@api.get("/promos/mapa")
+# ---------------------------------------------------------------------------
+# Mapa de promos
+#
+# Se resuelve en memoria (ver mapa_promos.py). Hasta el 2026-09-11 cada paneo era
+# una consulta que escaneaba la tabla entera (0,39 GiB) con un recuadro distinto,
+# asi que la cache nunca se reutilizaba y unos 18 paneos agotaban la cuota libre.
+# ---------------------------------------------------------------------------
+_candado_mapa = threading.Lock()
+
+
 @cachear
+def _cargar_indice_mapa():
+    # list_rows lee con tabledata.list: no es una consulta y no consume la cuota.
+    sucursales = cliente_bq.list_rows(f"{PROYECTO}.dbt_precios.mart_mapa_sucursales")
+    promos = cliente_bq.list_rows(f"{PROYECTO}.dbt_precios.mart_mapa_promos")
+    return mapa_promos.armar_indice((dict(f) for f in sucursales), (dict(f) for f in promos))
+
+
+def _indice_mapa():
+    # Sin el candado, dos pedidos a una instancia recien levantada cargarian todo dos veces.
+    with _candado_mapa:
+        return _cargar_indice_mapa()
+
+
+@api.get("/promos/mapa")
 def obtener_promos_mapa(
     busqueda: Optional[str] = Query(None, description="Buscar en la descripcion del producto"),
     provincia: Optional[str] = Query(None, description="Filtrar por provincia (ej: AR-B)"),
@@ -246,47 +271,20 @@ def obtener_promos_mapa(
     lat_max: Optional[float] = Query(None, description="Limite norte del area visible"),
     lng_min: Optional[float] = Query(None, description="Limite oeste del area visible"),
     lng_max: Optional[float] = Query(None, description="Limite este del area visible"),
-    limite: int = Query(500, le=6000, description="Cantidad maxima de resultados"),
+    limite: int = Query(500, ge=1, le=6000, description="Cantidad maxima de resultados"),
 ):
-    condiciones = []
-    parametros = []
-
-    if busqueda:
-        condiciones.append("LOWER(descripcion) LIKE @busqueda")
-        parametros.append(bigquery.ScalarQueryParameter("busqueda", "STRING", f"%{busqueda.lower()}%"))
-    if provincia:
-        condiciones.append("provincia = @provincia")
-        parametros.append(bigquery.ScalarQueryParameter("provincia", "STRING", provincia))
-    if lat_min is not None and lat_max is not None:
-        condiciones.append("latitud BETWEEN @lat_min AND @lat_max")
-        parametros.append(bigquery.ScalarQueryParameter("lat_min", "FLOAT64", lat_min))
-        parametros.append(bigquery.ScalarQueryParameter("lat_max", "FLOAT64", lat_max))
-    if lng_min is not None and lng_max is not None:
-        condiciones.append("longitud BETWEEN @lng_min AND @lng_max")
-        parametros.append(bigquery.ScalarQueryParameter("lng_min", "FLOAT64", lng_min))
-        parametros.append(bigquery.ScalarQueryParameter("lng_max", "FLOAT64", lng_max))
-
-    where = f"WHERE {' AND '.join(condiciones)}" if condiciones else ""
-
-    query = f"""
-        SELECT
-            descripcion, marca, categoria, rubro, cadena,
-            nombre_sucursal, calle, numero, barrio, localidad, provincia,
-            latitud, longitud, precio_lista, precio_promo, descuento_pct, leyenda
-        FROM `{PROYECTO}.dbt_precios.mart_promos_por_sucursal`
-        {where}
-        ORDER BY descuento_pct DESC
-        LIMIT @limite_consulta
-    """
-    parametros.append(bigquery.ScalarQueryParameter("limite_consulta", "INT64", limite + 1))
-
-    job_config = bigquery.QueryJobConfig(query_parameters=parametros)
-    resultados = [dict(fila) for fila in cliente_bq.query(query, job_config=job_config).result()]
-
-    hay_mas = len(resultados) > limite
-    resultados = resultados[:limite]
-
-    return {"promos": resultados, "hay_mas": hay_mas}
+    # Sin @cachear: cada recuadro distinto quedaba guardado para siempre en _cache.
+    promos, hay_mas = mapa_promos.buscar(
+        _indice_mapa(),
+        busqueda=busqueda,
+        provincia=provincia,
+        lat_min=lat_min,
+        lat_max=lat_max,
+        lng_min=lng_min,
+        lng_max=lng_max,
+        limite=limite,
+    )
+    return {"promos": promos, "hay_mas": hay_mas}
 
 
 @api.get("/gama")
