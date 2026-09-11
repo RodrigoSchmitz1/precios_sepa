@@ -16,7 +16,8 @@ aplicación web.
 | **Promos vigentes** | Qué descuentos hay hoy cerca mío, sobre un mapa |
 | **Canasta básica** | Cuánto cuesta la canasta alimentaria en cada localidad |
 | **Tu canasta** | Describís en lenguaje natural qué consumís (o elegís las categorías a mano), una IA arma tu canasta y se cotiza con precios reales |
-| **Supermercado más barato** | Qué cadena tiene el precio más bajo, comparando productos idénticos |
+| **Supermercado más barato** | Qué cadena tiene el precio más bajo, comparando productos idénticos, categoría por categoría |
+| **El mismo producto** | Cuánto cuesta el mismo código de barras en cada cadena, y cuánta diferencia hay |
 | **Qué se movió** | Ranking de todas las categorías por variación de precio, con apertura por cadena |
 
 ---
@@ -25,7 +26,7 @@ aplicación web.
 
 ```
 Portal SEPA ──> Ingesta local ──> BigQuery ──> dbt ──> FastAPI + React
- (datos.gob)     (Python)          (crudo)    (20 modelos)   (Cloud Run)
+ (datos.gob)     (Python)          (crudo)    (22 modelos)   (Cloud Run)
                      │                             │
               Task Scheduler                GitHub Actions
                  07:00 ART                    08:00 ART
@@ -124,6 +125,27 @@ geométrica de los factores de todas sus series— y la apertura por cadena es e
 segundo click. Sólo entran las categorías cubiertas por al menos 3 cadenas: con
 una sola, el número no es el mercado, es un supermercado.
 
+### Destacar sin inventar un umbral
+
+Mostrar "la mayor diferencia del día" es una invitación a publicar un error de
+carga. El primer intento, con las promos, fue un tope arbitrario: descartar todo
+descuento mayor al 70%. Funcionaba, pero no había forma de defender el número.
+
+El criterio que lo reemplazó es pedir **respaldo**, no fijar un techo:
+
+- El precio de una cadena es la **mediana entre sus sucursales**, y una
+  diferencia sólo se destaca si los dos extremos vienen de **3 sucursales o
+  más**. Con tres, una sucursal con el precio mal cargado no puede mover la
+  mediana; con dos, sí. Las demás se muestran igual, pero sin destacarse y
+  diciendo sobre cuántas sucursales se calcularon.
+- Se piden **3 empresas distintas**, no 3 cadenas. Carrefour tiene cuatro
+  banderas (Hiper, Market, Express y Maxi) y Cencosud otras tantas: contar
+  banderas hacía pasar por "está en todo el mercado" a un producto que vende una
+  sola empresa, y podía titular comparando Maxi contra Express.
+- En el mapa de categorías × cadenas, la celda vacía significa **"no llega a 20
+  productos comparables"**, que no es lo mismo que ganar 0%. Pintarlas igual
+  sería afirmar algo que el dato no dice.
+
 ### Datos que se pierden en silencio
 
 Lo más peligroso no es el dato que rompe la corrida, sino el que desaparece sin
@@ -210,7 +232,7 @@ de una vez.
 | | Uso | Límite gratuito |
 |---|---|---|
 | Procesamiento | ~11 GiB/día (~340 GiB/mes) | 1 TiB/mes |
-| Almacenamiento | 7,2 GB | 10 GB |
+| Almacenamiento | 6,9 GB | 10 GB |
 
 Decisiones que salieron de ahí:
 
@@ -233,6 +255,15 @@ Decisiones que salieron de ahí:
 - El índice encadenado se calculó **dentro** de un modelo existente en vez de
   agregar uno nuevo: BigQuery cobra por bytes leídos, no por agregar, así que
   costó 0 GB extra frente a los +63 GB/mes de un modelo aparte.
+- Cuando dos marts necesitan el mismo cálculo, se hace **una vez** en un modelo
+  intermedio. El precio de cada producto en cada cadena lo usan "Supermercado
+  más barato" y "El mismo producto": leerlo dos veces por separado costaría dos
+  veces los 1,5 GiB que pesa escanear los precios por sucursal.
+- **Buscar no consulta la base.** Cada texto tipeado en un buscador era una
+  consulta nueva, porque cada búsqueda distinta es una entrada distinta de la
+  caché. Las páginas que caben en memoria (94 localidades, ~800 filas de quién
+  gana, el catálogo de productos comparables) se traen una vez y filtran en el
+  navegador.
 - La API cachea 6 horas. El mapa de promos escanea 212 MB por request y se
   dispara en cada movimiento del mapa.
 - Hay una **cuota dura** a nivel proyecto: es lo único que garantiza que un bot
