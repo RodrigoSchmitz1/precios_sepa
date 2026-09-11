@@ -100,11 +100,9 @@ export async function obtenerQuienGana(categoria: string): Promise<QuienGana[]> 
   return respuesta.json();
 }
 
-export async function obtenerCategoriasDisponibles(): Promise<string[]> {
-  const respuesta = await fetch(`${API_BASE}/quien-gana/categorias`);
-  if (!respuesta.ok) await fallar(respuesta, "Error al traer categorias");
-  return respuesta.json();
-}
+// obtenerCategoriasDisponibles se elimino el 2026-09-11: la pagina trae el mart
+// entero de una vez y saca la lista de categorias de ahi, asi que ese endpoint
+// era una consulta a BigQuery para un dato que ya estaba en el navegador.
 
 export async function obtenerCanasta(filtros: FiltrosPromos): Promise<Canasta[]> {
   const query = armarQuery(filtros);
