@@ -15,6 +15,8 @@ import { nombreProvincia } from "../utils/provincias";
 import { formatearPesos } from "../utils/formato";
 import ItemCanastaEditable from "../components/ItemCanastaEditable";
 import AgregarCategoria from "../components/AgregarCategoria";
+import Titular, { Resaltado } from "../components/Titular";
+import FilaDeCifras from "../components/FilaDeCifras";
 import {
   canastaAUrl,
   canastaDesdeUrl,
@@ -264,13 +266,24 @@ function CanastaPersonalizadaPage() {
 
   return (
     <div className="max-w-3xl mx-auto">
-      <header className="mb-8">
-        <h1 className="font-display text-4xl text-tinta mb-2">Tu canasta a medida</h1>
-        <p className="text-tinta-media leading-relaxed">
-          Describi que consumis y una inteligencia artificial arma tu canasta. Ajustala a
-          mano, elegi tu zona y calculamos el costo con precios reales de supermercado.
-        </p>
-      </header>
+      <Titular
+        antetitulo={
+          resultadoVigente && resultado
+            ? `Tu canasta · ${resultado.categorias_calculadas} categorias cotizadas`
+            : "Tu canasta"
+        }
+        bajada="Describi que consumis y una inteligencia artificial arma tu canasta. Ajustala a mano, elegi tu zona y calculamos el costo con precios reales de supermercado."
+      >
+        {resultadoVigente && resultado ? (
+          <>
+            Tu canasta cuesta{" "}
+            <Resaltado tono="barato">{formatearPesos(resultado.costo_total)}</Resaltado> por mes
+            {localidadesElegidas.length === 1 && ` en ${localidadesElegidas[0].localidad}`}
+          </>
+        ) : (
+          "Conta que consumis y te decimos cuanto te cuesta"
+        )}
+      </Titular>
 
       {/* Paso 1 */}
       <section className="mb-8">
@@ -466,17 +479,34 @@ function CanastaPersonalizadaPage() {
             </p>
           )}
 
-          <p className="text-xs uppercase tracking-wider text-tinta-suave mb-1">Costo mensual</p>
-          {/* Sin tabular-nums: las cifras de ancho fijo son para columnas que se
-              alinean, y a tamano display dejan el numero suelto. */}
-          <p className="font-display text-5xl text-ahorro mb-1">
-            {formatearPesos(resultado.costo_total)}
-          </p>
-          <p className="text-xs text-tinta-suave mb-5">
-            {resultado.categorias_calculadas} de {resultado.categorias_pedidas} categorias cotizadas
-            {localidadesElegidas.length > 0 &&
-              ` · ${localidadesElegidas.map((l) => l.localidad).join(", ")}`}
-          </p>
+          {/* El total va en el titular de la pagina; aca quedan las cifras que
+              lo ponen en contexto, sin repetir el mismo numero dos veces. */}
+          <div className="mb-5">
+            <FilaDeCifras
+              cifras={[
+                { etiqueta: "Costo mensual", valor: formatearPesos(resultado.costo_total), detalle: "con precios de tu zona" },
+                {
+                  etiqueta: "Por dia",
+                  valor: formatearPesos(resultado.costo_total / 30),
+                  detalle: "promedio del mes",
+                },
+                {
+                  etiqueta: "Categorias",
+                  valor: `${resultado.categorias_calculadas} de ${resultado.categorias_pedidas}`,
+                  detalle: "cotizadas con datos",
+                },
+                ...(localidadesElegidas.length > 0
+                  ? [
+                      {
+                        etiqueta: localidadesElegidas.length === 1 ? "Zona" : "Zonas",
+                        valor: localidadesElegidas.map((l) => l.localidad).join(", "),
+                        detalle: localidadesElegidas.length === 1 ? "elegida por vos" : "elegidas por vos",
+                      },
+                    ]
+                  : []),
+              ]}
+            />
+          </div>
 
           {/*
             Desglose ordenado de mayor a menor con barra proporcional: la lista

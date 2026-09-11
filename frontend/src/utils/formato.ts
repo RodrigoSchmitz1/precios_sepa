@@ -19,6 +19,24 @@ export function formatearNumero(valor: number): string {
   return FORMATO_NUMERO.format(valor);
 }
 
+const MESES = [
+  "enero", "febrero", "marzo", "abril", "mayo", "junio",
+  "julio", "agosto", "septiembre", "octubre", "noviembre", "diciembre",
+];
+
+/** "2026-09-07" -> "7 de septiembre". Se parsea a mano y no con new Date():
+ *  new Date("2026-09-07") interpreta UTC y en Argentina (UTC-3) devuelve el 6. */
+export function fechaEnPalabras(iso: string | null | undefined): string {
+  // Devuelve vacio si no hay fecha o no tiene la forma esperada: una version del
+  // frontend puede quedar servida contra una API anterior que todavia no manda
+  // el campo, y eso no puede tirar abajo la pagina entera.
+  const partes = (iso ?? "").split("-");
+  const mes = Number(partes[1]);
+  const dia = Number(partes[2]);
+  if (!Number.isInteger(dia) || !MESES[mes - 1]) return "";
+  return `${dia} de ${MESES[mes - 1]}`;
+}
+
 /*
   Porcentaje de variacion con signo explicito y coma decimal.
 

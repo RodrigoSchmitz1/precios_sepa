@@ -10,6 +10,8 @@ import type {
   ResultadoCanastaPersonalizada,
   LocalidadOpcion,
   CategoriaCanasta,
+  ProductoComparado,
+  ProductoDetalle,
 } from "../types";
 
 /*
@@ -98,11 +100,9 @@ export async function obtenerQuienGana(categoria: string): Promise<QuienGana[]> 
   return respuesta.json();
 }
 
-export async function obtenerCategoriasDisponibles(): Promise<string[]> {
-  const respuesta = await fetch(`${API_BASE}/quien-gana/categorias`);
-  if (!respuesta.ok) await fallar(respuesta, "Error al traer categorias");
-  return respuesta.json();
-}
+// obtenerCategoriasDisponibles se elimino el 2026-09-11: la pagina trae el mart
+// entero de una vez y saca la lista de categorias de ahi, asi que ese endpoint
+// era una consulta a BigQuery para un dato que ya estaba en el navegador.
 
 export async function obtenerCanasta(filtros: FiltrosPromos): Promise<Canasta[]> {
   const query = armarQuery(filtros);
@@ -169,5 +169,24 @@ export async function buscarLocalidades(busqueda: string): Promise<LocalidadOpci
 export async function obtenerCategoriasCanasta(): Promise<CategoriaCanasta[]> {
   const respuesta = await fetch(`${API_BASE}/canasta-personalizada/categorias`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer las categorias");
+  return respuesta.json();
+}
+
+export async function buscarProductos(consulta: string): Promise<ProductoComparado[]> {
+  const params = new URLSearchParams({ q: consulta.trim() });
+  const respuesta = await fetch(`${API_BASE}/mismo-producto/buscar?${params.toString()}`);
+  if (!respuesta.ok) await fallar(respuesta, "Error al buscar productos");
+  return respuesta.json();
+}
+
+export async function obtenerProductosDestacados(): Promise<ProductoComparado[]> {
+  const respuesta = await fetch(`${API_BASE}/mismo-producto/destacados`);
+  if (!respuesta.ok) await fallar(respuesta, "Error al traer los destacados");
+  return respuesta.json();
+}
+
+export async function obtenerProducto(idProducto: string): Promise<ProductoDetalle> {
+  const respuesta = await fetch(`${API_BASE}/mismo-producto/${encodeURIComponent(idProducto)}`);
+  if (!respuesta.ok) await fallar(respuesta, "Error al traer el producto");
   return respuesta.json();
 }

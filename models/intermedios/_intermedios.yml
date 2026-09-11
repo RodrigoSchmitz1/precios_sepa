@@ -1,0 +1,23 @@
+version: 2
+
+models:
+  - name: int_precio_producto_cadena
+    description: >
+      Precio de cada producto en cada cadena por fecha: mediana entre
+      sucursales, minimo, maximo y cantidad de sucursales. Base compartida de
+      mart_quien_gana y mart_mismo_producto, para leer stg_productos una sola
+      vez.
+    tests:
+      # Un fan-out en el join a stg_comercio (unirlo sin id_bandera) duplicaria
+      # filas por cadena y romperia este grano.
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fecha_datos, id_producto, cadena]
+      - dbt_utils.expression_is_true:
+          expression: "precio_minimo <= precio_mediano AND precio_mediano <= precio_maximo"
+    columns:
+      - name: fecha_datos
+        tests: [not_null]
+      - name: cadena
+        tests: [not_null]
+      - name: sucursales
+        tests: [not_null]

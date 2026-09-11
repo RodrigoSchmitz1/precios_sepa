@@ -26,6 +26,7 @@ clean-targets:         # directories to be removed by `dbt clean`
 
 # Capas del proyecto:
 #   staging/    limpieza y tipado de las fuentes crudas de SEPA, sin logica de negocio
+#   intermedios/ calculos que comparten varios marts, para pagar el escaneo una sola vez
 #   marts/      KPIs y tablas que consume la API (foto actual, se reconstruyen enteras)
 #   historicos/ acumulacion incremental de los KPIs; es la unica data irrecuperable
 #               del proyecto, porque el crudo solo retiene 3 dias.

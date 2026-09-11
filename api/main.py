@@ -1,6 +1,7 @@
 import functools
 import json
 import os
+import threading
 import time
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -15,6 +16,7 @@ from pydantic import BaseModel
 from typing import Optional
 from interpretar_canasta import CATEGORIAS, interpretar_descripcion
 from calcular_canasta import calcular_costo_canasta
+import mismo_producto
 
 api = FastAPI(title="precios_sepa API")
 
@@ -397,7 +399,7 @@ def obtener_canasta(
 
     query = f"""
         SELECT localidad, provincia, categorias_en_canasta, categorias_imputadas,
-               costo_canasta_total
+               costo_canasta_total, fecha_datos
         FROM `{tabla}`
         {where}
         ORDER BY costo_canasta_total ASC
@@ -666,6 +668,57 @@ def obtener_localidades_disponibles(
     job_config = bigquery.QueryJobConfig(query_parameters=parametros)
     resultados = cliente_bq.query(query, job_config=job_config).result()
     return [dict(fila) for fila in resultados]
+
+
+# ---------------------------------------------------------------------------
+# El mismo producto
+#
+# La tabla se carga entera y se busca en memoria (ver mismo_producto.py). Los
+# tres endpoints comparten la misma carga cacheada, y ninguno consulta BigQuery:
+# la tabla se lee con list_rows.
+#
+# Las rutas fijas (/buscar, /destacados) van antes que /{id_producto}: FastAPI
+# resuelve en orden de declaracion y si no "buscar" se tomaria como un id.
+# ---------------------------------------------------------------------------
+_candado_mismo_producto = threading.Lock()
+
+
+@cachear
+def _cargar_indice_mismo_producto():
+    # list_rows lee con tabledata.list: no es una consulta y no consume la cuota.
+    # El mart tiene solo el ultimo dia, asi que no hace falta filtrar por fecha.
+    filas = cliente_bq.list_rows(f"{PROYECTO}.dbt_precios.mart_mismo_producto")
+    return mismo_producto.armar_indice(dict(fila) for fila in filas)
+
+
+def _indice_mismo_producto():
+    # Sin el candado, dos pedidos a una instancia recien levantada cargarian la tabla dos veces.
+    with _candado_mismo_producto:
+        return _cargar_indice_mismo_producto()
+
+
+@api.get("/mismo-producto/buscar")
+def buscar_mismo_producto(
+    q: str = Query(..., min_length=2, max_length=80, description="Palabras de la descripcion o la marca"),
+    limite: int = Query(20, ge=1, le=50),
+):
+    return mismo_producto.buscar(_indice_mismo_producto(), q, limite)
+
+
+@api.get("/mismo-producto/destacados")
+def obtener_productos_destacados(limite: int = Query(12, ge=1, le=30)):
+    return mismo_producto.destacados(_indice_mismo_producto(), limite)
+
+
+@api.get("/mismo-producto/{id_producto}")
+def obtener_mismo_producto(id_producto: str):
+    resultado = mismo_producto.detalle(_indice_mismo_producto(), id_producto)
+    if resultado is None:
+        return JSONResponse(
+            status_code=404,
+            content={"detail": "Ese producto no tiene precio en dos o mas cadenas en el ultimo dia."},
+        )
+    return resultado
 
 
 # ---------------------------------------------------------------------------
