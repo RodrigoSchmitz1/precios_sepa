@@ -19,5 +19,8 @@ models:
         tests: [not_null]
       - name: cadena
         tests: [not_null]
+      - name: empresa
+        description: id_comercio de la empresa dueña de la bandera.
+        tests: [not_null]
       - name: sucursales
         tests: [not_null]

@@ -145,6 +145,9 @@ export type ProductoComparado = {
   marca: string | null;
   categoria: string | null;
   cadenas: number;
+  /** Empresas distintas, que no es lo mismo que cadenas: Carrefour tiene cuatro
+   *  banderas. Es lo que decide si un producto puede destacarse. */
+  empresas: number;
   /** Extremos entre las medianas de cada cadena, no entre sucursales sueltas. */
   precio_mas_bajo: number;
   precio_mas_alto: number;

@@ -24,6 +24,7 @@ WITH precios AS (
         fecha_datos,
         id_producto,
         cadena,
+        empresa,
         precio_mediano,
         precio_minimo,
         precio_maximo,
@@ -36,6 +37,10 @@ por_producto AS (
     SELECT
         id_producto,
         COUNT(*) AS cadenas,
+        -- Empresas distintas, que no es lo mismo que banderas: ver el comentario
+        -- en int_precio_producto_cadena. Lo usa la API para no destacar como
+        -- "esta en 4 cadenas" un producto que solo vende Carrefour.
+        COUNT(DISTINCT empresa) AS empresas,
         MIN(precio_mediano) AS precio_mas_bajo,
         MAX(precio_mediano) AS precio_mas_alto
     FROM precios
@@ -56,6 +61,7 @@ SELECT
     pr.precio_maximo,
     pr.sucursales,
     pp.cadenas,
+    pp.empresas,
     pp.precio_mas_bajo,
     pp.precio_mas_alto,
     -- stg_productos descarta precios <= 1, asi que no hay division por cero.

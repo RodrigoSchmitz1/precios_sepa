@@ -9,9 +9,12 @@ import unittest
 from mismo_producto import armar_indice, buscar, destacados, detalle, normalizar
 
 
-def producto(id_producto, precios, descripcion="YERBA MATE PLAYADITO 1 KG", marca="PLAYADITO"):
+def producto(id_producto, precios, descripcion="YERBA MATE PLAYADITO 1 KG", marca="PLAYADITO", empresas=None):
     """Filas como las devuelve el mart: una por cadena, con los agregados del
-    producto repetidos. precios = {cadena: (precio, sucursales)}."""
+    producto repetidos. precios = {cadena: (precio, sucursales)}.
+
+    empresas por defecto es una por cadena; se pasa distinto para el caso en que
+    varias banderas son de la misma empresa."""
     valores = [precio for precio, _ in precios.values()]
     bajo, alto = min(valores), max(valores)
     return [
@@ -26,6 +29,7 @@ def producto(id_producto, precios, descripcion="YERBA MATE PLAYADITO 1 KG", marc
             "precio_maximo": precio,
             "sucursales": sucursales,
             "cadenas": len(precios),
+            "empresas": empresas if empresas is not None else len(precios),
             "precio_mas_bajo": bajo,
             "precio_mas_alto": alto,
             "diferencia_pct": round((alto - bajo) / bajo * 100, 1),
@@ -90,6 +94,20 @@ class TestDestacados(unittest.TestCase):
     def test_con_empate_en_un_extremo_alcanza_una_cadena_respaldada(self):
         empate = dict(CUATRO_CADENAS, Dia=(3100, 1))
         self.assertTrue(armar_indice(producto("1", empate))["1"]["extremos_respaldados"])
+
+    def test_no_destaca_un_producto_de_una_sola_empresa(self):
+        """Carrefour tiene cuatro banderas: contarlas como cuatro cadenas hacia
+        pasar por "esta en todo el mercado" un producto que vende una sola
+        empresa."""
+        banderas = {
+            "Carrefour": (3100, 40),
+            "Carrefour Market": (3400, 30),
+            "Carrefour Express": (4100, 20),
+            "Carrefour Maxi": (5400, 25),
+        }
+        indice = armar_indice(producto("1", banderas, empresas=1))
+        self.assertTrue(indice["1"]["extremos_respaldados"])
+        self.assertEqual(destacados(indice), [])
 
     def test_exige_varias_cadenas_y_ordena_por_diferencia(self):
         dos_cadenas = {"Coto": (100, 50), "Dia": (900, 50)}

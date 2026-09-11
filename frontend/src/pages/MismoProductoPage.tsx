@@ -22,6 +22,8 @@ import type { PrecioEnCadena, ProductoComparado, ProductoDetalle } from "../type
 // Igual que SUCURSALES_MINIMAS_EXTREMO en api/mismo_producto.py: debajo de esto
 // la mediana de la cadena puede ser un precio mal cargado en una sola sucursal.
 const SUCURSALES_MINIMAS = 3;
+// Igual que EMPRESAS_MINIMAS_DESTACADO en api/mismo_producto.py.
+const EMPRESAS_MINIMAS = 3;
 
 type Busqueda = { consulta: string; productos?: ProductoComparado[]; error?: string };
 type Detalle = { id: string; producto?: ProductoDetalle; error?: string };
@@ -316,7 +318,8 @@ function MismoProductoPage() {
                 ))}
               </ul>
               <p className="mt-3 text-xs text-tinta-suave leading-relaxed">
-                Solo productos que venden 4 o mas cadenas, con el precio mas bajo y el mas alto informados por{" "}
+                Solo productos que venden {EMPRESAS_MINIMAS} o mas empresas distintas -no banderas de la misma,
+                como las cuatro de Carrefour-, con el precio mas bajo y el mas alto informados por{" "}
                 {SUCURSALES_MINIMAS} o mas sucursales cada uno: asi una sucursal con un precio mal cargado no puede
                 aparecer como la mayor diferencia del dia.
               </p>

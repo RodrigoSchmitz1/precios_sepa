@@ -34,6 +34,12 @@ SELECT
     p.fecha_datos,
     p.id_producto,
     c.nombre_comercial AS cadena,
+    -- La empresa dueña de la bandera. Carrefour tiene cuatro banderas (Hiper,
+    -- Market, Express, Maxi) y Cencosud otras tantas: contar banderas y llamarlas
+    -- "cadenas distintas" hace parecer que un producto compite en varias empresas
+    -- cuando puede estar en una sola. Se lleva desde aca para no tener que volver
+    -- a unir con stg_comercio aguas abajo.
+    MIN(p.id_comercio) AS empresa,
     APPROX_QUANTILES(p.precio, 2)[OFFSET(1)] AS precio_mediano,
     MIN(p.precio) AS precio_minimo,
     MAX(p.precio) AS precio_maximo,

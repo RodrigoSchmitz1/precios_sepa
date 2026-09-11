@@ -21,8 +21,12 @@ import unicodedata
 SUCURSALES_MINIMAS_EXTREMO = 3
 
 # Un producto en 2 cadenas dice poco del mercado. Los destacados salen de los
-# que se venden en varias, que ademas son los que la gente reconoce.
-CADENAS_MINIMAS_DESTACADO = 4
+# que se venden en varias EMPRESAS, no en varias banderas: Carrefour tiene
+# cuatro banderas (Hiper, Market, Express, Maxi) y Cencosud otras tantas, asi
+# que exigir "4 cadenas" lo cumplia un producto que vende una sola empresa. Con
+# 3 empresas distintas el precio que se compara es el de tres companias que
+# fijan precios por separado.
+EMPRESAS_MINIMAS_DESTACADO = 3
 
 CAMPOS_RESUMEN = (
     "id_producto",
@@ -30,6 +34,7 @@ CAMPOS_RESUMEN = (
     "marca",
     "categoria",
     "cadenas",
+    "empresas",
     "precio_mas_bajo",
     "precio_mas_alto",
     "diferencia_pct",
@@ -81,6 +86,7 @@ def armar_indice(filas) -> dict:
                 "marca": fila["marca"],
                 "categoria": fila["categoria"],
                 "cadenas": fila["cadenas"],
+                "empresas": fila["empresas"],
                 "precio_mas_bajo": fila["precio_mas_bajo"],
                 "precio_mas_alto": fila["precio_mas_alto"],
                 "diferencia_pct": fila["diferencia_pct"],
@@ -128,12 +134,12 @@ def detalle(indice: dict, id_producto: str) -> dict | None:
 
 
 def destacados(indice: dict, limite: int = 12) -> list[dict]:
-    """Las mayores diferencias del dia entre productos respaldados y en varias
-    cadenas. Ver SUCURSALES_MINIMAS_EXTREMO y CADENAS_MINIMAS_DESTACADO."""
+    """Las mayores diferencias del dia entre productos respaldados y vendidos por
+    varias empresas. Ver SUCURSALES_MINIMAS_EXTREMO y EMPRESAS_MINIMAS_DESTACADO."""
     candidatos = [
         p
         for p in indice.values()
-        if p["cadenas"] >= CADENAS_MINIMAS_DESTACADO and p["extremos_respaldados"]
+        if p["empresas"] >= EMPRESAS_MINIMAS_DESTACADO and p["extremos_respaldados"]
     ]
     candidatos.sort(key=lambda p: (-p["diferencia_pct"], p["descripcion"]))
     return [_resumen(p) for p in candidatos[:limite]]

@@ -49,6 +49,10 @@ models:
           combination_of_columns: [id_producto, cadena]
       - dbt_utils.expression_is_true:
           expression: "cadenas >= 2"
+      # Cada empresa aporta al menos una bandera, asi que nunca puede haber mas
+      # empresas que cadenas. Si se invierte, el conteo se calculo mal.
+      - dbt_utils.expression_is_true:
+          expression: "empresas BETWEEN 1 AND cadenas"
       # Si el precio de una cadena queda fuera del rango del producto, el
       # agregado por producto se calculo sobre otro universo que las filas.
       - dbt_utils.expression_is_true:
