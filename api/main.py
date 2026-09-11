@@ -1,6 +1,7 @@
 import functools
 import json
 import os
+import threading
 import time
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
@@ -673,24 +674,27 @@ def obtener_localidades_disponibles(
 # El mismo producto
 #
 # La tabla se carga entera y se busca en memoria (ver mismo_producto.py). Los
-# tres endpoints comparten la misma carga cacheada, asi que buscar, abrir un
-# producto y ver los destacados no suma consultas a BigQuery.
+# tres endpoints comparten la misma carga cacheada, y ninguno consulta BigQuery:
+# la tabla se lee con list_rows.
 #
 # Las rutas fijas (/buscar, /destacados) van antes que /{id_producto}: FastAPI
 # resuelve en orden de declaracion y si no "buscar" se tomaria como un id.
 # ---------------------------------------------------------------------------
+_candado_mismo_producto = threading.Lock()
+
+
 @cachear
+def _cargar_indice_mismo_producto():
+    # list_rows lee con tabledata.list: no es una consulta y no consume la cuota.
+    # El mart tiene solo el ultimo dia, asi que no hace falta filtrar por fecha.
+    filas = cliente_bq.list_rows(f"{PROYECTO}.dbt_precios.mart_mismo_producto")
+    return mismo_producto.armar_indice(dict(fila) for fila in filas)
+
+
 def _indice_mismo_producto():
-    tabla = f"{PROYECTO}.dbt_precios.mart_mismo_producto"
-    query = f"""
-        SELECT
-            id_producto, descripcion, marca, categoria, cadena,
-            precio_mediano, precio_minimo, precio_maximo, sucursales,
-            cadenas, precio_mas_bajo, precio_mas_alto, diferencia_pct, fecha_datos
-        FROM `{tabla}`
-        WHERE {solo_ultima_fecha(tabla)}
-    """
-    return mismo_producto.armar_indice(dict(fila) for fila in cliente_bq.query(query).result())
+    # Sin el candado, dos pedidos a una instancia recien levantada cargarian la tabla dos veces.
+    with _candado_mismo_producto:
+        return _cargar_indice_mismo_producto()
 
 
 @api.get("/mismo-producto/buscar")
