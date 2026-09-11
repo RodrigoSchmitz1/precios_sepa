@@ -56,6 +56,8 @@ export type Canasta = {
    *  junta suficientes observaciones. Como mucho 2 de las 32. */
   categorias_imputadas: number;
   costo_canasta_total: number;
+  /** Fecha real de los precios, para poder decir de cuando es el dato. */
+  fecha_datos: string;
 };
 
 export type InflacionResumen = {

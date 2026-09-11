@@ -1,5 +1,6 @@
 import { useId, useState } from "react";
 import type { CategoriaCanasta } from "../types";
+import { normalizar } from "../utils/texto";
 
 /*
   Buscador para sumar a la canasta una categoria que la IA no propuso.
@@ -12,10 +13,6 @@ import type { CategoriaCanasta } from "../types";
   La busqueda ignora acentos y mayusculas: las categorias estan escritas sin
   tildes ("Panales", "Cafe") y alguien va a tipear "pañales" o "café".
 */
-
-function normalizar(texto: string): string {
-  return texto.normalize("NFD").replace(/\p{Mn}/gu, "").toLowerCase();
-}
 
 const MAXIMO_SUGERENCIAS = 8;
 

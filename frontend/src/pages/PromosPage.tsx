@@ -4,6 +4,7 @@ import type { BoundingBox } from "../components/MapaPromos";
 import PromoCard from "../components/PromoCard";
 import Presentacion from "../components/Presentacion";
 import Filtros from "../components/Filtros";
+import FilaDeCifras from "../components/FilaDeCifras";
 import FiltroCategorias from "../components/FiltroCategorias";
 import { obtenerPromosMapa } from "../api/client";
 import type { PromoMapa } from "../types";
@@ -84,6 +85,13 @@ function PromosPage() {
   const lote = promosVisibles.slice(0, mostradas);
   const faltan = promosVisibles.length - lote.length;
 
+  // Resumen de lo que hay en la zona visible. La consulta devuelve ordenado por
+  // descuento descendente, asi que la primera es la de mayor descuento.
+  const mayorDescuento = promos.length > 0 ? Math.round(promos[0].descuento_pct) : 0;
+  const cadenaDelMayor = promos.length > 0 ? promos[0].cadena : "";
+  const cadenas = new Set(promos.map((p) => p.cadena)).size;
+  const categoriasDistintas = new Set(promos.map((p) => p.categoria).filter(Boolean)).size;
+
   return (
     <div className="max-w-5xl mx-auto">
       <Presentacion />
@@ -92,12 +100,27 @@ function PromosPage() {
         El titulo de la portada es la presentacion del sitio; las promos pasan a
         ser su primera seccion, asi que su encabezado baja a h2.
       */}
-      <header className="mb-6 pt-8 border-t border-linea">
+      <header className="mb-5 pt-8 border-t border-linea">
         <h2 className="font-display text-3xl text-tinta mb-2">Promos vigentes</h2>
         <p className="text-tinta-media">
           Descuentos publicados hoy por las cadenas. Movete por el mapa para ver los de tu zona.
         </p>
       </header>
+
+      {/* Las cifras salen de las promos ya cargadas para el mapa: describen lo
+          que se esta viendo y no cuestan una consulta extra. */}
+      {promos.length > 0 && (
+        <div className="mb-6">
+          <FilaDeCifras
+            cifras={[
+              { etiqueta: "En esta zona", valor: formatearNumero(promos.length), detalle: "promos vigentes" },
+              { etiqueta: "Mayor descuento", valor: `${mayorDescuento}%`, detalle: cadenaDelMayor },
+              { etiqueta: "Cadenas", valor: formatearNumero(cadenas), detalle: "con promos aca" },
+              { etiqueta: "Categorias", valor: formatearNumero(categoriasDistintas), detalle: "con al menos una promo" },
+            ]}
+          />
+        </div>
+      )}
 
       <div className="mb-5">
         <Filtros

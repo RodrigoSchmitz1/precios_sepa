@@ -42,9 +42,9 @@ type Props = {
 type Ancla = "start" | "end";
 
 const MARGEN = 12;
-const RADIO = 5;
+const RADIO = 6;
 const PASO = RADIO * 2 + 1;
-const ALTO_FILA_ROTULO = 34;
+const ALTO_FILA_ROTULO = 36;
 const ALTO_EJE = 24;
 const ANCHO_MINIMO = 240;
 // Ancho estimado por caracter de los rotulos (13px y 12px). Alcanza para
@@ -128,7 +128,7 @@ function TiraDePuntos({ puntos, formatear, descripcion, elegido }: Props) {
     if (p.id === elegido) return "fill-tinta";
     if (hayDosExtremos && p.valor === barato.valor) return "fill-dato-verde";
     if (hayDosExtremos && p.valor === caro.valor) return "fill-alerta";
-    return "fill-tinta-suave/35";
+    return "fill-tinta-suave/45";
   };
 
   return (
@@ -172,10 +172,10 @@ function TiraDePuntos({ puntos, formatear, descripcion, elegido }: Props) {
                 y2={base - RADIO * 2 - 3 - p.nivel * PASO}
                 className="stroke-linea-fuerte"
               />
-              <text x={p.cx} y={arriba + 14} textAnchor={ancla} className="fill-tinta text-[13px] font-medium">
+              <text x={p.cx} y={arriba + 14} textAnchor={ancla} className="fill-tinta text-[14px] font-medium">
                 {p.nombre}
               </text>
-              <text x={p.cx} y={arriba + 29} textAnchor={ancla} className="fill-tinta-media text-[12px] numero">
+              <text x={p.cx} y={arriba + 29} textAnchor={ancla} className="fill-tinta-media text-[13px] numero">
                 {formatear(p.valor)}
               </text>
             </g>

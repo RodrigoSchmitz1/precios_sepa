@@ -399,7 +399,7 @@ def obtener_canasta(
 
     query = f"""
         SELECT localidad, provincia, categorias_en_canasta, categorias_imputadas,
-               costo_canasta_total
+               costo_canasta_total, fecha_datos
         FROM `{tabla}`
         {where}
         ORDER BY costo_canasta_total ASC

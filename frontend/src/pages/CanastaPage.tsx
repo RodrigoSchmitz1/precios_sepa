@@ -1,254 +1,288 @@
-import { useState, useEffect } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { obtenerCanasta } from "../api/client";
 import { nombreProvincia } from "../utils/provincias";
-import { formatearPesos, formatearNumero } from "../utils/formato";
-import TileKPI from "../components/TileKPI";
+import { normalizar } from "../utils/texto";
+import { fechaEnPalabras, formatearNumero, formatearPesos } from "../utils/formato";
+import Titular, { Resaltado } from "../components/Titular";
+import FilaDeCifras from "../components/FilaDeCifras";
+import TiraDePuntos from "../components/TiraDePuntos";
 import DetalleCanasta from "../components/DetalleCanasta";
 import type { Canasta } from "../types";
 
+/*
+  Canasta basica: cuanto cuesta comer en cada localidad.
+
+  La pagina abre con la brecha, que es el hallazgo, y no con el nombre de la
+  seccion: la metodologia sigue completa en la bajada, donde la busca quien
+  quiere auditarla. La tira de puntos muestra todas las localidades a la vez,
+  asi se ve que la brecha no son dos casos raros sino una distribucion.
+
+  Una sola consulta y el filtrado en el navegador. Antes cada texto tipeado en
+  el buscador era una consulta nueva a BigQuery (cada busqueda distinta es una
+  clave distinta en la cache), y con una cuota diaria ajustada eso es caro para
+  filtrar 94 filas que ya estaban en el navegador.
+*/
+
 const TANDA = 50;
 
-/*
-  Se guarda junto al resultado la busqueda que lo produjo. Con eso el estado de
-  "cargando" se DERIVA (lo cargado no corresponde a lo que se esta pidiendo) en
-  vez de setearse dentro del efecto, lo que evita el render encadenado que marca
-  react-hooks/set-state-in-effect y, sobre todo, impide mostrar los resultados
-  de una busqueda anterior como si fueran de la actual.
-*/
-type Estado = { busqueda: string; filas?: Canasta[]; error?: string };
-
 function CanastaPage() {
+  const [estado, setEstado] = useState<{ filas?: Canasta[]; error?: string } | null>(null);
   const [busqueda, setBusqueda] = useState("");
-  const [estado, setEstado] = useState<Estado | null>(null);
   // Localidad cuyo desglose esta abierto. Se guarda una sola: dos desgloses
   // abiertos a la vez compiten por la atencion y no aportan.
   const [abierta, setAbierta] = useState<string | null>(null);
+  const [mostradas, setMostradas] = useState(TANDA);
 
   useEffect(() => {
     let cancelado = false;
-
-    const timeoutId = setTimeout(() => {
-      obtenerCanasta({ busqueda, limite: 500 })
-        .then((filas) => {
-          if (!cancelado) setEstado({ busqueda, filas });
-        })
-        .catch((err) => {
-          if (!cancelado) setEstado({ busqueda, error: err.message });
-        });
-    }, 300);
-
+    obtenerCanasta({ limite: 2000 })
+      .then((filas) => {
+        if (!cancelado) setEstado({ filas });
+      })
+      .catch((err) => {
+        if (!cancelado) setEstado({ error: err.message });
+      });
     return () => {
       cancelado = true;
-      clearTimeout(timeoutId);
     };
-  }, [busqueda]);
+  }, []);
 
-  const vigente = estado?.busqueda === busqueda ? estado : null;
+  // La API devuelve ordenado por costo ascendente.
+  const todas = useMemo(() => estado?.filas ?? [], [estado]);
+  const consulta = normalizar(busqueda.trim());
+  const filas = useMemo(
+    () =>
+      consulta
+        ? todas.filter(
+            (f) =>
+              normalizar(f.localidad).includes(consulta) ||
+              normalizar(nombreProvincia(f.provincia)).includes(consulta)
+          )
+        : todas,
+    [todas, consulta]
+  );
 
-  /*
-    Se compara contra estado.filas, que es la referencia guardada en el estado y
-    por lo tanto estable entre renders. Comparar contra "filas" (con el ?? [])
-    generaba un array nuevo en cada render, la condicion daba siempre verdadera
-    y el componente entraba en un bucle infinito de renders.
-  */
-  const filasCrudas = vigente?.filas;
-  const [mostradas, setMostradas] = useState(TANDA);
-  const [filasPrevias, setFilasPrevias] = useState(filasCrudas);
-  if (filasPrevias !== filasCrudas) {
-    setFilasPrevias(filasCrudas);
+  // Volver al principio de la lista cuando cambia el filtro, derivandolo del
+  // estado anterior en vez de setearlo dentro de un efecto.
+  const [consultaPrevia, setConsultaPrevia] = useState(consulta);
+  if (consultaPrevia !== consulta) {
+    setConsultaPrevia(consulta);
     setMostradas(TANDA);
   }
 
-  const filas = filasCrudas ?? [];
-
-  // La API devuelve ordenado por costo ascendente, asi que la primera y la
-  // ultima son los extremos del conjunto que se esta mirando.
-  const masBarata = filas[0];
-  const masCara = filas[filas.length - 1];
+  const masBarata = todas[0];
+  const masCara = todas[todas.length - 1];
+  const mediana = todas.length > 0 ? todas[Math.floor(todas.length / 2)] : undefined;
   const brecha =
     masBarata && masCara && masBarata.costo_canasta_total > 0
-      ? ((masCara.costo_canasta_total - masBarata.costo_canasta_total) /
-          masBarata.costo_canasta_total) *
-        100
+      ? ((masCara.costo_canasta_total - masBarata.costo_canasta_total) / masBarata.costo_canasta_total) * 100
       : 0;
 
   const lote = filas.slice(0, mostradas);
   const faltan = filas.length - lote.length;
   // Constante por construccion: el mart solo emite localidades con la canasta
   // entera. Se muestra para que el lector pueda auditar sobre que se compara.
-  const canasta = filas[0]?.categorias_en_canasta ?? 0;
+  const categorias = todas[0]?.categorias_en_canasta ?? 0;
+  const nombreDe = (c: Canasta) => `${c.localidad}, ${nombreProvincia(c.provincia)}`;
+  const claveDe = (c: Canasta) => `${c.localidad}|${c.provincia}`;
 
   return (
     <div className="max-w-4xl mx-auto">
-      <header className="mb-6">
-        <h1 className="font-display text-4xl text-tinta mb-2">Canasta basica</h1>
-        <p className="text-tinta-media leading-relaxed">
-          Costo mensual de una canasta basica alimentaria por localidad, con metodologia
-          INDEC adaptada.{" "}
-          {canasta > 0 && (
+      <Titular
+        antetitulo={
+          todas.length > 0
+            ? `Canasta basica · ${categorias} categorias · ${formatearNumero(todas.length)} localidades · precios del ${fechaEnPalabras(masBarata.fecha_datos)}`
+            : "Canasta basica"
+        }
+        bajada={
+          masBarata ? (
             <>
-              Se comparan unicamente las localidades donde se puede medir la canasta
-              <strong className="font-semibold text-tinta"> completa, las {canasta} categorias</strong>:
-              sumar solo las categorias que cada localidad tiene haria parecer mas baratas
-              a las que tienen menos datos. Si una localidad no junta suficientes precios de
-              una categoria se usa la mediana de su provincia, en hasta 2 de las {canasta}.
+              <p>
+                Es la canasta alimentaria del INDEC, adaptada: las mismas {categorias} categorias y las mismas
+                cantidades en todas las localidades. Solo entran las localidades donde se puede medir la canasta
+                completa, porque sumar las categorias que cada una tenga haria parecer mas baratas a las que tienen
+                menos datos. Si a una le faltan observaciones de una categoria se usa la mediana de su provincia, en
+                hasta 2 de las {categorias}.
+              </p>
             </>
-          )}
-        </p>
-      </header>
+          ) : null
+        }
+      >
+        {masBarata && masCara ? (
+          <>
+            {/* El espacio duro evita que la cifra y su unidad queden en lineas distintas. */}
+            Llenar la misma canasta cuesta <Resaltado>{brecha.toFixed(0)}%&nbsp;mas</Resaltado> en{" "}
+            {masCara.localidad} que en {masBarata.localidad}
+          </>
+        ) : (
+          "Cuanto cuesta la canasta basica en cada localidad"
+        )}
+      </Titular>
 
-      {filas.length > 0 && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 mb-7">
-          <TileKPI
-            etiqueta="Mas barata"
-            tono="verde"
-            valor={formatearPesos(masBarata.costo_canasta_total)}
-            detalle={`${masBarata.localidad}, ${nombreProvincia(masBarata.provincia)}`}
-          />
-          <TileKPI
-            etiqueta="Mas cara"
-            tono="ocre"
-            valor={formatearPesos(masCara.costo_canasta_total)}
-            detalle={`${masCara.localidad}, ${nombreProvincia(masCara.provincia)}`}
-          />
-          <TileKPI
-            etiqueta="Brecha"
-            tono="ciruela"
-            valor={`${brecha.toFixed(0)}%`}
-            detalle="mas cara la ultima que la primera"
-          />
-          <TileKPI
-            etiqueta="Localidades"
-            tono="azul"
-            valor={formatearNumero(filas.length)}
-            detalle="donde se puede medir la canasta completa"
-          />
-        </div>
-      )}
+      {estado === null && <p className="text-sm text-tinta-suave">Cargando…</p>}
 
-      <input
-        type="search"
-        placeholder="Buscar localidad (ej: Tandil, Olavarria)"
-        value={busqueda}
-        onChange={(e) => setBusqueda(e.target.value)}
-        aria-label="Buscar localidad"
-        className="w-full bg-papel border border-linea rounded-xl px-4 py-2.5 text-sm mb-5 focus:outline-none focus:border-ahorro"
-      />
-
-      {vigente === null && <p className="text-sm text-tinta-suave">Cargando…</p>}
-
-      {vigente?.error && (
+      {estado?.error && (
         <p className="text-sm text-alerta bg-alerta-tenue border border-alerta/20 rounded-lg px-3 py-2">
-          No se pudo cargar: {vigente.error}
+          No se pudo cargar: {estado.error}
         </p>
       )}
 
-      {vigente?.filas && filas.length === 0 && (
-        <p className="text-sm text-tinta-suave">No se encontraron localidades con ese nombre.</p>
-      )}
-
-      {filas.length > 0 && (
-        <div className="bg-papel border border-linea rounded-2xl overflow-hidden">
-          <div className="flex items-baseline justify-between gap-3 px-4 py-3 border-b border-linea">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave">
-              Ranking por costo
-            </h2>
-            <span className="text-xs text-tinta-suave">de menor a mayor</span>
+      {todas.length > 0 && masBarata && masCara && (
+        <>
+          <div className="mb-6">
+            <TiraDePuntos
+              puntos={todas.map((c) => ({ id: claveDe(c), valor: c.costo_canasta_total, nombre: nombreDe(c) }))}
+              formatear={formatearPesos}
+              elegido={abierta ?? (filas.length === 1 ? claveDe(filas[0]) : undefined)}
+              descripcion={`Costo de la canasta en ${todas.length} localidades, de ${formatearPesos(
+                masBarata.costo_canasta_total
+              )} a ${formatearPesos(masCara.costo_canasta_total)}`}
+            />
           </div>
 
-          <ul>
-            {lote.map((c, i) => {
-              // Barra proporcional al costo, con el minimo del conjunto como
-              // origen: partir de cero aplastaria todas las diferencias, porque
-              // entre la mas barata y la mas cara hay menos de un factor dos.
-              const rango = masCara.costo_canasta_total - masBarata.costo_canasta_total;
-              const proporcion =
-                rango > 0 ? (c.costo_canasta_total - masBarata.costo_canasta_total) / rango : 0;
-              const clave = `${c.localidad}|${c.provincia}`;
-              const estaAbierta = abierta === clave;
+          <div className="mb-8">
+            <FilaDeCifras
+              cifras={[
+                {
+                  etiqueta: "Mas barata",
+                  valor: formatearPesos(masBarata.costo_canasta_total),
+                  detalle: nombreDe(masBarata),
+                },
+                ...(mediana
+                  ? [
+                      {
+                        etiqueta: "Mediana",
+                        valor: formatearPesos(mediana.costo_canasta_total),
+                        detalle: "la localidad del medio",
+                      },
+                    ]
+                  : []),
+                {
+                  etiqueta: "Mas cara",
+                  valor: formatearPesos(masCara.costo_canasta_total),
+                  detalle: nombreDe(masCara),
+                },
+                { etiqueta: "Brecha", valor: `${brecha.toFixed(0)}%`, detalle: "entre los dos extremos" },
+              ]}
+            />
+          </div>
 
-              return (
-                <li
-                  key={`${c.localidad}-${c.provincia}`}
-                  className="border-b border-linea last:border-0"
-                >
-                <button
-                  onClick={() => setAbierta(estaAbierta ? null : clave)}
-                  aria-expanded={estaAbierta}
-                  className={[
-                    "w-full flex items-center gap-4 px-4 py-2.5 text-left transition-colors",
-                    estaAbierta ? "bg-papel-hundido" : "hover:bg-papel-hundido",
-                  ].join(" ")}
-                >
-                  <span className="numero text-xs text-tinta-suave w-8 shrink-0 text-right">
-                    {i + 1}
-                  </span>
+          <input
+            type="search"
+            placeholder="Buscar localidad o provincia (ej: Tandil, Chubut)"
+            value={busqueda}
+            onChange={(e) => setBusqueda(e.target.value)}
+            aria-label="Buscar localidad"
+            className="w-full bg-transparent border-b border-linea-fuerte px-0 py-2.5 text-sm mb-5 placeholder:text-tinta-suave focus:outline-none focus:border-ahorro"
+          />
 
-                  <div className="min-w-0 w-48 shrink-0">
-                    <p className="text-sm font-medium text-tinta truncate">{c.localidad}</p>
-                    <p className="text-xs text-tinta-suave truncate">
-                      {nombreProvincia(c.provincia)}
-                      {c.categorias_imputadas > 0 && (
-                        <span title="Categorias valuadas con la mediana de la provincia, porque la localidad no junta suficientes observaciones">
-                          {" "}
-                          · {c.categorias_imputadas} con precio provincial
-                        </span>
-                      )}
-                    </p>
-                  </div>
-
-                  {/* Marca fina, con la punta redondeada y anclada a la linea base */}
-                  <div className="flex-1 hidden sm:block">
-                    <div
-                      className="h-2 rounded-r bg-escala-3"
-                      style={{ width: `${8 + proporcion * 92}%` }}
-                      role="presentation"
-                    />
-                  </div>
-
-                  <div className="text-right shrink-0 w-28">
-                    <p className="numero text-sm font-semibold text-tinta">
-                      {formatearPesos(c.costo_canasta_total)}
-                    </p>
-                    {i > 0 && (
-                      <p className="numero text-xs text-tinta-suave">
-                        +{formatearPesos(c.costo_canasta_total - masBarata.costo_canasta_total)}
-                      </p>
-                    )}
-                  </div>
-
-                  <span
-                    className="text-tinta-suave text-xs shrink-0 w-4"
-                    aria-hidden="true"
-                  >
-                    {estaAbierta ? "−" : "+"}
-                  </span>
-                </button>
-
-                {estaAbierta && (
-                  <div className="px-4 pb-4">
-                    <DetalleCanasta
-                      localidad={c.localidad}
-                      provincia={c.provincia}
-                      total={c.costo_canasta_total}
-                    />
-                  </div>
-                )}
-                </li>
-              );
-            })}
-          </ul>
-
-          {faltan > 0 && (
-            <button
-              onClick={() => setMostradas(mostradas + TANDA)}
-              className="w-full px-4 py-3 text-sm font-medium text-tinta-media hover:bg-papel-hundido border-t border-linea transition-colors"
-            >
-              Ver {Math.min(TANDA, faltan)} localidades mas
-              <span className="numero text-tinta-suave"> ({formatearNumero(faltan)} restantes)</span>
-            </button>
+          {filas.length === 0 && (
+            <p className="text-sm text-tinta-suave">Ninguna localidad medida coincide con esa busqueda.</p>
           )}
-        </div>
+
+          {filas.length > 0 && (
+            <div>
+              <div className="flex items-baseline justify-between gap-3 pb-2 border-b border-linea-fuerte">
+                <h2 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave">Ranking por costo</h2>
+                <span className="text-xs text-tinta-suave">
+                  {consulta
+                    ? `${formatearNumero(filas.length)} de ${formatearNumero(todas.length)}`
+                    : "de menor a mayor"}
+                </span>
+              </div>
+
+              <ul>
+                {lote.map((c) => {
+                  // La posicion es la del ranking completo, no la del filtro: si
+                  // alguien busca su localidad, lo que quiere saber es en que
+                  // lugar quedo entre todas.
+                  const posicion = todas.indexOf(c) + 1;
+                  // Barra con el minimo del conjunto como origen: partir de cero
+                  // aplastaria las diferencias, porque entre la mas barata y la
+                  // mas cara hay menos de un factor dos.
+                  const rango = masCara.costo_canasta_total - masBarata.costo_canasta_total;
+                  const proporcion =
+                    rango > 0 ? (c.costo_canasta_total - masBarata.costo_canasta_total) / rango : 0;
+                  const clave = claveDe(c);
+                  const estaAbierta = abierta === clave;
+
+                  return (
+                    <li key={clave} className="border-b border-linea">
+                      <button
+                        onClick={() => setAbierta(estaAbierta ? null : clave)}
+                        aria-expanded={estaAbierta}
+                        className={[
+                          "w-full flex items-center gap-4 py-3 text-left transition-colors",
+                          estaAbierta ? "bg-papel-hundido" : "hover:bg-papel-hundido",
+                        ].join(" ")}
+                      >
+                        <span className="font-display text-lg text-tinta-suave w-9 shrink-0 text-right">
+                          {posicion}
+                        </span>
+
+                        <span className="min-w-0 w-48 shrink-0">
+                          <span className="block text-sm font-medium text-tinta truncate">{c.localidad}</span>
+                          <span className="block text-xs text-tinta-suave truncate">
+                            {nombreProvincia(c.provincia)}
+                            {c.categorias_imputadas > 0 && (
+                              <span title="Categorias valuadas con la mediana de la provincia, porque la localidad no junta suficientes observaciones">
+                                {" "}
+                                · {c.categorias_imputadas} con precio provincial
+                              </span>
+                            )}
+                          </span>
+                        </span>
+
+                        <span className="flex-1 hidden sm:block">
+                          <span
+                            className="block h-1.5 rounded-r-full bg-escala-3"
+                            style={{ width: `${6 + proporcion * 94}%` }}
+                            role="presentation"
+                          />
+                        </span>
+
+                        <span className="text-right shrink-0 w-28">
+                          <span className="numero block text-sm font-semibold text-tinta">
+                            {formatearPesos(c.costo_canasta_total)}
+                          </span>
+                          {posicion > 1 && (
+                            <span className="numero block text-xs text-tinta-suave">
+                              +{formatearPesos(c.costo_canasta_total - masBarata.costo_canasta_total)}
+                            </span>
+                          )}
+                        </span>
+
+                        <span className="text-tinta-suave text-xs shrink-0 w-4" aria-hidden="true">
+                          {estaAbierta ? "−" : "+"}
+                        </span>
+                      </button>
+
+                      {estaAbierta && (
+                        <div className="pb-4">
+                          <DetalleCanasta
+                            localidad={c.localidad}
+                            provincia={c.provincia}
+                            total={c.costo_canasta_total}
+                          />
+                        </div>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+
+              {faltan > 0 && (
+                <button
+                  onClick={() => setMostradas(mostradas + TANDA)}
+                  className="w-full py-3 text-sm font-medium text-tinta-media hover:bg-papel-hundido border-b border-linea transition-colors"
+                >
+                  Ver {Math.min(TANDA, faltan)} localidades mas
+                  <span className="numero text-tinta-suave"> ({formatearNumero(faltan)} restantes)</span>
+                </button>
+              )}
+            </div>
+          )}
+        </>
       )}
     </div>
   );
