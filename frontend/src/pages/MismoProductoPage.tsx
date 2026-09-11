@@ -5,6 +5,7 @@ import Titular, { Resaltado } from "../components/Titular";
 import FilaDeCifras from "../components/FilaDeCifras";
 import TiraDePuntos from "../components/TiraDePuntos";
 import { fechaEnPalabras, formatearNumero, formatearPesos } from "../utils/formato";
+import { nombreLegible } from "../utils/texto";
 import type { PrecioEnCadena, ProductoComparado, ProductoDetalle } from "../types";
 
 /*
@@ -25,18 +26,6 @@ const SUCURSALES_MINIMAS = 3;
 type Busqueda = { consulta: string; productos?: ProductoComparado[]; error?: string };
 type Detalle = { id: string; producto?: ProductoDetalle; error?: string };
 type Destacados = { productos?: ProductoComparado[]; error?: string };
-
-/** SEPA escribe las descripciones en mayusculas. En un titular grande eso grita,
- *  asi que se pasan a minuscula y la marca recupera su mayuscula inicial. */
-function nombreLegible(descripcion: string, marca: string | null): string {
-  let texto = descripcion.toLowerCase();
-  for (const palabra of (marca ?? "").toLowerCase().split(/\s+/).filter((p) => p.length > 1)) {
-    texto = texto.replace(new RegExp(`\\b${palabra.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\b`, "g"), (m) =>
-      m.charAt(0).toUpperCase() + m.slice(1)
-    );
-  }
-  return texto.charAt(0).toUpperCase() + texto.slice(1);
-}
 
 function porcentaje(valor: number): string {
   return `${Math.round(valor).toLocaleString("es-AR")}%`;

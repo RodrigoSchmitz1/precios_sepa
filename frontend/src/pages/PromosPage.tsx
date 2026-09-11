@@ -132,7 +132,7 @@ function PromosPage() {
       </div>
 
       <div className="mb-8">
-        <div className="rounded-2xl overflow-hidden border border-linea">
+        <div className="rounded-xl overflow-hidden border border-linea">
           <MapaPromos promos={promos} onMoverMapa={setBbox} />
         </div>
         <p className="text-xs text-tinta-suave mt-2">
@@ -181,7 +181,8 @@ function PromosPage() {
             </p>
           )}
 
-          <div className="grid gap-3">
+          {/* Filas separadas por linea fina, como los demas listados del sitio. */}
+          <div className="border-t border-linea divide-y divide-linea">
             {lote.map((promo, i) => (
               <PromoCard key={`${promo.descripcion}-${promo.cadena}-${i}`} promo={promo} />
             ))}
@@ -190,7 +191,7 @@ function PromosPage() {
           {faltan > 0 && (
             <button
               onClick={() => setMostradas(mostradas + TANDA)}
-              className="w-full mt-4 bg-papel border border-linea rounded-xl px-4 py-2.5 text-sm font-medium text-tinta-media hover:border-linea-fuerte hover:text-tinta transition-colors"
+              className="w-full py-3 text-sm font-medium text-tinta-media hover:bg-papel-hundido border-b border-linea transition-colors"
             >
               Ver {Math.min(TANDA, faltan)} promos mas
               <span className="numero text-tinta-suave"> ({formatearNumero(faltan)} restantes)</span>
