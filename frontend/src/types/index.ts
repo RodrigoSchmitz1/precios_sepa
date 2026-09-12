@@ -172,3 +172,54 @@ export type ProductoDetalle = ProductoComparado & {
   /** De menor a mayor precio. */
   precios: PrecioEnCadena[];
 };
+
+/*
+  Optimizacion de la compra entre sucursales cercanas (Fase 4).
+  La distancia viaja para informar, no para ponderar: no se le pone precio a un
+  kilometro, porque no sabemos como se mueve cada persona.
+*/
+
+/** Un item de la canasta ya asignado a una sucursal. */
+export type ItemComprado = {
+  categoria: string;
+  gama: string;
+  unidad: string;
+  cantidad: number;
+  precio_unitario: number;
+  costo: number;
+};
+
+export type SucursalOpcion = {
+  id: string;
+  cadena: string;
+  nombre_sucursal: string;
+  direccion: string | null;
+  localidad: string;
+  provincia: string;
+  latitud: number;
+  longitud: number;
+  distancia_km: number;
+  /** Cuantas otras sucursales de la zona tienen exactamente los mismos precios:
+   *  sin esto, la elegida parece unica cuando hay varias iguales. */
+  equivalentes: number;
+  subtotal: number;
+  items: ItemComprado[];
+};
+
+export type OpcionCompra = {
+  /** 1, 2 o 3: en cuantas sucursales se divide la compra. */
+  max_sucursales: number;
+  total: number;
+  items_cubiertos: number;
+  distancia_suma_km: number;
+  sucursales: SucursalOpcion[];
+};
+
+export type ResultadoOptimizacion = {
+  fecha_datos: string;
+  radio_km: number;
+  sucursales_en_zona: number;
+  sucursales_candidatas: number;
+  items_sin_precio: { categoria: string; gama: string; unidad: string }[];
+  opciones: OpcionCompra[];
+};

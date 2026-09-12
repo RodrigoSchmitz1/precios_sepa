@@ -12,6 +12,7 @@ import type {
   CategoriaCanasta,
   ProductoComparado,
   ProductoDetalle,
+  ResultadoOptimizacion,
 } from "../types";
 
 /*
@@ -188,5 +189,20 @@ export async function obtenerProductosDestacados(): Promise<ProductoComparado[]>
 export async function obtenerProducto(idProducto: string): Promise<ProductoDetalle> {
   const respuesta = await fetch(`${API_BASE}/mismo-producto/${encodeURIComponent(idProducto)}`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer el producto");
+  return respuesta.json();
+}
+
+export async function optimizarCompra(
+  items: ItemCanastaIA[],
+  latitud: number,
+  longitud: number,
+  radioKm: number
+): Promise<ResultadoOptimizacion> {
+  const respuesta = await fetch(`${API_BASE}/canasta-personalizada/optimizar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items, latitud, longitud, radio_km: radioKm }),
+  });
+  if (!respuesta.ok) await fallar(respuesta, "Error al optimizar la compra");
   return respuesta.json();
 }

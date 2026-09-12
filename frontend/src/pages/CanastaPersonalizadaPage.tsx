@@ -17,6 +17,7 @@ import ItemCanastaEditable from "../components/ItemCanastaEditable";
 import AgregarCategoria from "../components/AgregarCategoria";
 import Titular, { Resaltado } from "../components/Titular";
 import FilaDeCifras from "../components/FilaDeCifras";
+import DondeComprarla from "../components/DondeComprarla";
 import {
   canastaAUrl,
   canastaDesdeUrl,
@@ -566,6 +567,11 @@ function CanastaPersonalizadaPage() {
           )}
         </section>
       )}
+
+      {/* Paso 4: donde comprarla. Aparece cuando hay canasta, sin esperar a que
+          se calcule el costo: son dos preguntas distintas (cuanto sale y donde
+          conviene comprarla) y la segunda se puede responder sola. */}
+      {items.length > 0 && <DondeComprarla items={items} />}
 
       {/*
         Barra de sesion: la canasta se guarda sola en el navegador y el link

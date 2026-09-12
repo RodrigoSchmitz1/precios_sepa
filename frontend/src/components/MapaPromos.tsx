@@ -1,23 +1,12 @@
 import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import { useEffect, useRef } from "react";
-import L from "leaflet";
 import "leaflet/dist/leaflet.css";
+import "../utils/leaflet";
 import "react-leaflet-cluster/dist/assets/MarkerCluster.css";
 import "react-leaflet-cluster/dist/assets/MarkerCluster.Default.css";
 import type { PromoMapa } from "../types";
 import { nombreProvincia } from "../utils/provincias";
-
-// Workaround conocido de Leaflet con bundlers: el prototipo del icono por
-// defecto arma la URL con un helper interno que no existe una vez empaquetado,
-// asi que hay que sacarlo para que tomen las URLs de mergeOptions. Se tipa el
-// campo interno en vez de usar "any".
-delete (L.Icon.Default.prototype as unknown as { _getIconUrl?: unknown })._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png",
-  iconUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png",
-  shadowUrl: "https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png",
-});
 
 export type BoundingBox = {
   latMin: number;
