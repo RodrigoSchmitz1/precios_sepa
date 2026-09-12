@@ -17,6 +17,7 @@ from typing import Optional
 from interpretar_canasta import CATEGORIAS, interpretar_descripcion
 from calcular_canasta import calcular_costo_canasta
 import mismo_producto
+import precios_por_sucursal
 
 api = FastAPI(title="precios_sepa API")
 
@@ -631,6 +632,60 @@ def obtener_categorias_canasta():
         {"categoria": nombre, "unidad": datos["unidad"], "cantidad_sugerida": datos["cantidad"]}
         for nombre, datos in sorted(CATEGORIAS.items())
     ]
+
+
+# ---------------------------------------------------------------------------
+# Optimizar la compra entre sucursales cercanas (Fase 4)
+#
+# Mismo patron que El mismo producto y que el mapa: la tabla se carga entera con
+# list_rows (que no consume cuota) y la busqueda pasa en memoria. Optimizar en
+# BigQuery seria una consulta por visitante y por cada cambio de radio.
+# ---------------------------------------------------------------------------
+_candado_sucursales = threading.Lock()
+
+# Tope de items por pedido. La canasta mas grande que arma la IA ronda las 60
+# categorias; el limite existe para que un pedido armado a mano no obligue a
+# recorrer la zona entera con una lista interminable.
+MAXIMO_ITEMS_OPTIMIZAR = 80
+
+
+@cachear
+def _cargar_indice_sucursales():
+    filas = cliente_bq.list_rows(f"{PROYECTO}.dbt_precios.mart_precio_categoria_sucursal")
+    return precios_por_sucursal.armar_indice(dict(fila) for fila in filas)
+
+
+def _indice_sucursales():
+    with _candado_sucursales:
+        return _cargar_indice_sucursales()
+
+
+class OptimizarCompraRequest(BaseModel):
+    items: list
+    latitud: float
+    longitud: float
+    radio_km: float = 2.0
+    max_sucursales: int = 3
+
+
+@api.post("/canasta-personalizada/optimizar")
+def optimizar_compra_canasta(datos: OptimizarCompraRequest):
+    """En que sucursales cercanas conviene comprar la canasta, con 1, 2 o 3 paradas."""
+    if not datos.items:
+        return JSONResponse(status_code=422, content={"detail": "La canasta esta vacia."})
+    if len(datos.items) > MAXIMO_ITEMS_OPTIMIZAR:
+        return JSONResponse(
+            status_code=422,
+            content={"detail": f"Son demasiadas categorias: el maximo es {MAXIMO_ITEMS_OPTIMIZAR}."},
+        )
+    return precios_por_sucursal.optimizar(
+        _indice_sucursales(),
+        datos.items,
+        datos.latitud,
+        datos.longitud,
+        datos.radio_km,
+        datos.max_sucursales,
+    )
 
 
 @api.get("/canasta-personalizada/localidades")
