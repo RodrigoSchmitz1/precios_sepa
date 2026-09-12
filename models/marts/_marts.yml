@@ -161,6 +161,28 @@ models:
           - accepted_values:
               values: ["localidad", "provincia"]
 
+  - name: mart_precio_categoria_sucursal
+    description: >
+      Precio mediano por unidad para cada categoria x gama x unidad x sucursal,
+      con lat/long. Base de la optimizacion de la compra entre sucursales
+      cercanas (Fase 4). Solo la ultima fecha.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fecha_datos, categoria, gama, unidad_normalizada, id_comercio, id_sucursal]
+      - dbt_utils.expression_is_true:
+          expression: "precio_mediano_unidad > 0"
+      - dbt_utils.expression_is_true:
+          expression: "muestras >= 3"
+    columns:
+      # Sin coordenadas la fila no sirve: no se puede saber si la sucursal cae
+      # dentro del radio que elige el usuario.
+      - name: latitud
+        tests: [not_null]
+      - name: longitud
+        tests: [not_null]
+      - name: fecha_datos
+        tests: [not_null]
+
   - name: mart_precio_categoria_localidad
     description: >
       Precio mediano por unidad para cada categoria x gama x unidad x

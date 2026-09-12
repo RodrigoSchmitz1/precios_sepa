@@ -62,6 +62,13 @@ clean-targets:         # directories to be removed by `dbt clean`
 vars:
   descuento_maximo_plausible: 70
 
+  # Minimo de productos para que una sucursal tenga precio en una combinacion
+  # categoria x gama x unidad (mart_precio_categoria_sucursal). Es mas bajo que
+  # las 10 muestras del mart por localidad porque una sucursal ofrece decenas de
+  # productos por categoria, no miles. Con 3, la mediana ya resiste un precio
+  # suelto mal cargado. A calibrar cuando se mida la cobertura real por radio.
+  muestras_minimas_sucursal: 3
+
 models:
   precios_sepa:
     staging:
