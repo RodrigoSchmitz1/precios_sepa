@@ -10,8 +10,8 @@
 
 SELECT
     id_producto,
-    cadena,
+    leyenda,
     descuento_pct
-FROM {{ ref("mart_promos_por_sucursal") }}
+FROM {{ ref("mart_mapa_promos") }}
 WHERE nivel_evidencia = "sin_verificar"
     AND descuento_pct > {{ var("promos_techo_descuento_sin_verificar") }}

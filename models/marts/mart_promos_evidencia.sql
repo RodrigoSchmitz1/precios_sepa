@@ -1,6 +1,6 @@
 -- Todas las promos del ultimo dia del crudo, con la evidencia disponible para
 -- decidir si el descuento es creible. Es la base de mart_promos_vigentes y
--- mart_promos_por_sucursal (a traves de promos_validas).
+-- mart_mapa_promos (a traves de promos_validas).
 --
 -- POR QUE EXISTE (2026-09-10). Hasta entonces las promos se filtraban con un
 -- tope fijo: se mostraban las de 10% a 70% de descuento, sin importar la cadena.
