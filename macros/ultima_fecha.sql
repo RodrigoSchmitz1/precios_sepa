@@ -29,7 +29,33 @@
             {%- set respaldo -%}
                 SELECT MAX(fecha_datos) AS fecha FROM {{ relacion }}
             {%- endset -%}
-            {{ return(run_query(respaldo).columns[0].values()[0]) }}
+            {%- set desde_columna = run_query(respaldo).columns[0].values()[0] -%}
+            {%- if desde_columna is none -%}
+                {#- Ni particiones ni filas: la tabla esta vacia. Paso el
+                    2026-09-18: la ingesta local no corrio durante cuatro dias y
+                    BigQuery expiro las tres particiones que retiene el crudo.
+
+                    Sin este chequeo el macro devuelve None y el modelo compila
+                    "WHERE fecha_datos = DATE('None')", que BigQuery rechaza con
+                    "Could not cast literal None to type TIMESTAMP": un error que
+                    no dice nada de la causa real y costo tres dias de pipeline
+                    en rojo hasta entenderlo.
+
+                    Se corta con un error explicito y NO devolviendo una fecha
+                    imposible como hace fechas_a_calcular. Son casos distintos:
+                    alla el destino es un historico particionado, donde una fecha
+                    vacia no toca las particiones ya escritas. Aca los que
+                    llaman son marts materializados como table, asi que devolver
+                    una fecha sin datos los reconstruiria VACIOS y el sitio se
+                    quedaria sin nada que mostrar. Fallando, cada mart conserva
+                    su ultimo contenido bueno y el workflow avisa por mail. -#}
+                {{ exceptions.raise_compiler_error(
+                    "La tabla " ~ relacion ~ " esta vacia: no tiene particiones ni filas. "
+                    ~ "Casi siempre significa que la ingesta local no corrio y BigQuery "
+                    ~ "expiro el crudo (retiene 3 dias). Corre ingesta_backfill.py antes de dbt."
+                ) }}
+            {%- endif -%}
+            {{ return(desde_columna) }}
         {%- else -%}
             {{ return(resultado) }}
         {%- endif -%}
