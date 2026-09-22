@@ -159,7 +159,19 @@ avisar:
   líquido que se normaliza a `cc`: el join por unidad nunca matcheaba y **la
   leche no entraba en la canasta**, siendo uno de los ítems de mayor peso.
 
-Los dos casos tienen ahora un test que falla si vuelven a aparecer.
+- La ingesta local dejó de correr cinco días y **nada avisó**. Había un test
+  escrito para eso, pero comparaba los históricos contra la última fecha de los
+  marts: cuando la ingesta se detiene los marts tampoco avanzan, así que la
+  referencia envejecía junto con ellos y la comparación seguía dando bien.
+  Encima el backfill cargaba las fechas viejas e imprimía `Cargadas`, mientras
+  BigQuery las expiraba en menos de un minuto por la retención de 3 días. Se
+  perdieron tres días de historia **con el pipeline en verde y reportando
+  éxito**.
+
+Los tres casos tienen ahora un test que falla si vuelven a aparecer. El último,
+además, cambió la ingesta: ahora abre la retención de particiones antes de un
+backfill, la vuelve a cerrar cuando ya no hace falta, y verifica que lo que
+cargó siga existiendo en vez de darlo por hecho.
 
 ### Cuando falta el dato
 
@@ -204,12 +216,16 @@ respetando el barrio cuando la cadena sí lo informa bien.
 
 ## Calidad
 
-**20 modelos y 70 tests**, que corren en cada ejecución del pipeline.
+**20 modelos y 71 tests**, que corren en cada ejecución del pipeline.
 Además de los genéricos, hay tests singulares para las cosas que sólo se
 detectan mirando el resultado agregado: que Carne vacuna y Pollo no mezclen
 otras carnes, que la canasta económica no salga más cara que la gama media, que la gama esté ordenada por precio por unidad, que el
 mapeo de unidades siga cubriendo el catálogo, que la categorización no se
-degrade a "Otros", y que los históricos hayan capturado la última fecha.
+degrade a "Otros", que los históricos hayan capturado la última fecha, y que el
+crudo no se haya quedado atrás respecto del calendario.
+
+Ese último se compara contra `CURRENT_DATE` y no contra otra tabla, a propósito:
+un pipeline no puede notar su propio atraso midiéndose contra sí mismo.
 
 Los tests sobre `stg_productos` miran sólo la última fecha: la transformación es
 la misma para todas, así que cada fecha se validó el día en que fue la última.
@@ -236,8 +252,11 @@ de una vez.
 
 Decisiones que salieron de ahí:
 
-- El crudo retiene **3 días**. No es sólo costo de consulta: pesa ~1,5 GB por
-  día, así que una ventana de 4 días llevaría el almacenamiento a 8,7 GB.
+- El crudo retiene **3 días** en régimen. No es sólo costo de consulta: pesa
+  ~1,5 GB por día, así que una ventana de 4 días llevaría el almacenamiento a
+  8,7 GB. La ingesta la abre sola cuando hay una fecha recuperada esperando a
+  que dbt la capture, y la vuelve a cerrar en cuanto los históricos se ponen al
+  día: una recuperación puntual no sube el piso.
 - Los marts recalculan **sólo las fechas que faltan** en el histórico, no las
   tres de la ventana. Bajó la corrida diaria de 15,6 a 12,25 GB.
 - El crudo se carga con un **load job directo a la partición del día**, que no
