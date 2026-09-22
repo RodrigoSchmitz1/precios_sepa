@@ -35,6 +35,18 @@ $log = Join-Path $carpetaLog ("ingesta_" + (Get-Date -Format "yyyy-MM-dd") + ".l
 # quedaba con la cabecera en UTF-8 y el cuerpo en UTF-16, ilegible con cualquier
 # herramienta que no adivine el encoding. Este ForEach hace lo mismo (muestra en
 # consola y agrega al log) forzando UTF-8 en las dos puntas.
+# Sin esto el log sale desordenado y se lee mal justo cuando mas importa. Al
+# mandar la salida a un pipe, Python pasa a buffer de bloque: los prints del
+# script padre quedan retenidos hasta el final, mientras descargar_sepa.py y
+# cargar_datos.py (procesos hijos, que escriben y terminan) salen enseguida. El
+# resultado es un log donde la descarga de una fecha aparece ANTES del resumen
+# que decidio bajarla. El log del 2026-09-22 se leia asi y hubo que reconstruir
+# el orden real a mano para entender que habia pasado.
+#
+# Va como variable de entorno y no como -u porque los hijos se lanzan con
+# sys.executable, que no hereda los flags de linea de comandos; el entorno si.
+$env:PYTHONUNBUFFERED = "1"
+
 & "$raiz\venv\Scripts\python.exe" "$raiz\ingesta_backfill.py" 2>&1 |
     ForEach-Object {
         Write-Output $_
