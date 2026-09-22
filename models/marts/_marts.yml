@@ -41,9 +41,11 @@ models:
   - name: mart_mismo_producto
     description: >
       Precio del mismo producto (mismo codigo de barras) en cada cadena, para
-      el ultimo dia. Solo productos con precio en 2 o mas cadenas. Lleva la
-      cantidad de sucursales de cada precio para no destacar diferencias que
-      dependen de un dato suelto.
+      el ultimo dia. Solo productos con precio creible en 2 o mas cadenas. Lleva
+      la cantidad de sucursales de cada precio para no destacar diferencias que
+      dependen de un dato suelto, y marca con precio_creible los precios que
+      contradicen a la mediana entre empresas: siguen en la tabla, pero no
+      cuentan para los extremos ni para la brecha.
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [id_producto, cadena]
@@ -55,16 +57,26 @@ models:
           expression: "empresas BETWEEN 1 AND cadenas"
       # Si el precio de una cadena queda fuera del rango del producto, el
       # agregado por producto se calculo sobre otro universo que las filas.
+      #
+      # Se excluyen los precios no creibles: esos quedan fuera del rango A
+      # PROPOSITO, que es justamente el punto del filtro. Sin esta condicion el
+      # test fallaria en todos los productos con un descarte.
       - dbt_utils.expression_is_true:
-          expression: "precio_mas_bajo <= precio_mediano AND precio_mediano <= precio_mas_alto"
+          expression: "NOT precio_creible OR (precio_mas_bajo <= precio_mediano AND precio_mediano <= precio_mas_alto)"
       - dbt_utils.expression_is_true:
           expression: "diferencia_pct >= 0"
+      # Un producto llega al mart por tener 2+ cadenas creibles, asi que nunca
+      # pueden estar todas descartadas.
+      - dbt_utils.expression_is_true:
+          expression: "cadenas_descartadas <= cadenas - 2"
     columns:
       - name: fecha_datos
         tests: [not_null]
       - name: descripcion
         tests: [not_null]
       - name: cadena
+        tests: [not_null]
+      - name: precio_creible
         tests: [not_null]
 
   - name: mart_precios_cadena_categoria

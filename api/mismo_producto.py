@@ -39,6 +39,9 @@ CAMPOS_RESUMEN = (
     "precio_mas_alto",
     "diferencia_pct",
     "extremos_respaldados",
+    # Cuantos precios quedaron afuera por contradecir al mercado. La pagina lo
+    # usa para decirlo en vez de callarlo.
+    "cadenas_descartadas",
 )
 
 
@@ -60,7 +63,9 @@ def _extremos_respaldados(producto: dict) -> bool:
         return any(
             p["sucursales"] >= SUCURSALES_MINIMAS_EXTREMO
             for p in producto["precios"]
-            if p["precio_mediano"] == precio
+            # Solo cuentan los precios creibles: si un precio descartado coincide
+            # por casualidad con un extremo, no puede ser el que lo respalde.
+            if p["precio_mediano"] == precio and p["precio_creible"]
         )
 
     return respaldado(producto["precio_mas_bajo"]) and respaldado(producto["precio_mas_alto"])
@@ -90,6 +95,11 @@ def armar_indice(filas) -> dict:
                 "precio_mas_bajo": fila["precio_mas_bajo"],
                 "precio_mas_alto": fila["precio_mas_alto"],
                 "diferencia_pct": fila["diferencia_pct"],
+                # .get con default: la API y dbt se despliegan por separado, asi
+                # que puede haber una ventana en la que el mart todavia no traiga
+                # las columnas nuevas. Sin descartes, el comportamiento es el de
+                # antes.
+                "cadenas_descartadas": fila.get("cadenas_descartadas", 0),
                 "fecha_datos": str(fila["fecha_datos"]),
                 "precios": [],
                 "_texto": normalizar(f"{fila['descripcion']} {fila['marca'] or ''}"),
@@ -101,6 +111,11 @@ def armar_indice(filas) -> dict:
                 "precio_minimo": fila["precio_minimo"],
                 "precio_maximo": fila["precio_maximo"],
                 "sucursales": fila["sucursales"],
+                # Un precio que contradice a la mediana entre empresas. Viaja
+                # marcado en vez de desaparecer: la pagina lo muestra como no
+                # verificado, pero no cuenta para la brecha (el mart ya lo dejo
+                # afuera de los extremos).
+                "precio_creible": fila.get("precio_creible", True),
             }
         )
 

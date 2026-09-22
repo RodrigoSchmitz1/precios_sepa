@@ -131,8 +131,20 @@ function VistaProducto({ estado, onVolver }: { estado: Detalle | null; onVolver:
 
       <ul className="bg-papel border border-linea rounded-2xl divide-y divide-linea">
         {p.precios.map((x) => (
-          <li key={x.cadena} className="flex items-baseline gap-4 px-4 py-2.5">
-            <span className="text-sm text-tinta flex-1 min-w-0 truncate">{x.cadena}</span>
+          <li
+            key={x.cadena}
+            className={`flex items-baseline gap-4 px-4 py-2.5 ${x.precio_creible ? "" : "bg-papel-hundido"}`}
+          >
+            <span className="text-sm text-tinta flex-1 min-w-0 truncate">
+              {x.cadena}
+              {/* Se dice por que esta atenuado. Un renglon en gris sin explicacion
+                  parece un error del sitio; con el motivo, es informacion. */}
+              {!x.precio_creible && (
+                <span className="ml-2 text-xs text-aviso" title="Se aparta tanto de lo que informan las demas empresas que no se puede tomar como precio. No entra en el calculo de la diferencia.">
+                  sin verificar
+                </span>
+              )}
+            </span>
             {x.precio_maximo > x.precio_minimo && (
               <span className="numero text-xs text-tinta-suave hidden sm:inline" title="Rango entre sucursales">
                 {formatearPesos(x.precio_minimo)} a {formatearPesos(x.precio_maximo)}
@@ -141,7 +153,11 @@ function VistaProducto({ estado, onVolver }: { estado: Detalle | null; onVolver:
             <span className={`text-xs shrink-0 ${x.sucursales < SUCURSALES_MINIMAS ? "text-aviso" : "text-tinta-suave"}`}>
               {formatearNumero(x.sucursales)} {x.sucursales === 1 ? "sucursal" : "sucursales"}
             </span>
-            <span className="numero text-sm font-semibold text-tinta w-24 text-right shrink-0">
+            <span
+              className={`numero text-sm w-24 text-right shrink-0 ${
+                x.precio_creible ? "font-semibold text-tinta" : "text-tinta-suave line-through"
+              }`}
+            >
               {formatearPesos(x.precio_mediano)}
             </span>
           </li>

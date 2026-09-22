@@ -152,6 +152,8 @@ export type ProductoComparado = {
   precio_mas_bajo: number;
   precio_mas_alto: number;
   diferencia_pct: number;
+  /** Cuantos precios se dejaron fuera del calculo por contradecir al mercado. */
+  cadenas_descartadas: number;
   /** Si el precio mas bajo y el mas alto salen de 3 o mas sucursales. Sin eso
    *  la diferencia puede depender de un precio mal cargado: se muestra, pero no
    *  se destaca. */
@@ -165,6 +167,9 @@ export type PrecioEnCadena = {
   precio_minimo: number;
   precio_maximo: number;
   sucursales: number;
+  /** false cuando el precio contradice a la mediana entre empresas. Se muestra
+   *  igual, marcado, pero no cuenta para la brecha del producto. */
+  precio_creible: boolean;
 };
 
 export type ProductoDetalle = ProductoComparado & {

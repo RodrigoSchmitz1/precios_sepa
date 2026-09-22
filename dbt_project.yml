@@ -62,6 +62,23 @@ clean-targets:         # directories to be removed by `dbt clean`
 vars:
   descuento_maximo_plausible: 70
 
+  # El mismo producto: cuando el precio de una cadena se aparta tanto de la
+  # mediana ENTRE EMPRESAS, deja de ser una diferencia de precio y pasa a ser un
+  # dato mal cargado. Esos precios no entran en el calculo de la brecha, aunque
+  # se siguen mostrando marcados.
+  #
+  # Calibrado el 2026-09-22 sobre los 10.467 productos con 3+ empresas del mart.
+  # La dispersion real es estrecha: el minimo esta en 0,92 de la referencia en la
+  # mediana y en 0,573 en el percentil 1; el maximo, en 1,073 y 1,421. Con estos
+  # umbrales se descartan 51 precios por abajo (0,49%) y 8 por arriba (0,08%):
+  # solo la cola imposible, por fuera del percentil 1 y del 99.
+  #
+  # La referencia se calcula entre empresas y no entre banderas a proposito: con
+  # banderas, Carrefour pesa cuatro veces y Cencosud tres, asi que la "mediana
+  # del mercado" seria la mediana de dos empresas.
+  mismo_producto_piso_creible: 0.5
+  mismo_producto_techo_creible: 2.0
+
   # Minimo de productos para que una sucursal tenga precio en una combinacion
   # categoria x gama x unidad (mart_precio_categoria_sucursal). Es mas bajo que
   # las 10 muestras del mart por localidad porque una sucursal ofrece decenas de

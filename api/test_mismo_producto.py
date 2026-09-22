@@ -9,13 +9,24 @@ import unittest
 from mismo_producto import armar_indice, buscar, destacados, detalle, normalizar
 
 
-def producto(id_producto, precios, descripcion="YERBA MATE PLAYADITO 1 KG", marca="PLAYADITO", empresas=None):
+def producto(
+    id_producto,
+    precios,
+    descripcion="YERBA MATE PLAYADITO 1 KG",
+    marca="PLAYADITO",
+    empresas=None,
+    no_creibles=(),
+):
     """Filas como las devuelve el mart: una por cadena, con los agregados del
     producto repetidos. precios = {cadena: (precio, sucursales)}.
 
     empresas por defecto es una por cadena; se pasa distinto para el caso en que
-    varias banderas son de la misma empresa."""
-    valores = [precio for precio, _ in precios.values()]
+    varias banderas son de la misma empresa.
+
+    no_creibles son las cadenas cuyo precio contradice a la mediana entre
+    empresas. Se reproduce lo que hace el mart: esas cadenas siguen en la tabla,
+    pero los extremos y la diferencia se calculan sin ellas."""
+    valores = [precio for cadena, (precio, _) in precios.items() if cadena not in no_creibles]
     bajo, alto = min(valores), max(valores)
     return [
         {
@@ -33,6 +44,8 @@ def producto(id_producto, precios, descripcion="YERBA MATE PLAYADITO 1 KG", marc
             "precio_mas_bajo": bajo,
             "precio_mas_alto": alto,
             "diferencia_pct": round((alto - bajo) / bajo * 100, 1),
+            "cadenas_descartadas": len(no_creibles),
+            "precio_creible": cadena not in no_creibles,
             "fecha_datos": "2026-09-10",
         }
         for cadena, (precio, sucursales) in precios.items()
@@ -114,6 +127,76 @@ class TestDestacados(unittest.TestCase):
         mayor = dict(CUATRO_CADENAS, Vea=(6200, 8))
         indice = armar_indice(producto("1", CUATRO_CADENAS) + producto("2", dos_cadenas) + producto("3", mayor))
         self.assertEqual([p["id_producto"] for p in destacados(indice)], ["3", "1"])
+
+
+class TestPreciosNoCreibles(unittest.TestCase):
+    """El caso real del 2026-09-21: FANTA ZERO 1.75L figuraba a $309 en
+    HiperChangomas (31 sucursales) y a $369 en Changomas (53), contra $4.939 a
+    $5.190 en las otras once cadenas, SuperChangomas incluida. La seccion lo
+    publicaba como 1.579% de diferencia."""
+
+    FANTA = {
+        "HiperChangomas": (309, 31),
+        "Changomas": (369, 53),
+        "SuperChangomas": (4939, 9),
+        "Carrefour": (5150, 32),
+        "Coto": (5150, 96),
+        "Vea": (5190, 17),
+    }
+
+    def setUp(self):
+        self.indice = armar_indice(
+            producto(
+                "1",
+                self.FANTA,
+                "FANTA GASEOSA ZERO NARANJA 1.75L",
+                "FANTA",
+                empresas=4,
+                no_creibles=("HiperChangomas", "Changomas"),
+            )
+        )
+        self.producto = self.indice["1"]
+
+    def test_el_precio_descartado_sigue_estando(self):
+        # Marcar y no esconder: el visitante tiene derecho a ver que la fuente
+        # dice algo raro.
+        cadenas = [p["cadena"] for p in self.producto["precios"]]
+        self.assertIn("HiperChangomas", cadenas)
+
+    def test_el_precio_descartado_viaja_marcado(self):
+        por_cadena = {p["cadena"]: p for p in self.producto["precios"]}
+        self.assertFalse(por_cadena["HiperChangomas"]["precio_creible"])
+        self.assertTrue(por_cadena["SuperChangomas"]["precio_creible"])
+
+    def test_la_brecha_se_calcula_sin_los_descartados(self):
+        # 4939 -> 5190 es 5,1%, no 1579,6%.
+        self.assertEqual(self.producto["precio_mas_bajo"], 4939)
+        self.assertAlmostEqual(self.producto["diferencia_pct"], 5.1, places=1)
+
+    def test_el_detalle_informa_cuantos_se_descartaron(self):
+        self.assertEqual(detalle(self.indice, "1")["cadenas_descartadas"], 2)
+
+    def test_un_precio_descartado_no_respalda_un_extremo(self):
+        # Si un precio descartado coincide con un extremo, no puede ser el que lo
+        # sostenga por mas sucursales que tenga: son 31, y aun asi no cuenta.
+        indice = armar_indice(
+            producto(
+                "1",
+                {"Mal": (100, 31), "Bien": (100, 1), "Otra": (4000, 9), "Tercera": (4100, 9)},
+                empresas=4,
+                no_creibles=("Mal",),
+            )
+        )
+        self.assertFalse(indice["1"]["extremos_respaldados"])
+
+    def test_si_se_destaca_es_con_la_brecha_corregida(self):
+        # El producto no desaparece de destacados: sigue teniendo 4 empresas y
+        # extremos respaldados. Lo que cambia es que encabeza con el 5,1% real y
+        # no con el 1.579% que fabricaba el precio mal cargado. La correccion no
+        # es esconder el producto, es dejar de mentir sobre el.
+        (destacado,) = destacados(self.indice)
+        self.assertAlmostEqual(destacado["diferencia_pct"], 5.1, places=1)
+        self.assertEqual(destacado["cadenas_descartadas"], 2)
 
 
 if __name__ == "__main__":
