@@ -205,6 +205,24 @@ categoría imputada va marcada en el desglose del sitio.
   no por lista de nombres: una localidad real es compacta.
 - **La misma ciudad venía escrita de dos formas** ("Salta" y "SALTA"), lo que la
   partía en dos y le daba la mitad de las muestras a cada una.
+- **Una cadena entera puede informar mal un precio.** FANTA Zero 1,75 L figuraba
+  a $309 en HiperChangomás (31 sucursales) y $369 en Changomás (53), mientras
+  SuperChangomás —la misma empresa— y las otras diez cadenas la informaban entre
+  $4.939 y $5.190. "El mismo producto" lo publicaba como 1.579% de diferencia, y
+  revisados los 12 destacados de ese día, **los 12 eran errores de la fuente**.
+  Las guardas que había miraban la coherencia de cada cadena consigo misma, que
+  es justo lo que este error no rompe: los $309 salían de 31 sucursales. Ahora
+  cada precio se contrasta contra la mediana **entre empresas** y el que se
+  aparta no entra en la brecha, pero se muestra tachado en vez de desaparecer.
+
+Auditando ese hallazgo apareció un patrón que vale más que el caso: **lo que
+agrega resiste, lo que titula con el extremo no**. Con el mismo filtro aplicado
+a "Más barato", sólo 56 de 48.152 victorias cambian de dueño y **ninguna de las
+63 categorías cambia de líder**, porque cada categoría promedia miles de
+comparaciones. El índice de inflación ya recortaba los relativos fuera de
+`[0,5, 2]`, y la canasta más barata está a 0,86 de la mediana entre localidades:
+sana. La sección vulnerable era la única que publica un extremo individual como
+titular.
 
 ### Geografía
 
