@@ -128,7 +128,13 @@ function TiraDePuntos({ puntos, formatear, descripcion, elegido }: Props) {
     if (p.id === elegido) return "fill-tinta";
     if (hayDosExtremos && p.valor === barato.valor) return "fill-dato-verde";
     if (hayDosExtremos && p.valor === caro.valor) return "fill-alerta";
-    return "fill-tinta-suave/45";
+    // 2026-09-23: los puntos de contexto pasan de 45% a 70% de opacidad. Al 45%
+    // la nube desaparecia contra el lienzo y el grafico se leia como un espacio
+    // vacio con dos puntos de color en las puntas, que es lo contrario de lo que
+    // tiene que mostrar: la nube ES el dato, los extremos son su borde. Subirla
+    // no compite con los extremos porque esos ademas son mas grandes y llevan
+    // rotulo.
+    return "fill-tinta-suave/70";
   };
 
   return (

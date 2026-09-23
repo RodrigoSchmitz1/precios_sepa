@@ -136,7 +136,14 @@ function CanastaPage() {
 
       {todas.length > 0 && masBarata && masCara && (
         <>
-          <div className="mb-6">
+          {/*
+            El grafico va sobre una tarjeta blanca y no suelto sobre el lienzo.
+            Sin superficie propia quedaba flotando en el beige y se leia como si
+            la pagina estuviera a medio cargar; con la banda oscura arriba, esa
+            diferencia se nota todavia mas. La tarjeta tambien lo separa de la
+            fila de cifras, que antes se le pegaba.
+          */}
+          <div className="mb-6 rounded-2xl bg-papel border border-linea px-5 py-6 sm:px-7">
             <TiraDePuntos
               puntos={todas.map((c) => ({ id: claveDe(c), valor: c.costo_canasta_total, nombre: nombreDe(c) }))}
               formatear={formatearPesos}

@@ -13,7 +13,13 @@
 
 @theme {
   /* --- Superficies: papel calido, no gris azulado --- */
-  --color-lienzo: #faf9f7;
+  /*
+    2026-09-23: el lienzo pierde el tinte crema (#faf9f7 -> #f7f7f6). El calido
+    daba un aire pastel que competia con el papel blanco de las tarjetas en vez
+    de sostenerlo; neutro, la tarjeta blanca se despega y el color que queda en
+    pantalla es el de los datos.
+  */
+  --color-lienzo: #f7f7f6;
   --color-papel: #ffffff;
   --color-papel-hundido: #f4f2ee;
 
@@ -73,6 +79,15 @@
     luminosidad >= 0.06 y el paso mas claro a 2.09:1 contra el blanco, o sea que
     no se confunde con la superficie.
   */
+  /*
+    Acentos para leer SOBRE la banda oscura del titular. No alcanza con reusar
+    --color-alerta: sobre #1a1815 da 3,26:1, que es el minimo para texto grande
+    y nada mas. Estos dan 7,7:1 y 8,5:1, asi que sirven tambien en cifras
+    chicas, y conservan el significado (calido = caro, verde = barato).
+  */
+  --color-sobre-oscuro-caro: #ff8a75;
+  --color-sobre-oscuro-barato: #6bc4a2;
+
   --color-escala-1: #6bc4a2;
   --color-escala-2: #3fae87;
   --color-escala-3: #1a9670;

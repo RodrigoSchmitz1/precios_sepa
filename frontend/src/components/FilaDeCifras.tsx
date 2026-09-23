@@ -4,10 +4,16 @@ import type { ReactNode } from "react";
   Cifras de apoyo debajo del titular o de un grafico.
 
   Reemplaza a la fila de tiles de cuatro colores. Cuatro recuadros de fondo
-  distinto compiten entre si y con el titular por la atencion, y el color no
+  distinto competian entre si y con el titular por la atencion, y el color no
   codificaba nada: era una cifra distinta en cada caja. Aca van en tinta, en
   columnas separadas por una linea fina, y el unico color de la pagina queda
   para el dato que lo merece.
+
+  2026-09-23: las cifras se agrandan de 18px a 30px. En la version anterior
+  quedaban del mismo cuerpo que el texto corrido de al lado, asi que la fila se
+  leia como un parrafo en columnas y no como cifras. Que no tengan color no
+  quiere decir que no tengan que pesar: el peso lo da el cuerpo. La etiqueta se
+  achica y se pone en versalitas para que el numero domine su columna.
 */
 
 export type Cifra = {
@@ -22,11 +28,13 @@ function FilaDeCifras({ cifras }: { cifras: Cifra[] }) {
       {cifras.map((c) => (
         <div
           key={c.etiqueta}
-          className="py-3 sm:px-5 sm:first:pl-0 sm:border-l sm:first:border-l-0 border-linea min-w-0"
+          className="py-5 sm:px-6 sm:first:pl-0 sm:border-l sm:first:border-l-0 border-linea min-w-0"
         >
-          <dt className="text-xs text-tinta-suave">{c.etiqueta}</dt>
-          <dd className="numero text-lg font-medium text-tinta truncate">{c.valor}</dd>
-          {c.detalle && <dd className="text-xs text-tinta-media leading-snug">{c.detalle}</dd>}
+          <dt className="text-[11px] font-semibold uppercase tracking-wider text-tinta-suave mb-1">
+            {c.etiqueta}
+          </dt>
+          <dd className="numero text-2xl sm:text-3xl font-medium text-tinta leading-none truncate">{c.valor}</dd>
+          {c.detalle && <dd className="mt-1.5 text-xs text-tinta-media leading-snug">{c.detalle}</dd>}
         </div>
       ))}
     </dl>
