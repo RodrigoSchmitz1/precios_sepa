@@ -21,6 +21,19 @@ import type { PrecioEnCadena, ProductoComparado, ProductoDetalle } from "../type
 
 // Igual que SUCURSALES_MINIMAS_EXTREMO en api/mismo_producto.py: debajo de esto
 // la mediana de la cadena puede ser un precio mal cargado en una sola sucursal.
+/*
+  Los dos productos que se muestran desplegados al entrar. Van por BUSQUEDA y no
+  por codigo de barras: el id de un producto puede dejar de estar en el mart
+  cualquier dia (si esa fecha no lo informa una segunda cadena, sale), y un
+  ejemplo fijo que desaparece deja la portada vacia. Buscando, si cambia el
+  envase o el codigo, sigue apareciendo el producto equivalente.
+
+  Se eligen conocidos y no los de mayor diferencia: la portada tiene que
+  mostrar como se ve la comparacion, y para eso sirve mas algo que el visitante
+  compra que el producto mas disparatado del dia.
+*/
+const EJEMPLOS = ["coca cola 2.25", "yerba playadito"];
+
 const SUCURSALES_MINIMAS = 3;
 // Igual que EMPRESAS_MINIMAS_DESTACADO en api/mismo_producto.py.
 const EMPRESAS_MINIMAS = 3;
@@ -41,6 +54,90 @@ function nombrarCadenas(lista: PrecioEnCadena[]): string {
 function Aviso({ children }: { children: React.ReactNode }) {
   return (
     <p className="text-sm text-alerta bg-alerta-tenue border border-alerta/20 rounded-lg px-3 py-2">{children}</p>
+  );
+}
+
+/*
+  Un ejemplo de la portada: el nombre del producto, la visual con los precios de
+  cada cadena y el despliegue por super. Sin Titular a proposito: VistaProducto
+  lo incluye, y dos de esas en la portada repetian la banda oscura tres veces en
+  la misma pantalla.
+*/
+function EjemploComparacion({ p, onVer }: { p: ProductoDetalle; onVer: (id: string) => void }) {
+  const nombre = nombreLegible(p.descripcion, p.marca);
+  const baratos = p.precios.filter((x) => x.precio_mediano === p.precio_mas_bajo);
+  const caros = p.precios.filter((x) => x.precio_mediano === p.precio_mas_alto);
+  const hayDiferencia = p.precio_mas_alto > p.precio_mas_bajo;
+
+  return (
+    <article className="mb-8">
+      <button onClick={() => onVer(p.id_producto)} className="group text-left mb-1">
+        <h3 className="font-display text-2xl text-tinta group-hover:text-ahorro transition-colors">{nombre}</h3>
+      </button>
+      <p className="text-sm text-tinta-media mb-4">
+        {hayDiferencia ? (
+          <>
+            <span className="text-alerta font-medium">{porcentaje(p.diferencia_pct)} mas caro</span> en{" "}
+            {nombrarCadenas(caros)} que en {nombrarCadenas(baratos)} · {p.cadenas} cadenas
+          </>
+        ) : (
+          <>El mismo precio en las {p.cadenas} cadenas</>
+        )}
+      </p>
+
+      {hayDiferencia && (
+        <div className="mb-4">
+          <TiraDePuntos
+            puntos={p.precios.map((x) => ({ id: x.cadena, valor: x.precio_mediano, nombre: x.cadena }))}
+            formatear={formatearPesos}
+            descripcion={`Precio de ${nombre} en cada cadena, de ${formatearPesos(p.precio_mas_bajo)} a ${formatearPesos(p.precio_mas_alto)}`}
+          />
+        </div>
+      )}
+
+      <ListaDePrecios p={p} />
+    </article>
+  );
+}
+
+/** La lista de precios por cadena. Se extrae de VistaProducto para poder
+ *  mostrarla tambien en los ejemplos de la portada, donde no va el titular. */
+function ListaDePrecios({ p }: { p: ProductoDetalle }) {
+  return (
+      <ul className="bg-papel border border-linea rounded-2xl divide-y divide-linea">
+      {p.precios.map((x) => (
+        <li
+          key={x.cadena}
+          className={`flex items-baseline gap-4 px-4 py-2.5 ${x.precio_creible ? "" : "bg-papel-hundido"}`}
+        >
+          <span className="text-sm text-tinta flex-1 min-w-0 truncate">
+            {x.cadena}
+            {/* Se dice por que esta atenuado. Un renglon en gris sin explicacion
+                parece un error del sitio; con el motivo, es informacion. */}
+            {!x.precio_creible && (
+              <span className="ml-2 text-xs text-aviso" title="Se aparta tanto de lo que informan las demas empresas que no se puede tomar como precio. No entra en el calculo de la diferencia.">
+                sin verificar
+              </span>
+            )}
+          </span>
+          {x.precio_maximo > x.precio_minimo && (
+            <span className="numero text-xs text-tinta-suave hidden sm:inline" title="Rango entre sucursales">
+              {formatearPesos(x.precio_minimo)} a {formatearPesos(x.precio_maximo)}
+            </span>
+          )}
+          <span className={`text-xs shrink-0 ${x.sucursales < SUCURSALES_MINIMAS ? "text-aviso" : "text-tinta-suave"}`}>
+            {formatearNumero(x.sucursales)} {x.sucursales === 1 ? "sucursal" : "sucursales"}
+          </span>
+          <span
+            className={`numero text-sm w-24 text-right shrink-0 ${
+              x.precio_creible ? "font-semibold text-tinta" : "text-tinta-suave line-through"
+            }`}
+          >
+            {formatearPesos(x.precio_mediano)}
+          </span>
+        </li>
+      ))}
+    </ul>
   );
 }
 
@@ -131,40 +228,7 @@ function VistaProducto({ estado, onVolver }: { estado: Detalle | null; onVolver?
         />
       </div>
 
-      <ul className="bg-papel border border-linea rounded-2xl divide-y divide-linea">
-        {p.precios.map((x) => (
-          <li
-            key={x.cadena}
-            className={`flex items-baseline gap-4 px-4 py-2.5 ${x.precio_creible ? "" : "bg-papel-hundido"}`}
-          >
-            <span className="text-sm text-tinta flex-1 min-w-0 truncate">
-              {x.cadena}
-              {/* Se dice por que esta atenuado. Un renglon en gris sin explicacion
-                  parece un error del sitio; con el motivo, es informacion. */}
-              {!x.precio_creible && (
-                <span className="ml-2 text-xs text-aviso" title="Se aparta tanto de lo que informan las demas empresas que no se puede tomar como precio. No entra en el calculo de la diferencia.">
-                  sin verificar
-                </span>
-              )}
-            </span>
-            {x.precio_maximo > x.precio_minimo && (
-              <span className="numero text-xs text-tinta-suave hidden sm:inline" title="Rango entre sucursales">
-                {formatearPesos(x.precio_minimo)} a {formatearPesos(x.precio_maximo)}
-              </span>
-            )}
-            <span className={`text-xs shrink-0 ${x.sucursales < SUCURSALES_MINIMAS ? "text-aviso" : "text-tinta-suave"}`}>
-              {formatearNumero(x.sucursales)} {x.sucursales === 1 ? "sucursal" : "sucursales"}
-            </span>
-            <span
-              className={`numero text-sm w-24 text-right shrink-0 ${
-                x.precio_creible ? "font-semibold text-tinta" : "text-tinta-suave line-through"
-              }`}
-            >
-              {formatearPesos(x.precio_mediano)}
-            </span>
-          </li>
-        ))}
-      </ul>
+      <ListaDePrecios p={p} />
     </section>
   );
 }
@@ -253,10 +317,13 @@ function MismoProductoPage() {
   */
   useEffect(() => {
     if (id) return;
-    const primeros = (destacados?.productos ?? []).slice(0, 2);
-    if (primeros.length === 0) return;
     let cancelado = false;
-    Promise.all(primeros.map((p) => obtenerProducto(p.id_producto)))
+    Promise.all(
+      EJEMPLOS.map((consulta) =>
+        buscarProductos(consulta).then((r) => (r.length > 0 ? obtenerProducto(r[0].id_producto) : null))
+      )
+    )
+      .then((todos) => todos.filter((x): x is ProductoDetalle => x !== null))
       .then((detalles) => {
         if (!cancelado) setEjemplos(detalles);
       })
@@ -266,7 +333,7 @@ function MismoProductoPage() {
     return () => {
       cancelado = true;
     };
-  }, [id, destacados]);
+  }, [id]);
 
   useEffect(() => {
     if (!id) return;
@@ -355,7 +422,7 @@ function MismoProductoPage() {
             Asi se ve la comparacion
           </h2>
           {ejemplos.map((producto) => (
-            <VistaProducto key={producto.id_producto} estado={{ id: producto.id_producto, producto }} />
+            <EjemploComparacion key={producto.id_producto} p={producto} onVer={elegir} />
           ))}
         </section>
       )}
