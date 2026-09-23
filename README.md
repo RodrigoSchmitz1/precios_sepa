@@ -1,4 +1,4 @@
-# precios_sepa
+# Changuito
 
 Precios reales de supermercados argentinos, con datos oficiales del programa
 SEPA (Secretaría de Comercio). Pipeline diario que ingiere ~14 millones de
@@ -13,11 +13,11 @@ aplicación web.
 
 | Sección | Qué responde |
 |---|---|
-| **Promos vigentes** | Qué descuentos hay hoy cerca mío, sobre un mapa |
+| **Promos vigentes** | Qué descuentos hay hoy cerca mío, sobre un mapa, con cada promo calificada según la evidencia que la respalda y filtros por rubro |
 | **Canasta básica** | Cuánto cuesta la canasta alimentaria en cada localidad |
 | **Tu canasta** | Describís en lenguaje natural qué consumís (o elegís las categorías a mano), una IA arma tu canasta y se cotiza con precios reales |
 | **Supermercado más barato** | Qué cadena tiene el precio más bajo, comparando productos idénticos, categoría por categoría |
-| **El mismo producto** | Cuánto cuesta el mismo código de barras en cada cadena, y cuánta diferencia hay |
+| **El mismo producto** | Cuánto cuesta el mismo código de barras en cada cadena, y cuánta diferencia hay, sin contar los precios que contradicen al resto del mercado |
 | **Qué se movió** | Ranking de todas las categorías por variación de precio, con apertura por cadena |
 
 ---
@@ -26,7 +26,7 @@ aplicación web.
 
 ```
 Portal SEPA ──> Ingesta local ──> BigQuery ──> dbt ──> FastAPI + React
- (datos.gob)     (Python)          (crudo)    (22 modelos)   (Cloud Run)
+ (datos.gob)     (Python)          (crudo)    (27 modelos)   (Cloud Run)
                      │                             │
               Task Scheduler                GitHub Actions
                  07:00 ART                    08:00 ART
@@ -199,7 +199,12 @@ categoría imputada va marcada en el desglose del sitio.
   mostraba colchones con "98,8% OFF". Los valores de promo son un diccionario
   chico de números redondos reusados entre productos de precio muy distinto, y
   para el más barato de cada grupo el valor es exactamente `lista/10`: las
-  clásicas 10 cuotas sin interés. Se filtra por un techo de descuento.
+  clásicas 10 cuotas sin interés. Un techo fijo de descuento las frenaba, pero
+  dejaba la lista llena de promos clavadas en ese techo: de 200, 79 tenían
+  exactamente 70% y 186 no eran alimentos. Ahora cada promo entra según la
+  evidencia que la respalda —que la cadena declare el porcentaje, que el precio
+  se sostenga contra otras empresas, o un techo más bajo si no hay ninguna de
+  las dos— y la página dice cuál de las tres es.
 - **Hay provincias enteras disfrazadas de localidad.** "BUENOS AIRES" agrupaba
   425 sucursales repartidas en 555 km. Se excluyen por dispersión geográfica y
   no por lista de nombres: una localidad real es compacta.
@@ -214,6 +219,16 @@ categoría imputada va marcada en el desglose del sitio.
   es justo lo que este error no rompe: los $309 salían de 31 sucursales. Ahora
   cada precio se contrasta contra la mediana **entre empresas** y el que se
   aparta no entra en la brecha, pero se muestra tachado en vez de desaparecer.
+- **La marca puede venir en otro campo.** Dia manda "REPELENT NARANJ AERO" con la
+  marca "BONTE" aparte: en una zona de CABA, sus 40 promos tenían marca y
+  ninguna la repetía en la descripción. La página la usaba solo para poner
+  mayúsculas y la descartaba, así que "vino tinto" no decía de qué bodega.
+  Ahora se agrega cuando la descripción no la trae.
+- **Cada cadena declara un tamaño distinto para el mismo código de barras.**
+  FANTA 1,75 L: 1750 cc para unas, "1,7 cc" para Cencosud —litros cargados como
+  centímetros cúbicos— y "1 unidad" para Carrefour, que es lo que se carga
+  cuando no se informa el peso. Se vota un tamaño por producto, **por empresas y
+  no por banderas**: contando banderas, el error de Cencosud valía tres votos.
 
 Auditando ese hallazgo apareció un patrón que vale más que el caso: **lo que
 agrega resiste, lo que titula con el extremo no**. Con el mismo filtro aplicado
@@ -234,7 +249,9 @@ respetando el barrio cuando la cadena sí lo informa bien.
 
 ## Calidad
 
-**20 modelos y 71 tests**, que corren en cada ejecución del pipeline.
+**27 modelos y 110 tests de dbt**, que corren en cada ejecución del pipeline,
+más 74 tests unitarios en Python sobre la API y la ingesta que no necesitan
+BigQuery.
 Además de los genéricos, hay tests singulares para las cosas que sólo se
 detectan mirando el resultado agregado: que Carne vacuna y Pollo no mezclen
 otras carnes, que la canasta económica no salga más cara que la gama media, que la gama esté ordenada por precio por unidad, que el
@@ -307,6 +324,11 @@ Decisiones que salieron de ahí:
   no genere un cargo. Se calcula como lo que queda del TiB gratuito dividido
   por los días que faltan del mes, y no mirando un día típico: todos los días
   pueden quedar bajo un techo razonable y el mes igual terminar pagando.
+- La API corre en **512 MiB** en vez de 1 GiB. Con los dos índices en memoria
+  el proceso llegaba a 726 MB, y no por los índices, que retienen 143 MB, sino
+  por el pico al leerlos: `list_rows` sin `page_size` trae páginas enormes. Con
+  páginas de 5.000 filas el pico al leer 200 mil baja de 508 a 57 MB, y el
+  proceso completo queda en 347 MB.
 
 ---
 
