@@ -8,6 +8,8 @@ import "react-leaflet-cluster/dist/assets/MarkerCluster.css";
 import "react-leaflet-cluster/dist/assets/MarkerCluster.Default.css";
 import type { PromoMapa, SucursalMapa } from "../types";
 import { nombreLegible } from "../utils/texto";
+import { formatearPesos } from "../utils/formato";
+import { EVIDENCIA } from "../utils/evidencia";
 import { nombreProvincia } from "../utils/provincias";
 
 export type BoundingBox = {
@@ -95,34 +97,51 @@ function MapaPromos({ promos, sucursales, onMoverMapa }: Props) {
       center={centroDefault}
       zoom={11}
       scrollWheelZoom={true}
-      style={{ height: "500px", width: "100%", borderRadius: "8px" }}
+      style={{ height: "500px", width: "100%", borderRadius: "16px" }}
     >
       <DetectorMovimiento onMoverMapa={onMoverMapa} />
       <MapaBase />
       <MarkerClusterGroup chunkedLoading>
         {grupos.map((grupo, i) => (
           <Marker key={i} position={[grupo.latitud, grupo.longitud]}>
-            <Popup>
-              <div className="max-w-xs">
-                <p className="font-semibold">
-                  {grupo.cadena} - {grupo.nombre_sucursal}
+            {/*
+              Mismo lenguaje que las filas del listado: el precio de promo en
+              serif a la derecha, la lista tachada y el descuento en verde, y el
+              respaldo de cada promo. Antes decia "de $5190 a $309 (70% off)":
+              sin separador de miles, a diferencia del resto del sitio, y en
+              ingles.
+            */}
+            <Popup maxWidth={320} minWidth={260}>
+              <div>
+                <p className="font-display text-lg leading-tight text-tinta">{grupo.cadena}</p>
+                <p className="text-xs text-tinta-suave mt-0.5">
+                  {[grupo.calle, grupo.numero].filter(Boolean).join(" ") || grupo.nombre_sucursal}
+                  {grupo.localidad && ` · ${grupo.localidad}`}, {nombreProvincia(grupo.provincia)}
                 </p>
-                <p className="text-xs text-gray-500 mb-2">
-                  {grupo.calle} {grupo.numero}, {grupo.localidad}, {nombreProvincia(grupo.provincia)}
+                <p className="text-[11px] font-semibold uppercase tracking-wider text-tinta-suave mt-3 mb-1">
+                  {grupo.promos.length} {grupo.promos.length === 1 ? "promo vigente" : "promos vigentes"}
                 </p>
-                <p className="text-xs font-semibold text-gray-700 mb-1">
-                  {grupo.promos.length} promo{grupo.promos.length > 1 ? "s" : ""} vigente{grupo.promos.length > 1 ? "s" : ""}:
-                </p>
-                <div className="max-h-48 overflow-y-auto space-y-2">
+                <ul className="max-h-56 overflow-y-auto divide-y divide-linea -mx-1 px-1">
                   {grupo.promos.map((promo, j) => (
-                    <div key={j} className="border-t border-gray-100 pt-1">
-                      <p className="text-sm">{nombreLegible(promo.descripcion, promo.marca)}</p>
-                      <p className="text-xs text-gray-600">
-                        de ${promo.precio_lista} a ${promo.precio_promo} ({promo.descuento_pct}% off)
-                      </p>
-                    </div>
+                    <li key={j} className="py-2 flex items-baseline gap-3">
+                      <div className="min-w-0 flex-1">
+                        <p className="text-sm text-tinta leading-snug">{nombreLegible(promo.descripcion, promo.marca)}</p>
+                        {promo.nivel_evidencia && (
+                          <p className={`text-[11px] mt-0.5 ${EVIDENCIA[promo.nivel_evidencia].color}`}>
+                            {EVIDENCIA[promo.nivel_evidencia].texto}
+                          </p>
+                        )}
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="font-display text-base text-tinta leading-none">{formatearPesos(promo.precio_promo)}</p>
+                        <p className="numero text-[11px] text-tinta-suave mt-1">
+                          <span className="line-through">{formatearPesos(promo.precio_lista)}</span>{" "}
+                          <span className="text-ahorro font-medium">−{promo.descuento_pct}%</span>
+                        </p>
+                      </div>
+                    </li>
                   ))}
-                </div>
+                </ul>
               </div>
             </Popup>
           </Marker>

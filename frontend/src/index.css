@@ -153,3 +153,22 @@ body {
   font-weight: 600;
 }
 
+/*
+  El CSS de Leaflet le impone Helvetica a todo el mapa, asi que los popups y los
+  controles quedaban con otra tipografia que el resto del sitio. Se hereda la
+  del documento. El globo del popup se alinea con las tarjetas: mas redondeado,
+  sombra suave y un poco mas de aire adentro.
+*/
+/* Con body delante por la misma razon que los clusters: leaflet.css se importa
+   despues de este archivo y, con igual especificidad, ganaba por orden. */
+body .leaflet-container {
+  font-family: inherit;
+}
+.leaflet-container .leaflet-popup-content-wrapper {
+  border-radius: 14px;
+  box-shadow: 0 8px 24px rgb(26 24 21 / 0.14);
+}
+.leaflet-container .leaflet-popup-content {
+  margin: 14px 16px;
+}
+
