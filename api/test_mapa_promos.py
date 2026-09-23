@@ -34,6 +34,7 @@ def promo(descripcion, descuento, sucursales, precio_lista=1000.0):
         "precio_promo": round(precio_lista * (1 - descuento / 100), 2),
         "descuento_pct": descuento,
         "leyenda": "Promo",
+        "nivel_evidencia": "mercado",
         "sucursales": sucursales,
     }
 
@@ -76,7 +77,7 @@ class TestMapaPromos(unittest.TestCase):
             [
                 "descripcion", "marca", "categoria", "rubro", "cadena", "nombre_sucursal", "calle", "numero",
                 "barrio", "localidad", "provincia", "latitud", "longitud", "precio_lista", "precio_promo",
-                "descuento_pct", "leyenda",
+                "descuento_pct", "leyenda", "nivel_evidencia",
             ],
         )
         self.assertEqual(filas[0]["cadena"], "Coto")

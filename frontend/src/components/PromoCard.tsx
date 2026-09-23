@@ -32,7 +32,37 @@ type PromoMostrable = {
   numero?: string;
   /** Solo en el listado agrupado (/promos), no en el del mapa. */
   provincias?: number;
+  nivel_evidencia?: "leyenda" | "mercado" | "sin_verificar";
 };
+
+/*
+  Con que evidencia se sostiene el descuento. Es la unica dimension del sitio
+  donde la paleta categorica entra limpia: son TRES valores, contra los trece
+  rubros y las dieciseis cadenas, que no se pueden pintar con cuatro slots sin
+  inventar tonos que no pasan los chequeos de daltonismo.
+  
+  El color va SIEMPRE con su palabra, nunca solo: quien no distingue el verde
+  del ocre tiene que poder leer lo mismo. Y el orden es de mayor a menor
+  respaldo, asi que el color acompana una escala de confianza y no una
+  identidad.
+*/
+const EVIDENCIA = {
+  leyenda: {
+    texto: "declarada",
+    clase: "bg-ahorro-tenue text-ahorro border-ahorro-borde",
+    ayuda: "La cadena informa el porcentaje de descuento y coincide con la diferencia entre sus propios precios.",
+  },
+  mercado: {
+    texto: "respaldada",
+    clase: "bg-dato-azul-tenue text-dato-azul border-dato-azul/25",
+    ayuda: "El precio de promo se sostiene frente al del mismo producto en otras empresas, no solo frente a la lista propia.",
+  },
+  sin_verificar: {
+    texto: "sin verificar",
+    clase: "bg-aviso-tenue text-aviso border-aviso/25",
+    ayuda: "Solo se sabe que el descuento es chico como para no ser inverosimil. La cadena no lo declara y el mercado no lo respalda.",
+  },
+} as const;
 
 function direccionDe(promo: PromoMostrable): string | null {
   const calle = [promo.calle, promo.numero].filter(Boolean).join(" ").trim();
@@ -64,7 +94,20 @@ function PromoCard({ promo }: { promo: PromoMostrable }) {
         */}
         <h3 className="text-base text-tinta leading-snug">{nombreLegible(promo.descripcion, promo.marca)}</h3>
         <p className="text-sm text-tinta-suave truncate">{donde}</p>
-        {promo.leyenda && <p className="text-xs text-tinta-suave truncate">{promo.leyenda}</p>}
+        {/* min-w-0 en el flex: sin eso la leyenda larga no puede encogerse por
+            mas truncate que tenga, y empuja la fila hasta meter scroll
+            horizontal en toda la pagina. */}
+        <p className="flex items-center gap-2 mt-1 min-w-0">
+          {promo.nivel_evidencia && (
+            <span
+              title={EVIDENCIA[promo.nivel_evidencia].ayuda}
+              className={`shrink-0 rounded-full border px-2 py-0.5 text-[11px] font-medium ${EVIDENCIA[promo.nivel_evidencia].clase}`}
+            >
+              {EVIDENCIA[promo.nivel_evidencia].texto}
+            </span>
+          )}
+          {promo.leyenda && <span className="text-xs text-tinta-suave truncate">{promo.leyenda}</span>}
+        </p>
       </div>
 
       <div

@@ -146,7 +146,13 @@ function PromosPage() {
         </p>
       </div>
 
-      <div className="grid lg:grid-cols-[13rem_1fr] gap-x-8 gap-y-6">
+      {/*
+        minmax(0,1fr) y no 1fr: el minimo implicito de una columna de grilla es
+        auto, asi que la lista no podia achicarse por debajo del ancho de su
+        contenido y empujaba la pagina hasta meter scroll horizontal. Con 5xl no
+        se notaba porque sobraba margen; al ensanchar a 6xl quedo a la vista.
+      */}
+      <div className="grid lg:grid-cols-[13rem_minmax(0,1fr)] gap-x-8 gap-y-6">
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <FiltroCategorias promos={promos} elegida={categoria} onElegir={setCategoria} />
         </aside>

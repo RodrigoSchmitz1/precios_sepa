@@ -15,7 +15,10 @@ CAMPOS_SUCURSAL = (
     "latitud",
     "longitud",
 )
-CAMPOS_TEXTO = ("descripcion", "marca", "categoria", "rubro", "leyenda")
+# nivel_evidencia entra aca y no como columna aparte: son tres valores
+# repetidos en las 92 mil promos, y el diccionario "unicos" de armar_indice los
+# deja en tres strings internados. Cuesta una referencia por fila.
+CAMPOS_TEXTO = ("descripcion", "marca", "categoria", "rubro", "leyenda", "nivel_evidencia")
 CAMPOS_NUMERO = ("precio_lista", "precio_promo", "descuento_pct")
 
 
@@ -95,6 +98,7 @@ def _fila(indice: IndiceMapa, pos: int, suc: int) -> dict:
         "precio_promo": indice.precio_promo[pos],
         "descuento_pct": indice.descuento_pct[pos],
         "leyenda": indice.leyenda[pos],
+        "nivel_evidencia": indice.nivel_evidencia[pos],
     }
 
 

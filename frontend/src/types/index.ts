@@ -10,6 +10,8 @@ export type Promo = {
   descuento_pct: number;
   leyenda: string;
   sucursales_con_esta_promo: number;
+  /** Con que evidencia se sostiene el descuento. Ver mart_promos_evidencia. */
+  nivel_evidencia: "leyenda" | "mercado" | "sin_verificar";
   /** En cuantas provincias rige esta promo AL MISMO PRECIO. La API agrupa por
    *  precio, asi que si en otra provincia cuesta distinto es otra fila. */
   provincias: number;

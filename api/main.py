@@ -246,6 +246,9 @@ def obtener_promos(
             descripcion, marca, categoria, rubro, cadena,
             precio_lista, precio_promo, descuento_pct,
             ANY_VALUE(leyenda) AS leyenda,
+            -- Es el mismo para todo el grupo: el nivel se decide por producto y
+            -- precio, que son justamente las claves del GROUP BY.
+            ANY_VALUE(nivel_evidencia) AS nivel_evidencia,
             -- Representa al grupo la provincia donde mas sucursales la tienen.
             ARRAY_AGG(provincia ORDER BY sucursales_con_esta_promo DESC LIMIT 1)[OFFSET(0)] AS provincia,
             COUNT(DISTINCT provincia) AS provincias,
