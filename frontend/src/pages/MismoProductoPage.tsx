@@ -110,7 +110,7 @@ function ListaDePrecios({ p }: { p: ProductoDetalle }) {
           key={x.cadena}
           className={`flex items-baseline gap-4 px-4 py-2.5 ${x.precio_creible ? "" : "bg-papel-hundido"}`}
         >
-          <span className="text-sm text-tinta flex-1 min-w-0 truncate">
+          <span className="text-base text-tinta flex-1 min-w-0 truncate">
             {x.cadena}
             {/* Se dice por que esta atenuado. Un renglon en gris sin explicacion
                 parece un error del sitio; con el motivo, es informacion. */}

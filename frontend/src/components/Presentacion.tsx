@@ -326,7 +326,7 @@ function Presentacion() {
                 className="group flex items-center gap-4 sm:gap-6 py-3.5 hover:bg-papel-hundido transition-colors"
               >
                 <span className="font-display text-xl text-tinta w-36 sm:w-44 shrink-0">{s.titulo}</span>
-                <span className="text-xs sm:text-sm text-tinta-media leading-snug flex-1 min-w-0">{s.pregunta}</span>
+                <span className="text-sm text-tinta-media leading-snug flex-1 min-w-0">{s.pregunta}</span>
                 {/* Ancho fijo aunque la fila no tenga grafico. Si la ranura se encoge
                     cuando falta, los graficos que si estan arrancan en una x distinta
                     en cada fila y la columna se lee rota. Tu canasta es la unica sin

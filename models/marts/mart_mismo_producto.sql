@@ -49,7 +49,9 @@ WITH precios AS (
         precio_mediano,
         precio_minimo,
         precio_maximo,
-        sucursales
+        sucursales,
+        cantidad_normalizada,
+        unidad_normalizada
     FROM {{ ref("int_precio_producto_cadena") }}
     WHERE fecha_datos = DATE('{{ fecha }}')
 ),
@@ -125,6 +127,13 @@ SELECT
     ev.precio_minimo,
     ev.precio_maximo,
     ev.sucursales,
+    -- El tamaño del envase, para que la pagina pueda decir "1 kg" aunque la
+    -- descripcion que manda SEPA venga cortada. Pasa seguido: "PLAYADITO YERBA
+    -- CON" es la descripcion completa de un paquete de 1 kg, y "AMAND" es
+    -- Amanda. Sale del producto y no de la cadena, asi que se toma de la
+    -- primera fila del grupo.
+    ev.cantidad_normalizada,
+    ev.unidad_normalizada,
     ev.precio_creible,
     ev.precio_referencia,
     pp.cadenas,

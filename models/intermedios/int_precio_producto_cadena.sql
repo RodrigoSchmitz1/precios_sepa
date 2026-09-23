@@ -43,7 +43,21 @@ SELECT
     APPROX_QUANTILES(p.precio, 2)[OFFSET(1)] AS precio_mediano,
     MIN(p.precio) AS precio_minimo,
     MAX(p.precio) AS precio_maximo,
-    COUNT(DISTINCT p.id_sucursal) AS sucursales
+    COUNT(DISTINCT p.id_sucursal) AS sucursales,
+    -- El tamaño del envase viaja desde aca porque este modelo YA escanea
+    -- stg_productos: sumar dos columnas al agregado no cuesta un escaneo nuevo,
+    -- y sacarlas despues obligaria a volver a leer la tabla grande.
+    --
+    -- Se toma la mediana y no un valor cualquiera: un mismo codigo de barras
+    -- puede traer la cantidad mal cargada en alguna sucursal, igual que el
+    -- precio, y la mediana lo aguanta. La unidad va con MIN, que es
+    -- determinista; para un codigo de barras dado no deberia variar.
+    -- SAFE_OFFSET y no OFFSET: cantidad_normalizada es NULL cuando la unidad
+    -- no se reconoce, y APPROX_QUANTILES ignora los NULL. Si TODAS las filas de
+    -- un producto x cadena la tienen nula, devuelve un array vacio y OFFSET(1)
+    -- cortaria la corrida entera por un producto sin gramaje.
+    APPROX_QUANTILES(p.cantidad_normalizada, 2)[SAFE_OFFSET(1)] AS cantidad_normalizada,
+    MIN(p.unidad_normalizada) AS unidad_normalizada
 FROM {{ ref("stg_productos") }} AS p
 JOIN {{ ref("stg_comercio") }} AS c
     ON p.id_comercio = c.id_comercio

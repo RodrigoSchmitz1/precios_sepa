@@ -50,17 +50,19 @@ export function Resaltado({ children, tono = "caro" }: { children: ReactNode; to
 function Titular({ antetitulo, children, bajada }: Props) {
   return (
     /* A sangre y no una tarjeta: ver el comentario de arriba. */
-    <header className="mb-10 bg-tinta mx-[calc(50%-50vw)] px-5 py-10 sm:py-16">
+    <header className="mb-10 bg-tinta mx-[calc(50%-50vw)] px-5 py-8 sm:py-12">
       <div className="max-w-4xl mx-auto">
       <p className="text-xs font-semibold uppercase tracking-[0.12em] text-sobre-oscuro-barato mb-4">
         {antetitulo}
       </p>
       {/*
-        Mas grande que antes (hasta 7xl contra 6xl) y con el interlineado mas
-        cerrado: sobre un campo oscuro el texto aguanta mas cuerpo sin gritar,
-        porque el fondo ya hace el trabajo de separar la pieza del resto.
+        6xl y no 7xl (2026-09-23). Con el titular al maximo, la distancia
+        contra el resto de la pagina era tanta que lo de abajo parecia chico
+        aunque no lo fuera. La banda oscura ya separa la pieza del resto; el
+        cuerpo no tiene que hacer ademas ese trabajo. La diferencia se cierra
+        por los dos lados: el titular baja un escalon y las listas suben uno.
       */}
-      <h1 className="font-display text-4xl sm:text-6xl lg:text-7xl leading-[0.98] text-papel max-w-3xl text-balance">
+      <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl leading-[1.02] text-papel max-w-3xl text-balance">
         {children}
       </h1>
       {bajada && (
