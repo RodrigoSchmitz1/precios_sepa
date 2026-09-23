@@ -35,32 +35,31 @@ clean-targets:         # directories to be removed by `dbt clean`
 # insert_overwrite + particion sin expiracion) en cada archivo, para que la
 # regla de "nunca --full-refresh" quede visible junto al SQL.
 
-# Techo de descuento para las promos.
+# Validacion de promos por evidencia (2026-09-10; umbrales fijos desde el 09-11).
 #
-# SEPA no usa productos_precio_unitario_promo1 de forma consistente. Para
-# alimentos se comporta como precio promocional, pero Carrefour lo usa en el
-# rubro No alimentario para poner el importe de la CUOTA de financiacion, no el
-# precio final. Se ve en los datos del 2026-09-07: los valores de promo son un
-# diccionario chico de numeros redondos reusados entre productos con precios de
-# lista muy distintos (1900 aparece en 32 productos que van de $18.990 a
-# $184.990), y para el producto mas barato de cada grupo el valor es exactamente
-# lista/10, que son las clasicas 10 cuotas sin interes ($18.990 -> $1.900,
-# $6.990 -> $700, $299.000 -> $29.900).
+# Reemplaza al tope de 70% igual para todas las cadenas: el analisis esta en el
+# encabezado de mart_promos_evidencia. Umbrales medidos sobre las promos
+# verificadas por leyenda del 2026-09-09:
 #
-# Sin esto la portada mostraba colchones con "98.8% OFF" y un movil Fisher Price
-# de $184.990 a $1.900, que nadie va a encontrar en la gondola.
+# - promos_piso_cociente_mercado: percentil 0,1 de precio promo / lista mas
+#   barata del mismo producto en otra empresa, entre 805.041 verificadas: 0,519.
+# - promos_techo_descuento_sin_verificar: percentil 99,9 del descuento de 965.175
+#   verificadas: 50.
+# - promos_descuento_maximo_mercado: la verificada mas agresiva: 70.
 #
-# La leyenda no permite distinguirlos: es generica ("Promo A valida desde el
-# ... hasta ..."). Tampoco se puede reconstruir el precio real, porque las
-# columnas de referencia del crudo (precio_referencia, cantidad_referencia,
-# unidad_medida_referencia) se descartaron al cargar el 2026-09-06.
+# Son FIJOS porque esas colas no son estables. El 2026-09-10 Dia paso de 224 a
+# 4.069 verificadas por encima de 50%: el P99,9 salto a 74,3 y el P0,1 bajo a
+# 0,339, y recalculados ese dia dejaban a Carrefour con 17.283 filas de 50% o mas,
+# mas que el tope viejo. Con estos valores fijos fueron 1.812 el 09-09 y 1.799 el
+# 09-10. mart_promos_calibracion sigue midiendo las colas para vigilarlas.
 #
-# 70 sale de mirar la distribucion: por encima de ese valor el 96% de las filas
-# son Carrefour + No alimentario con esa huella. Cuesta ~2.500 filas sobre
-# 102.000 (2,5%), incluidas algunas rebajas reales que puedan existir. Se
-# prioriza que lo que se muestra sea creible.
+# - promos_muestra_minima: por debajo de esta cantidad de promos verificadas en
+#   un dia, calibracion_de_promos_con_muestra_suficiente avisa.
 vars:
-  descuento_maximo_plausible: 70
+  promos_piso_cociente_mercado: 0.519
+  promos_techo_descuento_sin_verificar: 50
+  promos_descuento_maximo_mercado: 70
+  promos_muestra_minima: 10000
 
   # El mismo producto: cuando el precio de una cadena se aparta tanto de la
   # mediana ENTRE EMPRESAS, deja de ser una diferencia de precio y pasa a ser un
