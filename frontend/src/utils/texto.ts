@@ -28,10 +28,28 @@ export function nombreLegible(descripcion: string, marca: string | null): string
       .split(/\s+/)
       .filter((p) => p.length > 1)
   );
-  const texto = descripcion
-    .toLowerCase()
-    .split(" ")
-    .map((palabra) => (deLaMarca.has(palabra) ? capitalizar(palabra) : palabra))
-    .join(" ");
-  return capitalizar(texto);
+  const palabras = descripcion.toLowerCase().split(" ");
+  const texto = palabras.map((palabra) => (deLaMarca.has(palabra) ? capitalizar(palabra) : palabra)).join(" ");
+
+  /*
+    Si la marca NO esta en la descripcion, se agrega al final (2026-09-23).
+
+    Antes la marca solo servia para recapitalizar palabras que ya estaban, y si
+    no aparecia se perdia. Es el caso de casi todo Dia: manda "REPELENT NARANJ
+    AERO" con la marca "BONTE" en otro campo, "PAN ARABE CLASICO" con "DELIP".
+    Medido sobre las promos de una zona de CABA: las 40 de Dia tenian marca y en
+    ninguna estaba en la descripcion. Sin ella, "vino tinto" o "cerveza rubia"
+    no dicen nada, porque el precio depende justamente de la marca.
+
+    Se agrega solo si NINGUNA palabra significativa de la marca esta ya en la
+    descripcion, para no duplicar "La Serenisima" cuando dice "SERENISIMA".
+  */
+  const significativas = [...deLaMarca].filter((p) => p.length > 2);
+  const yaLaDice = significativas.some((p) => palabras.includes(p));
+  const esMarcaDeVerdad = significativas.length > 0 && !NO_SON_MARCAS.has((marca ?? "").trim().toLowerCase());
+  const conMarca = !yaLaDice && esMarcaDeVerdad ? `${texto} · ${marca!.trim().toLowerCase().split(/\s+/).map(capitalizar).join(" ")}` : texto;
+  return capitalizar(conMarca);
 }
+
+/** Lo que algunas cadenas cargan en el campo de marca cuando no hay marca. */
+const NO_SON_MARCAS = new Set(["sin marca", "s/m", "generico", "generica", "varios", "varias", "otros", "otras"]);

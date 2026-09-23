@@ -40,7 +40,7 @@ function nombreConTamano(p: ProductoComparado): string {
   return tamano ? `${legible} (${tamano})` : legible;
 }
 
-const EJEMPLOS = ["coca cola 2.25", "yerba playadito"];
+const EJEMPLOS = ["coca cola 2.25", "taragui 1kg"];
 
 const SUCURSALES_MINIMAS = 3;
 // Igual que EMPRESAS_MINIMAS_DESTACADO en api/mismo_producto.py.
