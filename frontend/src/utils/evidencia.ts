@@ -40,10 +40,11 @@ export const EVIDENCIA = {
   },
   sin_verificar: {
     color: "text-aviso",
-    texto: "nadie lo confirma",
+    // "nadie lo confirma" sonaba a sospecha, y es solo que no hay con que
+    // comparar. Ademas queda en paralelo con "verificado con otras cadenas".
+    texto: "sin verificar con otras cadenas",
     clase: "bg-aviso-tenue text-aviso border-aviso/25",
-    // El 50 es promos_techo_descuento_sin_verificar de dbt_project.yml.
-    ayuda: "Ninguna otra cadena vende ese producto para comparar. Solo se muestra si el descuento es de hasta 50%.",
+    ayuda: "Ninguna otra cadena vende ese mismo producto, asi que no hay con que compararlo.",
   },
 } as const;
 

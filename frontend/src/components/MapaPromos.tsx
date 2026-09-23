@@ -1,6 +1,6 @@
 import { MapContainer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
-import { useEffect, useRef } from "react";
+import { memo, useEffect, useMemo, useRef } from "react";
 import "leaflet/dist/leaflet.css";
 import "../utils/leaflet";
 import MapaBase from "./MapaBase";
@@ -19,7 +19,7 @@ export type BoundingBox = {
   lngMax: number;
 };
 
-type GrupoSucursal = SucursalMapa & { promos: PromoMapa[] };
+type GrupoSucursal = SucursalMapa & { id: number; promos: PromoMapa[] };
 
 /*
   Un marcador por sucursal, con las promos que rigen en ella.
@@ -40,10 +40,53 @@ function agruparPorSucursal(promos: PromoMapa[], sucursales: Record<string, Sucu
         continue;
       }
       const sucursal = sucursales[String(id)];
-      if (sucursal) grupos.set(id, { ...sucursal, promos: [promo] });
+      if (sucursal) grupos.set(id, { ...sucursal, id, promos: [promo] });
     }
   }
   return Array.from(grupos.values());
+}
+
+/*
+  Mismo lenguaje que las filas del listado: el precio de promo en
+  serif a la derecha, la lista tachada y el descuento en verde, y el
+  respaldo de cada promo. Antes decia "de $5190 a $309 (70% off)":
+  sin separador de miles, a diferencia del resto del sitio, y en
+  ingles.
+*/
+function ContenidoPopup({ grupo }: { grupo: GrupoSucursal }) {
+  return (
+    <div>
+      <p className="font-display text-lg leading-tight text-tinta">{grupo.cadena}</p>
+      <p className="text-xs text-tinta-suave mt-0.5">
+        {[grupo.calle, grupo.numero].filter(Boolean).join(" ") || grupo.nombre_sucursal}
+        {grupo.localidad && ` · ${grupo.localidad}`}, {nombreProvincia(grupo.provincia)}
+      </p>
+      <p className="text-[11px] font-semibold uppercase tracking-wider text-tinta-suave mt-3 mb-1">
+        {grupo.promos.length} {grupo.promos.length === 1 ? "promo vigente" : "promos vigentes"}
+      </p>
+      <ul className="max-h-56 overflow-y-auto divide-y divide-linea -mx-1 px-1">
+        {grupo.promos.map((promo, j) => (
+          <li key={j} className="py-2 flex items-baseline gap-3">
+            <div className="min-w-0 flex-1">
+              <p className="text-sm text-tinta leading-snug">{nombreLegible(promo.descripcion, promo.marca)}</p>
+              {promo.nivel_evidencia && (
+                <p className={`text-[11px] mt-0.5 ${EVIDENCIA[promo.nivel_evidencia].color}`}>
+                  {EVIDENCIA[promo.nivel_evidencia].texto}
+                </p>
+              )}
+            </div>
+            <div className="text-right shrink-0">
+              <p className="font-display text-base text-tinta leading-none">{formatearPesos(promo.precio_promo)}</p>
+              <p className="numero text-[11px] text-tinta-suave mt-1">
+                <span className="line-through">{formatearPesos(promo.precio_lista)}</span>{" "}
+                <span className="text-ahorro font-medium">−{promo.descuento_pct}%</span>
+              </p>
+            </div>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
 }
 
 type DetectorMovimientoProps = {
@@ -109,7 +152,7 @@ type Props = {
 
 function MapaPromos({ promos, sucursales, onMoverMapa, destino }: Props) {
   const centroDefault: [number, number] = [-34.6, -58.4];
-  const grupos = agruparPorSucursal(promos, sucursales);
+  const grupos = useMemo(() => agruparPorSucursal(promos, sucursales), [promos, sucursales]);
 
   return (
     <MapContainer
@@ -122,47 +165,18 @@ function MapaPromos({ promos, sucursales, onMoverMapa, destino }: Props) {
       <Volar destino={destino} />
       <MapaBase />
       <MarkerClusterGroup chunkedLoading>
-        {grupos.map((grupo, i) => (
-          <Marker key={i} position={[grupo.latitud, grupo.longitud]}>
+        {grupos.map((grupo) => (
+          <Marker key={grupo.id} position={[grupo.latitud, grupo.longitud]}>
             {/*
-              Mismo lenguaje que las filas del listado: el precio de promo en
-              serif a la derecha, la lista tachada y el descuento en verde, y el
-              respaldo de cada promo. Antes decia "de $5190 a $309 (70% off)":
-              sin separador de miles, a diferencia del resto del sitio, y en
-              ingles.
+              El contenido va en su propio componente para que se arme recien
+              al abrir el popup: react-leaflet solo monta los hijos del Popup
+              abierto. Escrito en linea, React creaba igual los elementos de
+              TODAS las promos de TODAS las sucursales en cada render, aunque
+              nadie los viera: con 5000 promos en el Gran Buenos Aires eran
+              cientos de miles, y cada movida del mapa congelaba la pagina 2 s.
             */}
             <Popup maxWidth={320} minWidth={260}>
-              <div>
-                <p className="font-display text-lg leading-tight text-tinta">{grupo.cadena}</p>
-                <p className="text-xs text-tinta-suave mt-0.5">
-                  {[grupo.calle, grupo.numero].filter(Boolean).join(" ") || grupo.nombre_sucursal}
-                  {grupo.localidad && ` · ${grupo.localidad}`}, {nombreProvincia(grupo.provincia)}
-                </p>
-                <p className="text-[11px] font-semibold uppercase tracking-wider text-tinta-suave mt-3 mb-1">
-                  {grupo.promos.length} {grupo.promos.length === 1 ? "promo vigente" : "promos vigentes"}
-                </p>
-                <ul className="max-h-56 overflow-y-auto divide-y divide-linea -mx-1 px-1">
-                  {grupo.promos.map((promo, j) => (
-                    <li key={j} className="py-2 flex items-baseline gap-3">
-                      <div className="min-w-0 flex-1">
-                        <p className="text-sm text-tinta leading-snug">{nombreLegible(promo.descripcion, promo.marca)}</p>
-                        {promo.nivel_evidencia && (
-                          <p className={`text-[11px] mt-0.5 ${EVIDENCIA[promo.nivel_evidencia].color}`}>
-                            {EVIDENCIA[promo.nivel_evidencia].texto}
-                          </p>
-                        )}
-                      </div>
-                      <div className="text-right shrink-0">
-                        <p className="font-display text-base text-tinta leading-none">{formatearPesos(promo.precio_promo)}</p>
-                        <p className="numero text-[11px] text-tinta-suave mt-1">
-                          <span className="line-through">{formatearPesos(promo.precio_lista)}</span>{" "}
-                          <span className="text-ahorro font-medium">−{promo.descuento_pct}%</span>
-                        </p>
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              </div>
+              <ContenidoPopup grupo={grupo} />
             </Popup>
           </Marker>
         ))}
@@ -171,4 +185,10 @@ function MapaPromos({ promos, sucursales, onMoverMapa, destino }: Props) {
   );
 }
 
-export default MapaPromos;
+/*
+  memo: la pagina se vuelve a renderizar por cosas que no tocan el mapa (elegir
+  un rubro, "ver mas", cada letra del buscador antes de que salga el pedido), y
+  cada render del mapa recorre sus mil y pico de marcadores. Con memo solo se
+  redibuja cuando cambian las promos, la tabla de sucursales o el destino.
+*/
+export default memo(MapaPromos);

@@ -18,10 +18,11 @@ const TANDA = 60;
   Cuantas promos pide cada movida del mapa. Con 2000 (hasta el 2026-09-23) el
   corte dejaba solo los descuentos mas grandes, y esos son casi todos de
   Carrefour: en el Gran Buenos Aires se veian 92 promos de Dia de 493, 3 de La
-  Anonima de 89 y 447 de Almacen de 1728, y solo en Palermo hay 5829. Con la
-  respuesta comprimida, 6000 son unos 470 KB. Es el tope de la API.
+  Anonima de 89 y 447 de Almacen de 1728, y solo en Palermo hay 5829. Se probo
+  con 6000, el tope de la API, y el mapa se sentia lento al moverlo; 5000 cubre
+  casi todo Palermo con 400 KB comprimidos.
 */
-const PROMOS_POR_ZONA = 6000;
+const PROMOS_POR_ZONA = 5000;
 
 function PromosPage() {
   const [promos, setPromos] = useState<PromoMapa[]>([]);
