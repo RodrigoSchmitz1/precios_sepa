@@ -5,7 +5,7 @@ import PromoCard from "../components/PromoCard";
 import Presentacion from "../components/Presentacion";
 import Filtros from "../components/Filtros";
 import FilaDeCifras from "../components/FilaDeCifras";
-import FiltroCategorias from "../components/FiltroCategorias";
+import FiltroCategorias, { type Seleccion } from "../components/FiltroCategorias";
 import { obtenerPromosMapa } from "../api/client";
 import type { PromoMapa } from "../types";
 import { formatearNumero } from "../utils/formato";
@@ -20,7 +20,7 @@ function PromosPage() {
 
   const [busqueda, setBusqueda] = useState("");
   const [provincia, setProvincia] = useState("");
-  const [categoria, setCategoria] = useState<string | null>(null);
+  const [filtro, setFiltro] = useState<Seleccion>(null);
   const [bbox, setBbox] = useState<BoundingBox | null>(null);
 
   useEffect(() => {
@@ -58,12 +58,14 @@ function PromosPage() {
     };
   }, [busqueda, provincia, bbox]);
 
-  // El filtro por categoria es local: la respuesta ya trae la categoria de cada
-  // promo, asi que no hace falta volver a consultar ni gastar una query mas.
-  const promosVisibles = useMemo(
-    () => (categoria ? promos.filter((p) => p.categoria === categoria) : promos),
-    [promos, categoria]
-  );
+  // El filtro es local: la respuesta ya trae rubro y categoria de cada promo,
+  // asi que no hace falta volver a consultar ni gastar una query mas.
+  const promosVisibles = useMemo(() => {
+    if (!filtro) return promos;
+    return filtro.tipo === "rubro"
+      ? promos.filter((p) => (p.rubro ?? "Otros") === filtro.valor)
+      : promos.filter((p) => p.categoria === filtro.valor);
+  }, [promos, filtro]);
 
   /*
     Se renderiza de a tandas. La consulta trae hasta 2000 promos y pintarlas
@@ -76,9 +78,9 @@ function PromosPage() {
     react-hooks/set-state-in-effect.
   */
   const [mostradas, setMostradas] = useState(TANDA);
-  const [entradaPrevia, setEntradaPrevia] = useState({ categoria, promos });
-  if (entradaPrevia.categoria !== categoria || entradaPrevia.promos !== promos) {
-    setEntradaPrevia({ categoria, promos });
+  const [entradaPrevia, setEntradaPrevia] = useState({ filtro, promos });
+  if (entradaPrevia.filtro !== filtro || entradaPrevia.promos !== promos) {
+    setEntradaPrevia({ filtro, promos });
     setMostradas(TANDA);
   }
 
@@ -154,13 +156,13 @@ function PromosPage() {
       */}
       <div className="grid lg:grid-cols-[13rem_minmax(0,1fr)] gap-x-8 gap-y-6">
         <aside className="lg:sticky lg:top-24 lg:self-start">
-          <FiltroCategorias promos={promos} elegida={categoria} onElegir={setCategoria} />
+          <FiltroCategorias promos={promos} elegido={filtro} onElegir={setFiltro} />
         </aside>
 
         <div>
           <div className="flex items-baseline justify-between gap-3 mb-3">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave">
-              {categoria ?? "Todas las promos"}
+              {filtro?.valor ?? "Todas las promos"}
             </h2>
             {!cargando && !error && (
               <span className="numero text-xs text-tinta-suave">
@@ -189,9 +191,25 @@ function PromosPage() {
             <p className="text-sm text-tinta-suave">
               {promos.length === 0
                 ? "No se encontraron promos en esta zona."
-                : `No hay promos de ${categoria} en esta zona.`}
+                : `No hay promos de ${filtro?.valor} en esta zona.`}
             </p>
           )}
+
+          {/*
+            Una linea explica de donde sale el respaldo de cada promo. La
+            etiqueta sola no alcanzaba: decir "verificado" invita a preguntar
+            verificado por quien, y esa respuesta es justamente lo que separa a
+            este listado de copiar los carteles de la gondola.
+          */}
+          <p className="text-xs text-tinta-media bg-papel-hundido rounded-lg px-3 py-2 mb-4 leading-relaxed">
+            Cada promo dice con que se sostiene su descuento:{" "}
+            <strong className="text-ahorro font-medium">lo declara la cadena</strong> (informa el porcentaje y
+            coincide con sus precios),{" "}
+            <strong className="text-dato-azul font-medium">verificado con otras cadenas</strong> (el precio de
+            promo se sostiene frente al mismo producto en otras empresas) o{" "}
+            <strong className="text-aviso font-medium">nadie lo confirma</strong> (solo se sabe que el descuento
+            no es inverosimil). Las que no pasan ninguno de los tres no se muestran.
+          </p>
 
           {/* Filas separadas por linea fina, como los demas listados del sitio. */}
           <div className="border-t border-linea divide-y divide-linea">

@@ -52,19 +52,21 @@ type PromoMostrable = {
 */
 const EVIDENCIA = {
   leyenda: {
-    // El texto dice QUE esta declarado. "Declarada" a secas no se entendia:
-    // no quedaba claro si hablaba del precio, de la promo o de la sucursal.
-    texto: "descuento declarado",
+    // El texto dice QUE esta declarado y POR QUIEN. "Declarada" a secas no se
+    // entendia -si hablaba del precio, de la promo o de la sucursal- y
+    // "verificado" sin decir contra que tampoco: la pregunta obvia es
+    // verificado por quien.
+    texto: "lo declara la cadena",
     clase: "bg-ahorro-tenue text-ahorro border-ahorro-borde",
     ayuda: "La cadena informa el porcentaje de descuento y coincide con la diferencia entre sus propios precios.",
   },
   mercado: {
-    texto: "precio verificado",
+    texto: "verificado con otras cadenas",
     clase: "bg-dato-azul-tenue text-dato-azul border-dato-azul/25",
     ayuda: "El precio de promo se sostiene frente al del mismo producto en otras empresas, no solo frente a la lista propia.",
   },
   sin_verificar: {
-    texto: "descuento sin verificar",
+    texto: "nadie lo confirma",
     clase: "bg-aviso-tenue text-aviso border-aviso/25",
     ayuda: "Solo se sabe que el descuento es chico como para no ser inverosimil. La cadena no lo declara y el mercado no lo respalda.",
   },
