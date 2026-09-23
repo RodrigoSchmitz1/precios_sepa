@@ -2,7 +2,12 @@
 
 import heapq
 from array import array
-from itertools import islice, repeat
+from itertools import groupby, islice, repeat
+
+# Cuantas sucursales se mandan por promo para que la pagina las despliegue. El
+# total va aparte: con 400 sucursales no tiene sentido mandarlas todas a un
+# panel que se abre con un click, y el numero es lo que responde "esta en todas".
+MAX_SUCURSALES = 40
 
 CAMPOS_SUCURSAL = (
     "cadena",
@@ -86,19 +91,33 @@ def armar_indice(sucursales, promos) -> IndiceMapa:
     return indice
 
 
-def _fila(indice: IndiceMapa, pos: int, suc: int) -> dict:
-    s = indice.sucursales[suc]
+def _fila(indice: IndiceMapa, pos: int, sucs: list[int]) -> dict:
+    """Una promo con TODAS las sucursales de la zona donde vale.
+
+    Antes era una fila por promo x sucursal y el listado repetia la misma promo
+    una vez por local: el repelente de Dia ocupaba pantallas enteras porque esta
+    en cientos de sucursales. La promo es una sola; donde encontrarla es un
+    detalle que se pide cuando se quiere.
+
+    Los campos de la primera sucursal se siguen mandando sueltos para que la
+    fila pueda mostrar una direccion sin abrir nada. Se elige la primera de la
+    zona, no una cualquiera: la lista viene ordenada por sucursal, asi que es
+    estable entre pedidos iguales.
+    """
+    primera = indice.sucursales[sucs[0]]
     return {
         "descripcion": indice.descripcion[pos],
         "marca": indice.marca[pos],
         "categoria": indice.categoria[pos],
         "rubro": indice.rubro[pos],
-        **s,
+        **primera,
         "precio_lista": indice.precio_lista[pos],
         "precio_promo": indice.precio_promo[pos],
         "descuento_pct": indice.descuento_pct[pos],
         "leyenda": indice.leyenda[pos],
         "nivel_evidencia": indice.nivel_evidencia[pos],
+        "sucursales": [indice.sucursales[s] for s in sucs[:MAX_SUCURSALES]],
+        "total_sucursales": len(sucs),
     }
 
 
@@ -112,7 +131,7 @@ def buscar(
     lng_max: float | None = None,
     limite: int = 500,
 ) -> tuple[list[dict], bool]:
-    """Una fila por promo x sucursal, de mayor a menor descuento, y si quedaron mas afuera.
+    """Una fila por PROMO, de mayor a menor descuento, y si quedaron mas afuera.
 
     Mismos filtros que la consulta que reemplaza: el recuadro se aplica solo con
     los dos limites de cada eje, y la busqueda es por texto en la descripcion.
@@ -140,5 +159,9 @@ def buscar(
     else:
         pares = heapq.merge(*(zip(indice.por_sucursal[suc], repeat(suc)) for suc in en_zona))
 
-    seleccion = list(islice(pares, limite + 1))
-    return [_fila(indice, pos, suc) for pos, suc in seleccion[:limite]], len(seleccion) > limite
+    # heapq.merge entrega los pares ordenados por posicion, asi que los de una
+    # misma promo llegan seguidos y alcanza con agrupar consecutivos: no hace
+    # falta juntar todo en memoria para saber cuantas sucursales tiene cada una.
+    grupos = groupby(pares, key=lambda par: par[0])
+    seleccion = [(pos, [suc for _, suc in grupo]) for pos, grupo in islice(grupos, limite + 1)]
+    return [_fila(indice, pos, sucs) for pos, sucs in seleccion[:limite]], len(seleccion) > limite

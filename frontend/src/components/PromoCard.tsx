@@ -1,5 +1,6 @@
+import { useState } from "react";
 import { nombreProvincia } from "../utils/provincias";
-import { formatearPesos } from "../utils/formato";
+import { formatearNumero, formatearPesos } from "../utils/formato";
 import { nombreLegible } from "../utils/texto";
 
 /*
@@ -30,6 +31,9 @@ type PromoMostrable = {
   nombre_sucursal?: string;
   calle?: string;
   numero?: string;
+  /** Las sucursales de la zona donde rige, solo en el listado del mapa. */
+  sucursales?: { nombre_sucursal: string; calle: string; numero: string; localidad: string }[];
+  total_sucursales?: number;
   /** Solo en el listado agrupado (/promos), no en el del mapa. */
   provincias?: number;
   nivel_evidencia?: "leyenda" | "mercado" | "sin_verificar";
@@ -48,17 +52,19 @@ type PromoMostrable = {
 */
 const EVIDENCIA = {
   leyenda: {
-    texto: "declarada",
+    // El texto dice QUE esta declarado. "Declarada" a secas no se entendia:
+    // no quedaba claro si hablaba del precio, de la promo o de la sucursal.
+    texto: "descuento declarado",
     clase: "bg-ahorro-tenue text-ahorro border-ahorro-borde",
     ayuda: "La cadena informa el porcentaje de descuento y coincide con la diferencia entre sus propios precios.",
   },
   mercado: {
-    texto: "respaldada",
+    texto: "precio verificado",
     clase: "bg-dato-azul-tenue text-dato-azul border-dato-azul/25",
     ayuda: "El precio de promo se sostiene frente al del mismo producto en otras empresas, no solo frente a la lista propia.",
   },
   sin_verificar: {
-    texto: "sin verificar",
+    texto: "descuento sin verificar",
     clase: "bg-aviso-tenue text-aviso border-aviso/25",
     ayuda: "Solo se sabe que el descuento es chico como para no ser inverosimil. La cadena no lo declara y el mercado no lo respalda.",
   },
@@ -71,6 +77,8 @@ function direccionDe(promo: PromoMostrable): string | null {
 }
 
 function PromoCard({ promo }: { promo: PromoMostrable }) {
+  const [abierta, setAbierta] = useState(false);
+  const total = promo.total_sucursales ?? 1;
   const direccion = direccionDe(promo);
   const ahorro = promo.precio_lista - promo.precio_promo;
   /*
@@ -80,11 +88,21 @@ function PromoCard({ promo }: { promo: PromoMostrable }) {
     una promo local.
   */
   const otras = (promo.provincias ?? 1) - 1;
-  const zona = direccion ?? nombreProvincia(promo.provincia) + (otras > 0 ? ` y ${otras} provincia${otras > 1 ? "s" : ""} mas` : "");
+  /*
+    Con la promo en varias sucursales se dice en cuantas y no la direccion de
+    una: la promo es la misma en todas, y repetir la fila por local llenaba
+    pantallas enteras con el mismo producto. Donde encontrarla se despliega si
+    lo piden.
+  */
+  const zona =
+    total > 1
+      ? `en ${formatearNumero(total)} sucursales`
+      : direccion ?? nombreProvincia(promo.provincia) + (otras > 0 ? ` y ${otras} provincia${otras > 1 ? "s" : ""} mas` : "");
   const donde = [promo.cadena, promo.categoria, zona].filter(Boolean).join(" · ");
 
   return (
-    <article className="flex items-baseline gap-4 py-4">
+    <article className="py-4">
+      <div className="flex items-baseline gap-4">
       <div className="min-w-0 flex-1">
         {/*
           Un escalon mas de cuerpo en las tres lineas (2026-09-23). El nombre del
@@ -121,6 +139,40 @@ function PromoCard({ promo }: { promo: PromoMostrable }) {
           <span className="text-ahorro font-medium">−{promo.descuento_pct}%</span>
         </p>
       </div>
+      </div>
+
+      {/*
+        Las sucursales van detras de un click y cerradas por defecto. Es la
+        respuesta a "esta cerca de mi casa", que no todo el mundo se hace, y
+        abierta por defecto convertia el listado en lo que era antes: la misma
+        promo repetida una vez por local.
+      */}
+      {total > 1 && promo.sucursales && (
+        <div className="mt-2">
+          <button
+            onClick={() => setAbierta(!abierta)}
+            aria-expanded={abierta}
+            className="text-xs text-tinta-media hover:text-ahorro transition-colors"
+          >
+            {abierta ? "Ocultar sucursales" : "Ver donde esta"}
+          </button>
+          {abierta && (
+            <ul className="mt-2 pl-3 border-l border-linea-fuerte space-y-1">
+              {promo.sucursales.map((s, i) => (
+                <li key={`${s.nombre_sucursal}-${i}`} className="text-xs text-tinta-suave">
+                  {[s.calle, s.numero].filter(Boolean).join(" ") || s.nombre_sucursal}
+                  {s.localidad && <span className="text-tinta-media"> · {s.localidad}</span>}
+                </li>
+              ))}
+              {total > promo.sucursales.length && (
+                <li className="text-xs text-tinta-suave italic">
+                  y {formatearNumero(total - promo.sucursales.length)} sucursales mas
+                </li>
+              )}
+            </ul>
+          )}
+        </div>
+      )}
     </article>
   );
 }
