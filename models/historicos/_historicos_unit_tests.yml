@@ -1,0 +1,52 @@
+version: 2
+
+# Tests unitarios del historico del indice. Corren en BigQuery con filas de
+# prueba, asi que cuestan unos pocos MB y no dependen de los datos del dia.
+#
+# Cubren el bug del 2026-09-23: la fecha "anterior" que el mart agrega como base
+# sale con factor nulo, y el historico la copiaba y pisaba el factor bueno que
+# esa fecha ya tenia. Con los datos reales no se podia demostrar el arreglo,
+# porque el eslabon que habria que proteger ya estaba destruido.
+
+unit_tests:
+  - name: historico_indice_no_pisa_un_eslabon_con_nulos
+    description: >
+      El 21 ya tiene su factor en el historico. El lote trae el 21 solo como base
+      (todo nulo) y el 22 con su factor. Solo el 22 tiene que escribirse: si el
+      21 apareciera en la salida, insert_overwrite reemplazaria su particion y
+      el eslabon del 20 al 21 se perderia.
+    model: historico_precios_cadena_categoria
+    overrides:
+      macros:
+        is_incremental: true
+    given:
+      - input: ref('mart_precios_cadena_categoria')
+        rows:
+          - {categoria: Aceites, cadena: Coto, unidad_normalizada: cc, precio_mediano_unidad: 4.0, muestras: 30, fecha_base: null, factor_vs_base: null, muestras_pareadas: null, fecha_datos: "2026-09-21"}
+          - {categoria: Aceites, cadena: Coto, unidad_normalizada: cc, precio_mediano_unidad: 4.1, muestras: 30, fecha_base: "2026-09-21", factor_vs_base: 1.01, muestras_pareadas: 25, fecha_datos: "2026-09-22"}
+      - input: this
+        rows:
+          - {categoria: Aceites, cadena: Coto, unidad_normalizada: cc, precio_mediano_unidad: 4.0, muestras: 30, fecha_base: "2026-09-20", factor_vs_base: 1.02, muestras_pareadas: 25, fecha_datos: "2026-09-21"}
+    expect:
+      rows:
+        - {fecha_datos: "2026-09-22", factor_vs_base: 1.01}
+
+  - name: historico_indice_escribe_el_primer_dia_despues_de_un_hueco
+    description: >
+      Una fecha que el historico todavia no tiene entra aunque venga sin factor:
+      es el primer dia despues de un hueco, que no se puede encadenar pero si
+      tiene que quedar registrado.
+    model: historico_precios_cadena_categoria
+    overrides:
+      macros:
+        is_incremental: true
+    given:
+      - input: ref('mart_precios_cadena_categoria')
+        rows:
+          - {categoria: Aceites, cadena: Coto, unidad_normalizada: cc, precio_mediano_unidad: 4.0, muestras: 30, fecha_base: null, factor_vs_base: null, muestras_pareadas: null, fecha_datos: "2026-09-18"}
+      - input: this
+        rows:
+          - {categoria: Aceites, cadena: Coto, unidad_normalizada: cc, precio_mediano_unidad: 3.9, muestras: 30, fecha_base: "2026-09-13", factor_vs_base: 1.0, muestras_pareadas: 25, fecha_datos: "2026-09-14"}
+    expect:
+      rows:
+        - {fecha_datos: "2026-09-18", factor_vs_base: null}
