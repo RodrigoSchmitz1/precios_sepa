@@ -21,6 +21,14 @@ import type { QuienGana } from "../types";
   como un ranking de izquierda a derecha.
 */
 
+/*
+  2026-09-23: la grilla se agranda. Estaba en celdas de 12px con nombres de
+  categoria en 11px y de cadena en 10px, y a ese cuerpo los nombres no se leian:
+  el mapa se veia lindo de lejos y era inutil de cerca, que en un grafico cuya
+  gracia es ubicar UNA categoria concreta es el peor resultado posible. Celdas
+  de 20px y rotulos de 14 y 13px, con la columna de categorias mas ancha para
+  que dejen de cortarse.
+*/
 const PASOS = ["bg-escala-1", "bg-escala-2", "bg-escala-3", "bg-escala-4", "bg-escala-5"];
 
 type Props = {
@@ -77,18 +85,18 @@ function MapaDelMercado({ filas, categoriaElegida, onElegir }: Props) {
         <table className="border-separate border-spacing-[2px] text-left">
           <thead>
             <tr>
-              <th scope="col" className="sticky left-0 z-10 bg-lienzo w-36 sm:w-44" />
+              <th scope="col" className="sticky left-0 z-10 bg-lienzo w-40 sm:w-52" />
               {cadenas.map((cadena) => (
                 <th
                   key={cadena}
                   scope="col"
                   title={`${cadena}: lidera en ${liderazgos.get(cadena) ?? 0} categorias`}
-                  className="w-7 p-0 align-bottom"
+                  className="w-10 p-0 align-bottom"
                 >
                   {/* Vertical y de abajo hacia arriba: 14 nombres de cadena en
                       horizontal no entran, y abreviarlos los volvia adivinanzas
                       ("Carrefour." podia ser Express o Maxi). */}
-                  <span className="[writing-mode:vertical-rl] rotate-180 whitespace-nowrap text-[10px] font-medium text-tinta-media pb-1.5">
+                  <span className="[writing-mode:vertical-rl] rotate-180 whitespace-nowrap text-[13px] font-medium text-tinta-media pb-2">
                     {cadena}
                   </span>
                 </th>
@@ -107,7 +115,7 @@ function MapaDelMercado({ filas, categoriaElegida, onElegir }: Props) {
                     <button
                       onClick={() => onElegir(categoria)}
                       className={[
-                        "block w-full text-left text-[11px] leading-none truncate transition-colors",
+                        "block w-full text-left text-[14px] leading-none truncate transition-colors",
                         elegida ? "text-tinta font-medium" : "text-tinta-media hover:text-tinta",
                       ].join(" ")}
                     >
@@ -131,7 +139,7 @@ function MapaDelMercado({ filas, categoriaElegida, onElegir }: Props) {
                               : `${categoria} · ${cadena}: menos de 20 productos comparables, no se mide`
                           }
                           className={[
-                            "block w-full h-3 rounded-[2px] transition-opacity hover:opacity-70",
+                            "block w-full h-5 rounded-[2px] transition-opacity hover:opacity-70",
                             celda ? paso(celda.pct_gana_cuando_compite) : "bg-papel-hundido",
                             elegida ? "" : "opacity-90",
                           ].join(" ")}
