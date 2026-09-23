@@ -302,8 +302,9 @@ def obtener_promos_mapa(
     limite: int = Query(500, ge=1, le=6000, description="Cantidad maxima de resultados"),
 ):
     # Sin @cachear: cada recuadro distinto quedaba guardado para siempre en _cache.
+    indice = _indice_mapa()
     promos, hay_mas = mapa_promos.buscar(
-        _indice_mapa(),
+        indice,
         busqueda=busqueda,
         provincia=provincia,
         lat_min=lat_min,
@@ -312,7 +313,9 @@ def obtener_promos_mapa(
         lng_max=lng_max,
         limite=limite,
     )
-    return {"promos": promos, "hay_mas": hay_mas}
+    # Cada promo trae los numeros de sus sucursales; los datos de cada sucursal
+    # viajan una sola vez en "sucursales". Ver mapa_promos._fila.
+    return {"promos": promos, "hay_mas": hay_mas, "sucursales": mapa_promos.tabla_de_sucursales(indice, promos)}
 
 
 @api.get("/gama")

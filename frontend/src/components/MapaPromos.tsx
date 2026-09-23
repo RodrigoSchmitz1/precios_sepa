@@ -1,11 +1,13 @@
-import { MapContainer, TileLayer, Marker, Popup, useMapEvents } from "react-leaflet";
+import { MapContainer, Marker, Popup, useMapEvents } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import { useEffect, useRef } from "react";
 import "leaflet/dist/leaflet.css";
 import "../utils/leaflet";
+import MapaBase from "./MapaBase";
 import "react-leaflet-cluster/dist/assets/MarkerCluster.css";
 import "react-leaflet-cluster/dist/assets/MarkerCluster.Default.css";
-import type { PromoMapa } from "../types";
+import type { PromoMapa, SucursalMapa } from "../types";
+import { nombreLegible } from "../utils/texto";
 import { nombreProvincia } from "../utils/provincias";
 
 export type BoundingBox = {
@@ -15,42 +17,30 @@ export type BoundingBox = {
   lngMax: number;
 };
 
-type GrupoSucursal = {
-  latitud: number;
-  longitud: number;
-  cadena: string;
-  nombre_sucursal: string;
-  calle: string;
-  numero: string;
-  localidad: string;
-  provincia: string;
-  promos: PromoMapa[];
-};
+type GrupoSucursal = SucursalMapa & { promos: PromoMapa[] };
 
-function agruparPorSucursal(promos: PromoMapa[]): GrupoSucursal[] {
-  const grupos = new Map<string, GrupoSucursal>();
+/*
+  Un marcador por sucursal, con las promos que rigen en ella.
 
+  Cada promo trae los NUMEROS de todas sus sucursales, y los datos de cada
+  sucursal vienen una sola vez en la tabla de la respuesta. Antes cada fila de
+  la API era una promo en una sucursal y alcanzaba con agrupar por coordenadas;
+  cuando la API paso a una fila por promo, este agrupado ubicaba cada promo solo
+  en su primera sucursal, y en CABA el mapa bajo de 517 marcadores a 250.
+*/
+function agruparPorSucursal(promos: PromoMapa[], sucursales: Record<string, SucursalMapa>): GrupoSucursal[] {
+  const grupos = new Map<number, GrupoSucursal>();
   for (const promo of promos) {
-    const clave = `${promo.latitud}-${promo.longitud}`;
-    const existente = grupos.get(clave);
-
-    if (existente) {
-      existente.promos.push(promo);
-    } else {
-      grupos.set(clave, {
-        latitud: promo.latitud,
-        longitud: promo.longitud,
-        cadena: promo.cadena,
-        nombre_sucursal: promo.nombre_sucursal,
-        calle: promo.calle,
-        numero: promo.numero,
-        localidad: promo.localidad,
-        provincia: promo.provincia,
-        promos: [promo],
-      });
+    for (const id of promo.sucursales) {
+      const existente = grupos.get(id);
+      if (existente) {
+        existente.promos.push(promo);
+        continue;
+      }
+      const sucursal = sucursales[String(id)];
+      if (sucursal) grupos.set(id, { ...sucursal, promos: [promo] });
     }
   }
-
   return Array.from(grupos.values());
 }
 
@@ -92,12 +82,13 @@ function DetectorMovimiento({ onMoverMapa }: DetectorMovimientoProps) {
 
 type Props = {
   promos: PromoMapa[];
+  sucursales: Record<string, SucursalMapa>;
   onMoverMapa: (bbox: BoundingBox) => void;
 };
 
-function MapaPromos({ promos, onMoverMapa }: Props) {
+function MapaPromos({ promos, sucursales, onMoverMapa }: Props) {
   const centroDefault: [number, number] = [-34.6, -58.4];
-  const grupos = agruparPorSucursal(promos);
+  const grupos = agruparPorSucursal(promos, sucursales);
 
   return (
     <MapContainer
@@ -107,10 +98,7 @@ function MapaPromos({ promos, onMoverMapa }: Props) {
       style={{ height: "500px", width: "100%", borderRadius: "8px" }}
     >
       <DetectorMovimiento onMoverMapa={onMoverMapa} />
-      <TileLayer
-        attribution="&copy; OpenStreetMap contributors"
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+      <MapaBase />
       <MarkerClusterGroup chunkedLoading>
         {grupos.map((grupo, i) => (
           <Marker key={i} position={[grupo.latitud, grupo.longitud]}>
@@ -128,7 +116,7 @@ function MapaPromos({ promos, onMoverMapa }: Props) {
                 <div className="max-h-48 overflow-y-auto space-y-2">
                   {grupo.promos.map((promo, j) => (
                     <div key={j} className="border-t border-gray-100 pt-1">
-                      <p className="text-sm">{promo.descripcion}</p>
+                      <p className="text-sm">{nombreLegible(promo.descripcion, promo.marca)}</p>
                       <p className="text-xs text-gray-600">
                         de ${promo.precio_lista} a ${promo.precio_promo} ({promo.descuento_pct}% off)
                       </p>

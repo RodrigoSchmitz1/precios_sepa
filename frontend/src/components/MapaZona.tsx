@@ -1,5 +1,6 @@
 import { useEffect } from "react";
-import { Circle, CircleMarker, MapContainer, Marker, Popup, TileLayer, useMap, useMapEvents } from "react-leaflet";
+import { Circle, CircleMarker, MapContainer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
+import MapaBase from "./MapaBase";
 import "leaflet/dist/leaflet.css";
 import "../utils/leaflet";
 import type { SucursalOpcion } from "../types";
@@ -49,10 +50,7 @@ function MapaZona({ punto, radioKm, onElegirPunto, sucursales = [] }: Props) {
 
   return (
     <MapContainer center={centro} zoom={12} scrollWheelZoom={true} style={{ height: "360px", width: "100%" }}>
-      <TileLayer
-        attribution="&copy; OpenStreetMap contributors"
-        url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      />
+      <MapaBase />
       <DetectorDeClick onElegirPunto={onElegirPunto} />
       <Encuadrar punto={punto} radioKm={radioKm} />
 

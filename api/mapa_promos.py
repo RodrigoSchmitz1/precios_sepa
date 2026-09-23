@@ -4,10 +4,7 @@ import heapq
 from array import array
 from itertools import groupby, islice, repeat
 
-# Cuantas sucursales se mandan por promo para que la pagina las despliegue. El
-# total va aparte: con 400 sucursales no tiene sentido mandarlas todas a un
-# panel que se abre con un click, y el numero es lo que responde "esta en todas".
-MAX_SUCURSALES = 40
+
 
 CAMPOS_SUCURSAL = (
     "cadena",
@@ -103,6 +100,12 @@ def _fila(indice: IndiceMapa, pos: int, sucs: list[int]) -> dict:
     fila pueda mostrar una direccion sin abrir nada. Se elige la primera de la
     zona, no una cualquiera: la lista viene ordenada por sucursal, asi que es
     estable entre pedidos iguales.
+
+    Las sucursales van como NUMEROS, no como diccionarios, y todas, sin tope. Una
+    primera version mandaba hasta 40 sucursales completas por promo: 3,5 MB por
+    respuesta, 134 promos recortadas en CABA, y el mapa -que ubicaba cada promo
+    en su primera sucursal- pasaba de 517 marcadores a 250. Con numeros y una
+    tabla aparte (ver tabla_de_sucursales), cada sucursal viaja una sola vez.
     """
     primera = indice.sucursales[sucs[0]]
     return {
@@ -116,9 +119,19 @@ def _fila(indice: IndiceMapa, pos: int, sucs: list[int]) -> dict:
         "descuento_pct": indice.descuento_pct[pos],
         "leyenda": indice.leyenda[pos],
         "nivel_evidencia": indice.nivel_evidencia[pos],
-        "sucursales": [indice.sucursales[s] for s in sucs[:MAX_SUCURSALES]],
+        "sucursales": sucs,
         "total_sucursales": len(sucs),
     }
+
+
+def tabla_de_sucursales(indice: IndiceMapa, filas: list[dict]) -> dict:
+    """Las sucursales que nombran las filas, cada una una sola vez, por numero.
+
+    Las claves van como texto porque JSON no tiene claves numericas; la pagina
+    busca con el mismo numero que viene en la fila.
+    """
+    usadas = {s for fila in filas for s in fila["sucursales"]}
+    return {str(s): indice.sucursales[s] for s in sorted(usadas)}
 
 
 def buscar(

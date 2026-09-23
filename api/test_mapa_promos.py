@@ -6,7 +6,7 @@ Tests del mapa de promos en memoria, sin BigQuery.
 
 import unittest
 
-from mapa_promos import armar_indice, buscar
+from mapa_promos import armar_indice, buscar, tabla_de_sucursales
 
 
 def sucursal(clave, latitud, longitud, provincia="AR-B", cadena="Coto"):
@@ -53,10 +53,10 @@ PROMOS = [
 ]
 
 
-def resumen(filas):
+def resumen(filas, indice):
     """Promo y las sucursales de la zona donde vale. Desde 2026-09-23 buscar()
-    devuelve una fila por PROMO, no una por promo x sucursal."""
-    return [(f["descripcion"], [s["nombre_sucursal"] for s in f["sucursales"]]) for f in filas]
+    devuelve una fila por PROMO, con los NUMEROS de sus sucursales."""
+    return [(f["descripcion"], [indice.sucursales[s]["nombre_sucursal"] for s in f["sucursales"]]) for f in filas]
 
 
 class TestMapaPromos(unittest.TestCase):
@@ -72,7 +72,7 @@ class TestMapaPromos(unittest.TestCase):
         self.assertFalse(hay_mas)
         # La leche entera esta en tres sucursales y ocupa una sola fila.
         self.assertEqual(
-            resumen(filas)[2],
+            resumen(filas, self.indice)[2],
             ("LECHE ENTERA 1 L", ["Sucursal 10-1", "Sucursal 10-2", "Sucursal 15-1"]),
         )
 
@@ -87,7 +87,21 @@ class TestMapaPromos(unittest.TestCase):
         # de la zona y no una cualquiera, para que no cambie entre pedidos.
         filas, _ = buscar(self.indice)
         leche = next(f for f in filas if f["descripcion"] == "LECHE ENTERA 1 L")
-        self.assertEqual(leche["nombre_sucursal"], leche["sucursales"][0]["nombre_sucursal"])
+        self.assertEqual(leche["nombre_sucursal"], self.indice.sucursales[leche["sucursales"][0]]["nombre_sucursal"])
+
+    def test_la_tabla_trae_cada_sucursal_una_sola_vez(self):
+        # La leche esta en tres sucursales y otras promos comparten algunas: la
+        # tabla no las repite, que es lo que achica la respuesta.
+        filas, _ = buscar(self.indice)
+        tabla = tabla_de_sucursales(self.indice, filas)
+        usadas = {s for f in filas for s in f["sucursales"]}
+        self.assertEqual(set(tabla), {str(s) for s in usadas})
+        self.assertEqual(tabla[str(filas[0]["sucursales"][0])]["nombre_sucursal"], filas[0]["nombre_sucursal"])
+
+    def test_no_hay_tope_de_sucursales(self):
+        filas, _ = buscar(self.indice)
+        for f in filas:
+            self.assertEqual(len(f["sucursales"]), f["total_sucursales"])
 
     def test_devuelve_los_mismos_campos_que_la_consulta_que_reemplaza(self):
         filas, _ = buscar(self.indice, limite=1)
@@ -110,7 +124,7 @@ class TestMapaPromos(unittest.TestCase):
     def test_el_recuadro_incluye_los_bordes(self):
         filas, _ = buscar(self.indice, lat_min=-34.70, lat_max=-34.60, lng_min=-58.50, lng_max=-58.40)
         self.assertEqual(
-            resumen(filas),
+            resumen(filas, self.indice),
             [
                 ("YERBA MATE 1 KG", ["Sucursal 10-2"]),
                 ("LECHE ENTERA 1 L", ["Sucursal 10-1", "Sucursal 10-2"]),
@@ -127,7 +141,7 @@ class TestMapaPromos(unittest.TestCase):
     def test_busqueda_sin_distinguir_mayusculas_y_combinada_con_el_recuadro(self):
         self.assertEqual([f["descuento_pct"] for f in buscar(self.indice, busqueda="leche")[0]], [30.0, 20.0])
         filas, _ = buscar(self.indice, busqueda="LECHE", lat_min=-35.0, lat_max=-34.0, lng_min=-59.0, lng_max=-58.0)
-        self.assertEqual(resumen(filas), [("LECHE ENTERA 1 L", ["Sucursal 10-1", "Sucursal 10-2"])])
+        self.assertEqual(resumen(filas, self.indice), [("LECHE ENTERA 1 L", ["Sucursal 10-1", "Sucursal 10-2"])])
 
     def test_con_y_sin_busqueda_dan_el_mismo_orden(self):
         # Son dos caminos distintos en buscar(); una letra que esta en todas las

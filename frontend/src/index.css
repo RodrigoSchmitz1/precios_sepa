@@ -122,3 +122,34 @@ body {
   outline: 2px solid var(--color-ahorro);
   outline-offset: 2px;
 }
+
+/*
+  Fondo de los mapas en gris (ver MapaBase). El filtro va sobre el contenedor de
+  tiles y no sobre el mapa entero, asi los marcadores y los popups conservan su
+  color. Un poco menos de contraste para que calles y nombres queden de fondo.
+*/
+.mapa-base-gris {
+  filter: grayscale(1) contrast(0.9) brightness(1.05);
+}
+
+/*
+  Clusters de marcadores en el verde del sitio. Los de fabrica son verde
+  chillon, amarillo y naranja segun la cantidad, y sobre el fondo gris gritaban
+  mas que cualquier otra cosa en la pagina. El tamano del circulo ya dice cuantas
+  sucursales hay; el color no tiene que decirlo de nuevo.
+*/
+/* Con .leaflet-container delante: el CSS de react-leaflet-cluster se importa
+   despues que este archivo y, con la misma especificidad, ganaba por orden. */
+.leaflet-container .marker-cluster-small,
+.leaflet-container .marker-cluster-medium,
+.leaflet-container .marker-cluster-large {
+  background-color: color-mix(in srgb, var(--color-ahorro) 22%, transparent);
+}
+.leaflet-container .marker-cluster-small div,
+.leaflet-container .marker-cluster-medium div,
+.leaflet-container .marker-cluster-large div {
+  background-color: var(--color-ahorro);
+  color: #fff;
+  font-weight: 600;
+}
+

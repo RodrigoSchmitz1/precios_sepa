@@ -1,6 +1,7 @@
 import type {
   Promo,
   PromoMapa,
+  SucursalMapa,
   QuienGana,
   Canasta,
   CanastaDetalle,
@@ -63,6 +64,8 @@ type FiltrosMapa = FiltrosPromos & {
 type RespuestaMapa = {
   promos: PromoMapa[];
   hay_mas: boolean;
+  /** Cada sucursal nombrada por alguna promo, una sola vez, por numero. */
+  sucursales: Record<string, SucursalMapa>;
 };
 
 function armarQuery(filtros: FiltrosPromos): string {

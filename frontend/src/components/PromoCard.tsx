@@ -2,6 +2,7 @@ import { useState } from "react";
 import { nombreProvincia } from "../utils/provincias";
 import { formatearNumero, formatearPesos } from "../utils/formato";
 import { nombreLegible } from "../utils/texto";
+import type { SucursalMapa } from "../types";
 
 /*
   Una promo del listado.
@@ -31,8 +32,9 @@ type PromoMostrable = {
   nombre_sucursal?: string;
   calle?: string;
   numero?: string;
-  /** Las sucursales de la zona donde rige, solo en el listado del mapa. */
-  sucursales?: { nombre_sucursal: string; calle: string; numero: string; localidad: string }[];
+  /** Numeros de las sucursales de la zona donde rige, solo en el listado del
+   *  mapa. Los datos de cada una vienen en la tabla que se pasa aparte. */
+  sucursales?: number[];
   total_sucursales?: number;
   /** Solo en el listado agrupado (/promos), no en el del mapa. */
   provincias?: number;
@@ -78,7 +80,13 @@ function direccionDe(promo: PromoMostrable): string | null {
   return partes.length > 0 ? partes.join(" · ") : null;
 }
 
-function PromoCard({ promo }: { promo: PromoMostrable }) {
+function PromoCard({
+  promo,
+  sucursales: tabla,
+}: {
+  promo: PromoMostrable;
+  sucursales?: Record<string, SucursalMapa>;
+}) {
   const [abierta, setAbierta] = useState(false);
   const total = promo.total_sucursales ?? 1;
   const direccion = direccionDe(promo);
@@ -149,7 +157,7 @@ function PromoCard({ promo }: { promo: PromoMostrable }) {
         abierta por defecto convertia el listado en lo que era antes: la misma
         promo repetida una vez por local.
       */}
-      {total > 1 && promo.sucursales && (
+      {total > 1 && promo.sucursales && tabla && (
         <div className="mt-2">
           <button
             onClick={() => setAbierta(!abierta)}
@@ -159,18 +167,19 @@ function PromoCard({ promo }: { promo: PromoMostrable }) {
             {abierta ? "Ocultar sucursales" : "Ver donde esta"}
           </button>
           {abierta && (
-            <ul className="mt-2 pl-3 border-l border-linea-fuerte space-y-1">
-              {promo.sucursales.map((s, i) => (
-                <li key={`${s.nombre_sucursal}-${i}`} className="text-xs text-tinta-suave">
-                  {[s.calle, s.numero].filter(Boolean).join(" ") || s.nombre_sucursal}
-                  {s.localidad && <span className="text-tinta-media"> · {s.localidad}</span>}
-                </li>
-              ))}
-              {total > promo.sucursales.length && (
-                <li className="text-xs text-tinta-suave italic">
-                  y {formatearNumero(total - promo.sucursales.length)} sucursales mas
-                </li>
-              )}
+            /* Con la lista completa, una promo en 400 sucursales no entra de un
+               golpe en la fila: se limita el alto y la lista scrollea. */
+            <ul className="mt-2 pl-3 border-l border-linea-fuerte space-y-1 max-h-56 overflow-y-auto">
+              {promo.sucursales.map((id) => {
+                const s = tabla[String(id)];
+                if (!s) return null;
+                return (
+                  <li key={id} className="text-xs text-tinta-suave">
+                    {[s.calle, s.numero].filter(Boolean).join(" ") || s.nombre_sucursal}
+                    {s.localidad && <span className="text-tinta-media"> · {s.localidad}</span>}
+                  </li>
+                );
+              })}
             </ul>
           )}
         </div>

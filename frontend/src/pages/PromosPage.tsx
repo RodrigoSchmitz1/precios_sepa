@@ -7,7 +7,7 @@ import Filtros from "../components/Filtros";
 import FilaDeCifras from "../components/FilaDeCifras";
 import FiltroCategorias, { type Seleccion } from "../components/FiltroCategorias";
 import { obtenerPromosMapa } from "../api/client";
-import type { PromoMapa } from "../types";
+import type { PromoMapa, SucursalMapa } from "../types";
 import { formatearNumero } from "../utils/formato";
 
 const TANDA = 60;
@@ -15,6 +15,7 @@ const TANDA = 60;
 function PromosPage() {
   const [promos, setPromos] = useState<PromoMapa[]>([]);
   const [hayMas, setHayMas] = useState(false);
+  const [sucursales, setSucursales] = useState<Record<string, SucursalMapa>>({});
   const [cargando, setCargando] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -42,6 +43,7 @@ function PromosPage() {
           if (cancelado) return;
           setPromos(respuesta.promos);
           setHayMas(respuesta.hay_mas);
+          setSucursales(respuesta.sucursales);
           setError(null);
           setCargando(false);
         })
@@ -141,7 +143,7 @@ function PromosPage() {
 
       <div className="mb-8">
         <div className="rounded-xl overflow-hidden border border-linea">
-          <MapaPromos promos={promos} onMoverMapa={setBbox} />
+          <MapaPromos promos={promos} sucursales={sucursales} onMoverMapa={setBbox} />
         </div>
         <p className="text-xs text-tinta-suave mt-2">
           Movete o haces zoom en el mapa para ver las promos de otra zona.
@@ -214,7 +216,7 @@ function PromosPage() {
           {/* Filas separadas por linea fina, como los demas listados del sitio. */}
           <div className="border-t border-linea divide-y divide-linea">
             {lote.map((promo, i) => (
-              <PromoCard key={`${promo.descripcion}-${promo.cadena}-${i}`} promo={promo} />
+              <PromoCard key={`${promo.descripcion}-${promo.cadena}-${i}`} promo={promo} sucursales={sucursales} />
             ))}
           </div>
 

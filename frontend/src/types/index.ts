@@ -17,6 +17,19 @@ export type Promo = {
   provincias: number;
 };
 
+/** Una sucursal del mapa. La respuesta las trae una sola vez, por numero. */
+export type SucursalMapa = {
+  cadena: string;
+  nombre_sucursal: string;
+  calle: string;
+  numero: string;
+  barrio: string | null;
+  localidad: string;
+  provincia: string;
+  latitud: number;
+  longitud: number;
+};
+
 export type PromoMapa = {
   descripcion: string;
   marca: string;
@@ -34,6 +47,11 @@ export type PromoMapa = {
   precio_promo: number;
   descuento_pct: number;
   leyenda: string;
+  nivel_evidencia: "leyenda" | "mercado" | "sin_verificar";
+  /** Numeros de TODAS las sucursales de la zona donde rige. Los datos de cada
+   *  una estan en la tabla "sucursales" de la respuesta. */
+  sucursales: number[];
+  total_sucursales: number;
 };
 
 export type QuienGana = {
