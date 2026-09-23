@@ -187,7 +187,7 @@ function VistaProducto({ estado, onVolver }: { estado: Detalle | null; onVolver?
               {fechaEnPalabras(p.fecha_datos)}. El precio de cada cadena es la mediana entre sus sucursales.
             </p>
             {hayDiferencia && !p.extremos_respaldados && (
-              <p className="mt-2 text-sm text-aviso">
+              <p className="mt-2 text-sm text-sobre-oscuro-aviso">
                 El precio mas bajo o el mas alto sale de menos de {SUCURSALES_MINIMAS} sucursales: la diferencia
                 puede deberse a un precio mal cargado.
               </p>

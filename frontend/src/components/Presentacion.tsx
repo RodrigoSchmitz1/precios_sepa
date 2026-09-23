@@ -257,7 +257,7 @@ function Presentacion() {
     },
     {
       ruta: "/inflacion",
-      titulo: "Que se movio",
+      titulo: "Inflacion",
       pregunta: "Que categorias subieron y cuales bajaron",
       grafico:
         inflacion.length > 1 ? <MiniDivergente variaciones={inflacion.map((f) => f.variacion_pct)} /> : null,

@@ -492,6 +492,64 @@ def obtener_canasta_detalle(
     return [dict(fila) for fila in cliente_bq.query(query, job_config=job_config).result()]
 
 
+def _ctes_cadena_contigua(tabla: str) -> str:
+    """Subconsultas que definen el periodo y el factor encadenado de cada serie.
+
+    Las usan los dos endpoints de inflacion. Estaban copiadas en cada uno, y dos
+    copias de la misma definicion terminan diciendo cosas distintas.
+
+    EL PERIODO ES LA CADENA CONTIGUA MAS RECIENTE (2026-09-23). Antes iba del
+    primer eslabon no nulo al ultimo, y el control de "cadena completa" contaba
+    solo eslabones no nulos. Con nulos en el medio -el historico perdia uno por
+    dia, ver su modelo- se multiplicaban fechas sueltas y se publicaban como un
+    periodo continuo: la pagina decia "del 10 al 22 de septiembre" con 5 de los
+    12 cambios diarios adentro.
+
+    Ahora se recorre hacia atras desde la ultima fecha siguiendo fecha_base, y la
+    cadena se corta en el primer hueco. Si queda un solo eslabon el periodo es de
+    un dia, y la pagina lo dice; es menos pero es cierto.
+
+    Devuelve las CTE sin el WITH: quien la usa arranca con "WITH RECURSIVE".
+    """
+    return f"""
+        eslabones AS (
+            SELECT DISTINCT fecha_datos, fecha_base
+            FROM `{tabla}`
+            WHERE factor_vs_base IS NOT NULL
+        ),
+        cadena AS (
+            SELECT fecha_datos, fecha_base
+            FROM eslabones
+            WHERE fecha_datos = (SELECT MAX(fecha_datos) FROM eslabones)
+            UNION ALL
+            SELECT e.fecha_datos, e.fecha_base
+            FROM eslabones AS e
+            JOIN cadena AS c ON e.fecha_datos = c.fecha_base
+        ),
+        periodo AS (
+            SELECT
+                MIN(fecha_base) AS fecha_inicio,
+                MAX(fecha_datos) AS fecha_fin,
+                COUNT(DISTINCT fecha_datos) AS eslabones_esperados
+            FROM cadena
+        ),
+        encadenado AS (
+            SELECT
+                categoria,
+                cadena,
+                unidad_normalizada,
+                -- Producto de los factores, via exp(suma de logaritmos).
+                EXP(SUM(LN(factor_vs_base))) AS factor_total,
+                COUNT(*) AS eslabones,
+                MIN(fecha_base) AS desde,
+                MAX(fecha_datos) AS hasta
+            FROM `{tabla}`
+            WHERE factor_vs_base IS NOT NULL
+                AND fecha_datos IN (SELECT fecha_datos FROM cadena)
+            GROUP BY categoria, cadena, unidad_normalizada
+        )"""
+
+
 @api.get("/inflacion")
 @cachear
 def obtener_inflacion(
@@ -516,28 +574,7 @@ def obtener_inflacion(
     # precio se habia movido. El factor diario se calcula sobre los productos
     # presentes en ambas fechas (ver mart_precios_cadena_categoria).
     query = f"""
-        WITH periodo AS (
-            SELECT
-                MIN(fecha_base) AS fecha_inicio,
-                MAX(fecha_datos) AS fecha_fin,
-                COUNT(DISTINCT fecha_datos) AS eslabones_esperados
-            FROM `{tabla}`
-            WHERE factor_vs_base IS NOT NULL
-        ),
-        encadenado AS (
-            SELECT
-                categoria,
-                cadena,
-                unidad_normalizada,
-                -- Producto de los factores, via exp(suma de logaritmos).
-                EXP(SUM(LN(factor_vs_base))) AS factor_total,
-                COUNT(*) AS eslabones,
-                MIN(fecha_base) AS desde,
-                MAX(fecha_datos) AS hasta
-            FROM `{tabla}`
-            WHERE factor_vs_base IS NOT NULL
-            GROUP BY categoria, cadena, unidad_normalizada
-        ),
+        WITH RECURSIVE {_ctes_cadena_contigua(tabla)},
         nivel_actual AS (
             SELECT h.categoria, h.cadena, h.unidad_normalizada, h.precio_mediano_unidad
             FROM `{tabla}` AS h, periodo
@@ -594,27 +631,7 @@ def obtener_inflacion_resumen():
     """
     tabla = f"{PROYECTO}.dbt_precios.historico_precios_cadena_categoria"
     query = f"""
-        WITH periodo AS (
-            SELECT
-                MIN(fecha_base) AS fecha_inicio,
-                MAX(fecha_datos) AS fecha_fin,
-                COUNT(DISTINCT fecha_datos) AS eslabones_esperados
-            FROM `{tabla}`
-            WHERE factor_vs_base IS NOT NULL
-        ),
-        encadenado AS (
-            SELECT
-                categoria,
-                cadena,
-                unidad_normalizada,
-                EXP(SUM(LN(factor_vs_base))) AS factor_total,
-                COUNT(*) AS eslabones,
-                MIN(fecha_base) AS desde,
-                MAX(fecha_datos) AS hasta
-            FROM `{tabla}`
-            WHERE factor_vs_base IS NOT NULL
-            GROUP BY categoria, cadena, unidad_normalizada
-        ),
+        WITH RECURSIVE {_ctes_cadena_contigua(tabla)},
         completas AS (
             -- Solo series con la cadena entera: a una que le falta un eslabon no
             -- se la puede encadenar, y multiplicar salteando el hueco daria un

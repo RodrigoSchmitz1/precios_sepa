@@ -7,7 +7,9 @@ import { fechaEnPalabras, formatearVariacion } from "../utils/formato";
 import type { InflacionResumen } from "../types";
 
 /*
-  Que se movio: ranking de todas las categorias por variacion de precios.
+  Inflacion: ranking de todas las categorias por variacion de precios. Antes se
+  titulaba "Que se movio"; se unifico con el nombre del menu para que la seccion
+  no se llame de dos formas segun por donde se entre.
 
   POR QUE ESTA DADA VUELTA RESPECTO DE LA VERSION ANTERIOR
   Antes la pagina abria con un selector de categoria y mostraba sus 14 cadenas.
@@ -91,8 +93,8 @@ function InflacionPage() {
       <Titular
         antetitulo={
           filas.length > 0
-            ? `Que se movio · ${fechaEnPalabras(filas[0].fecha_inicio)} al ${fechaEnPalabras(filas[0].fecha_fin)}`
-            : "Que se movio"
+            ? `Inflacion · ${fechaEnPalabras(filas[0].fecha_inicio)} al ${fechaEnPalabras(filas[0].fecha_fin)}`
+            : "Inflacion"
         }
         bajada={
           <>
@@ -102,7 +104,7 @@ function InflacionPage() {
               de surtido.
             </p>
             {resumen && (
-              <p className="mt-2 text-sm text-aviso">
+              <p className="mt-2 text-sm text-sobre-oscuro-aviso">
                 {resumen.dias === 1
                   ? "Es el movimiento de un solo dia, no de un mes: por eso son decimas y no puntos."
                   : `Es el movimiento acumulado de ${resumen.dias} dias, no de un mes.`}{" "}

@@ -40,17 +40,44 @@
 -- crudos solo tienen unos pocos dias de ventana, asi que un full-refresh
 -- reconstruiria la tabla desde cero y borraria TODA la historia acumulada.
 
-SELECT
-    categoria,
-    cadena,
-    unidad_normalizada,
-    precio_mediano_unidad,
-    muestras,
-    fecha_base,
-    factor_vs_base,
-    muestras_pareadas,
-    fecha_datos
-FROM {{ ref("mart_precios_cadena_categoria") }}
+-- NO PISAR UN ESLABON BUENO CON UNO NULO (2026-09-23)
+--
+-- El mart calcula las fechas pendientes MAS la anterior, que entra solo como
+-- base para comparar la primera pendiente. Esa fecha anterior sale del mart con
+-- factor nulo, porque su propia base no esta en el lote. Y como este historico
+-- reemplaza particiones enteras, copiarla tal cual pisaba el factor bueno que
+-- esa fecha ya tenia: cada corrida diaria destruia el eslabon del dia anterior.
+--
+-- Medido ese dia: de 16 fechas en el historico, solo 5 conservaban su factor
+-- (11, 16, 17, 19 y 22 de septiembre). La pagina publicaba "inflacion del 10 al
+-- 22" multiplicando 5 de los 12 cambios diarios, y el control de la API no lo
+-- veia porque contaba solo eslabones no nulos.
+--
+-- Regla: una fecha que YA esta en el historico solo se reescribe si el lote
+-- trae para ella al menos un factor. Una fecha que viene toda nula es la base
+-- del lote, no un dato nuevo, y se deja como estaba. Las fechas que el historico
+-- todavia no tiene entran siempre, aunque vengan sin factor: es el primer dia
+-- despues de un hueco, que honestamente no se puede encadenar.
+WITH lote AS (
+    SELECT
+        categoria,
+        cadena,
+        unidad_normalizada,
+        precio_mediano_unidad,
+        muestras,
+        fecha_base,
+        factor_vs_base,
+        muestras_pareadas,
+        fecha_datos
+    FROM {{ ref("mart_precios_cadena_categoria") }}
+)
+
+SELECT *
+FROM lote
+{% if is_incremental() %}
+WHERE fecha_datos IN (SELECT DISTINCT fecha_datos FROM lote WHERE factor_vs_base IS NOT NULL)
+    OR fecha_datos NOT IN (SELECT DISTINCT fecha_datos FROM {{ this }})
+{% endif %}
 
 -- Sin filtro incremental a proposito. Con insert_overwrite, dbt reemplaza
 -- exactamente las particiones presentes en el resultado (las fechas que haya

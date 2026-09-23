@@ -87,6 +87,9 @@
   */
   --color-sobre-oscuro-caro: #ff8a75;
   --color-sobre-oscuro-barato: #6bc4a2;
+  /* La advertencia en la bajada del titular. --color-aviso sobre la banda da
+     3,24:1, debajo del 4,5 que pide el texto chico; este da 8,2:1. */
+  --color-sobre-oscuro-aviso: #e8a33d;
 
   --color-escala-1: #6bc4a2;
   --color-escala-2: #3fae87;
