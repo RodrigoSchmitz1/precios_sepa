@@ -7,9 +7,17 @@
       "data_type": "date",
       "copy_partitions": true
     },
-    partition_expiration_days=3
+    partition_expiration_days=3,
+    on_schema_change="append_new_columns"
   )
 }}
+
+-- on_schema_change="append_new_columns", igual que en los historicos: sin eso
+-- el default de dbt es "ignore", y una columna nueva en el SELECT no se agrega a
+-- la tabla ya existente. Paso al sumar cantidad_normalizada: el modelo corria
+-- "bien" pero la columna no aparecia, y mart_mismo_producto fallaba con
+-- "Unrecognized name". Las fechas viejas quedan con la columna en NULL, que es
+-- inocuo: el mart solo lee la ultima.
 
 -- Precio de cada producto en cada cadena, por fecha: la mediana entre las
 -- sucursales de la cadena, el rango y cuantas sucursales lo informan.

@@ -40,7 +40,11 @@ function Layout() {
             La nav scrollea en horizontal en pantallas chicas en vez de cortarse
             en dos lineas y empujar el contenido hacia abajo.
           */}
-          <nav className="flex gap-1 overflow-x-auto -mx-1 px-1">
+          {/* min-w-0: sin eso la nav no puede achicarse por debajo de su
+              contenido y, con el logo mas grande, empujaba la barra hasta
+              meter scroll horizontal en pantallas angostas. Con min-w-0 hace
+              lo que dice el comentario de arriba: scrollea ella sola. */}
+          <nav className="flex gap-1 overflow-x-auto -mx-1 px-1 min-w-0">
             {SECCIONES.map((seccion) => (
               <NavLink
                 key={seccion.ruta}

@@ -85,7 +85,7 @@ export function precioPorUnidad(
  * muestre un "0 g" inventado.
  *
  * Existe porque SEPA manda muchas descripciones cortadas: "PLAYADITO YERBA CON"
- * es la descripcion completa de un paquete de 1 kg. El tamano sale de
+ * es la descripcion completa de un paquete de 500 g. El tamano sale de
  * cantidad_normalizada, que se calcula desde las columnas de presentacion y no
  * del texto.
  */
@@ -94,6 +94,9 @@ export function formatearTamano(
   unidad: "g" | "cc" | "unidad" | null | undefined
 ): string | null {
   if (!cantidad || cantidad <= 0 || !unidad) return null;
+  // "1 unidad" es lo que carga una cadena cuando NO informa el peso: no dice
+  // nada. "30 u" de un paquete de panales si.
+  if (unidad === "unidad" && cantidad === 1) return null;
   const numero = (valor: number) =>
     valor.toLocaleString("es-AR", { maximumFractionDigits: valor < 10 ? 2 : 0 });
   if (unidad === "g") return cantidad >= 1000 ? `${numero(cantidad / 1000)} kg` : `${numero(cantidad)} g`;

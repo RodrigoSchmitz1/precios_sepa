@@ -43,7 +43,7 @@ CAMPOS_RESUMEN = (
     # usa para decirlo en vez de callarlo.
     "cadenas_descartadas",
     # El tamano del envase, para poder decir "1 kg" aunque SEPA mande la
-    # descripcion cortada ("PLAYADITO YERBA CON" es un paquete de 1 kg).
+    # descripcion cortada ("PLAYADITO YERBA CON" es un paquete de 500 g).
     "cantidad_normalizada",
     "unidad_normalizada",
 )

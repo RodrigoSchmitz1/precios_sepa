@@ -94,6 +94,43 @@ evaluados AS (
     JOIN referencia AS r USING (id_producto)
 ),
 
+-- UN tamano por producto, votado entre empresas.
+--
+-- Cada cadena informa el tamano a su manera y para el mismo codigo de barras no
+-- coinciden. FANTA ZERO 1.75L el 22/09: Coto, Changomas, La Anonima y la
+-- Cooperativa decian 1750 cc; Vea, Disco y Jumbo (Cencosud) decian "1,7 cc",
+-- que son litros cargados como centimetros cubicos; las cuatro banderas de
+-- Carrefour decian "1 unidad". Tomar el de una fila cualquiera mostraba uno u
+-- otro al azar.
+--
+-- La regla: "unidad" pierde contra cualquier g o cc, porque "1 unidad" es lo
+-- que carga una cadena cuando no informa el peso. Entre los demas gana el que
+-- declaran mas EMPRESAS, no mas banderas: con banderas, el error de Cencosud
+-- valia tres votos. Empate: mas sucursales.
+tamanos AS (
+    SELECT
+        id_producto,
+        cantidad_normalizada,
+        unidad_normalizada,
+        COUNT(DISTINCT empresa) AS empresas_que_lo_dicen,
+        SUM(sucursales) AS sucursales_que_lo_dicen
+    FROM precios
+    WHERE cantidad_normalizada IS NOT NULL AND unidad_normalizada IS NOT NULL
+    GROUP BY id_producto, cantidad_normalizada, unidad_normalizada
+),
+
+tamano_producto AS (
+    SELECT
+        id_producto,
+        ARRAY_AGG(
+            STRUCT(cantidad_normalizada, unidad_normalizada)
+            ORDER BY unidad_normalizada = "unidad", empresas_que_lo_dicen DESC, sucursales_que_lo_dicen DESC
+            LIMIT 1
+        )[OFFSET(0)] AS tamano
+    FROM tamanos
+    GROUP BY id_producto
+),
+
 por_producto AS (
     SELECT
         id_producto,
@@ -128,12 +165,11 @@ SELECT
     ev.precio_maximo,
     ev.sucursales,
     -- El tamaño del envase, para que la pagina pueda decir "1 kg" aunque la
-    -- descripcion que manda SEPA venga cortada. Pasa seguido: "PLAYADITO YERBA
-    -- CON" es la descripcion completa de un paquete de 1 kg, y "AMAND" es
-    -- Amanda. Sale del producto y no de la cadena, asi que se toma de la
-    -- primera fila del grupo.
-    ev.cantidad_normalizada,
-    ev.unidad_normalizada,
+    -- descripcion que manda SEPA venga cortada: "PLAYADITO YERBA CON" es la
+    -- descripcion completa de un paquete de 500 g, y "AMAND" es Amanda. Es el
+    -- mismo en todas las filas del producto: ver tamano_producto.
+    tp.tamano.cantidad_normalizada AS cantidad_normalizada,
+    tp.tamano.unidad_normalizada AS unidad_normalizada,
     ev.precio_creible,
     ev.precio_referencia,
     pp.cadenas,
@@ -149,3 +185,5 @@ JOIN por_producto AS pp
     ON ev.id_producto = pp.id_producto
 JOIN {{ ref("stg_categorias") }} AS cat
     ON ev.id_producto = cat.id_producto
+LEFT JOIN tamano_producto AS tp
+    ON ev.id_producto = tp.id_producto
