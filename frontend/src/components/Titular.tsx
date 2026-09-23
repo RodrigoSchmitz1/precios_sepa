@@ -21,6 +21,13 @@ import type { ReactNode } from "react";
   oscuro da 3,26:1. Se usan los tonos sobre-oscuro, verificados en 7,7:1 y
   8,5:1 (ver index.css).
 
+  VA A SANGRE Y NO ES UNA TARJETA (2026-09-23)
+  La primera version era un rectangulo negro redondeado flotando en el lienzo, y
+  se leia como un widget pegado encima de la pagina, no como parte del diseno.
+  Ocupando el ancho completo la banda deja de ser un objeto y pasa a ser una
+  zona: el mismo contraste, sin el efecto de cartel. El contenido sigue alineado
+  con el resto de la pagina por el contenedor interno.
+
   El titular se arma con los datos del momento, nunca con texto fijo: una cifra
   vieja en letra grande es peor que no poner ninguna.
 */
@@ -42,7 +49,9 @@ export function Resaltado({ children, tono = "caro" }: { children: ReactNode; to
 
 function Titular({ antetitulo, children, bajada }: Props) {
   return (
-    <header className="mb-8 rounded-3xl bg-tinta px-5 py-8 sm:px-10 sm:py-14">
+    /* A sangre y no una tarjeta: ver el comentario de arriba. */
+    <header className="mb-10 bg-tinta mx-[calc(50%-50vw)] px-5 py-10 sm:py-16">
+      <div className="max-w-4xl mx-auto">
       <p className="text-xs font-semibold uppercase tracking-[0.12em] text-sobre-oscuro-barato mb-4">
         {antetitulo}
       </p>
@@ -59,6 +68,7 @@ function Titular({ antetitulo, children, bajada }: Props) {
           {bajada}
         </div>
       )}
+      </div>
     </header>
   );
 }

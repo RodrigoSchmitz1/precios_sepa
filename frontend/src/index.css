@@ -13,7 +13,13 @@
 
 @theme {
   /* --- Superficies: papel calido, no gris azulado --- */
-  --color-lienzo: #faf9f7;
+  /*
+    2026-09-23: el lienzo pierde el tinte crema (#faf9f7 -> #f7f7f6). El calido
+    daba un aire pastel que competia con el papel blanco de las tarjetas en vez
+    de sostenerlo; neutro, la tarjeta blanca se despega y el color que queda en
+    pantalla es el de los datos.
+  */
+  --color-lienzo: #f7f7f6;
   --color-papel: #ffffff;
   --color-papel-hundido: #f4f2ee;
 
