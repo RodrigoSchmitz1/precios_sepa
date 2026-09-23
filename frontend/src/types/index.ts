@@ -157,6 +157,10 @@ export type ProductoComparado = {
   precio_mas_bajo: number;
   precio_mas_alto: number;
   diferencia_pct: number;
+  /** Tamano del envase normalizado a g, cc o unidades. null si la fuente no
+   *  trae una unidad reconocible o si el mart todavia no tiene la columna. */
+  cantidad_normalizada: number | null;
+  unidad_normalizada: "g" | "cc" | "unidad" | null;
   /** Cuantos precios se dejaron fuera del calculo por contradecir al mercado. */
   cadenas_descartadas: number;
   /** Si el precio mas bajo y el mas alto salen de 3 o mas sucursales. Sin eso

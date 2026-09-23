@@ -4,7 +4,7 @@ import { buscarProductos, obtenerProducto, obtenerProductosDestacados } from "..
 import Titular, { Resaltado } from "../components/Titular";
 import FilaDeCifras from "../components/FilaDeCifras";
 import TiraDePuntos from "../components/TiraDePuntos";
-import { fechaEnPalabras, formatearNumero, formatearPesos } from "../utils/formato";
+import { fechaEnPalabras, formatearNumero, formatearPesos, tamanoQueFalta } from "../utils/formato";
 import { nombreLegible } from "../utils/texto";
 import type { PrecioEnCadena, ProductoComparado, ProductoDetalle } from "../types";
 
@@ -32,6 +32,14 @@ import type { PrecioEnCadena, ProductoComparado, ProductoDetalle } from "../type
   mostrar como se ve la comparacion, y para eso sirve mas algo que el visitante
   compra que el producto mas disparatado del dia.
 */
+/** Nombre legible con el tamano del envase entre parentesis, si la
+ *  descripcion no lo dice ya. */
+function nombreConTamano(p: ProductoComparado): string {
+  const tamano = tamanoQueFalta(p.descripcion, p.cantidad_normalizada, p.unidad_normalizada);
+  const legible = nombreLegible(p.descripcion, p.marca);
+  return tamano ? `${legible} (${tamano})` : legible;
+}
+
 const EJEMPLOS = ["coca cola 2.25", "yerba playadito"];
 
 const SUCURSALES_MINIMAS = 3;
@@ -64,7 +72,7 @@ function Aviso({ children }: { children: React.ReactNode }) {
   la misma pantalla.
 */
 function EjemploComparacion({ p, onVer }: { p: ProductoDetalle; onVer: (id: string) => void }) {
-  const nombre = nombreLegible(p.descripcion, p.marca);
+  const nombre = nombreConTamano(p);
   const baratos = p.precios.filter((x) => x.precio_mediano === p.precio_mas_bajo);
   const caros = p.precios.filter((x) => x.precio_mediano === p.precio_mas_alto);
   const hayDiferencia = p.precio_mas_alto > p.precio_mas_bajo;
@@ -162,7 +170,7 @@ function VistaProducto({ estado, onVolver }: { estado: Detalle | null; onVolver?
   }
 
   const p = estado.producto;
-  const nombre = nombreLegible(p.descripcion, p.marca);
+  const nombre = nombreConTamano(p);
   const baratos = p.precios.filter((x) => x.precio_mediano === p.precio_mas_bajo);
   const caros = p.precios.filter((x) => x.precio_mediano === p.precio_mas_alto);
   const hayDiferencia = p.precio_mas_alto > p.precio_mas_bajo;
@@ -243,7 +251,7 @@ function FilaProducto({ producto, onElegir }: { producto: ProductoComparado; onE
       >
         <span className="flex-1 min-w-0">
           <span className="block text-sm text-tinta truncate">
-            {nombreLegible(producto.descripcion, producto.marca)}
+            {nombreConTamano(producto)}
           </span>
           <span className="block text-xs text-tinta-suave numero">
             {producto.cadenas} cadenas · {formatearPesos(producto.precio_mas_bajo)}

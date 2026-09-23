@@ -199,5 +199,20 @@ class TestPreciosNoCreibles(unittest.TestCase):
         self.assertEqual(destacado["cadenas_descartadas"], 2)
 
 
+class TestTamano(unittest.TestCase):
+    def test_el_tamano_viaja_al_resumen(self):
+        filas = producto("1", CUATRO_CADENAS)
+        for f in filas:
+            f["cantidad_normalizada"] = 1000.0
+            f["unidad_normalizada"] = "g"
+        (resumen,) = buscar(armar_indice(filas), "playadito")
+        self.assertEqual((resumen["cantidad_normalizada"], resumen["unidad_normalizada"]), (1000.0, "g"))
+
+    def test_sin_la_columna_no_rompe(self):
+        # La API puede desplegarse antes de que el mart tenga las columnas.
+        (resumen,) = buscar(armar_indice(producto("1", CUATRO_CADENAS)), "playadito")
+        self.assertIsNone(resumen["cantidad_normalizada"])
+
+
 if __name__ == "__main__":
     unittest.main()

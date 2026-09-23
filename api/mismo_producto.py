@@ -42,6 +42,10 @@ CAMPOS_RESUMEN = (
     # Cuantos precios quedaron afuera por contradecir al mercado. La pagina lo
     # usa para decirlo en vez de callarlo.
     "cadenas_descartadas",
+    # El tamano del envase, para poder decir "1 kg" aunque SEPA mande la
+    # descripcion cortada ("PLAYADITO YERBA CON" es un paquete de 1 kg).
+    "cantidad_normalizada",
+    "unidad_normalizada",
 )
 
 
@@ -100,6 +104,10 @@ def armar_indice(filas) -> dict:
                 # las columnas nuevas. Sin descartes, el comportamiento es el de
                 # antes.
                 "cadenas_descartadas": fila.get("cadenas_descartadas", 0),
+                # .get por la misma razon que arriba: la columna llega al mart en
+                # la corrida siguiente al deploy, y hasta entonces no hay tamano.
+                "cantidad_normalizada": fila.get("cantidad_normalizada"),
+                "unidad_normalizada": fila.get("unidad_normalizada"),
                 "fecha_datos": str(fila["fecha_datos"]),
                 "precios": [],
                 "_texto": normalizar(f"{fila['descripcion']} {fila['marca'] or ''}"),

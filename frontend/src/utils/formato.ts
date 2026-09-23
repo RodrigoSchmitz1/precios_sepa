@@ -78,3 +78,51 @@ export function precioPorUnidad(
   if (!eq) return { texto: formatearPesos(valor), unidad };
   return { texto: formatearPesos(valor * eq.factor), unidad: eq.etiqueta };
 }
+
+/**
+ * Tamano de un envase para leer: 1000 g -> "1 kg", 2250 cc -> "2,25 L",
+ * 6 unidades -> "6 u". Devuelve null si no hay dato, para que quien lo usa no
+ * muestre un "0 g" inventado.
+ *
+ * Existe porque SEPA manda muchas descripciones cortadas: "PLAYADITO YERBA CON"
+ * es la descripcion completa de un paquete de 1 kg. El tamano sale de
+ * cantidad_normalizada, que se calcula desde las columnas de presentacion y no
+ * del texto.
+ */
+export function formatearTamano(
+  cantidad: number | null | undefined,
+  unidad: "g" | "cc" | "unidad" | null | undefined
+): string | null {
+  if (!cantidad || cantidad <= 0 || !unidad) return null;
+  const numero = (valor: number) =>
+    valor.toLocaleString("es-AR", { maximumFractionDigits: valor < 10 ? 2 : 0 });
+  if (unidad === "g") return cantidad >= 1000 ? `${numero(cantidad / 1000)} kg` : `${numero(cantidad)} g`;
+  if (unidad === "cc") return cantidad >= 1000 ? `${numero(cantidad / 1000)} L` : `${numero(cantidad)} ml`;
+  return `${numero(cantidad)} u`;
+}
+
+/**
+ * El tamano que le FALTA a una descripcion, o null si ya lo dice.
+ *
+ * "COCA COLA GASEOSA ZERO 2.25L" ya trae el tamano, y agregarle "(2,25 L)"
+ * seria ruido. "PLAYADITO YERBA CON" no lo trae, y ahi es donde hace falta.
+ * Se busca el numero como token suelto, en las dos escalas (2,25 y 2250), para
+ * que "LECHE 1000CC" tampoco se duplique como "(1 L)".
+ */
+export function tamanoQueFalta(
+  descripcion: string,
+  cantidad: number | null | undefined,
+  unidad: "g" | "cc" | "unidad" | null | undefined
+): string | null {
+  const tamano = formatearTamano(cantidad, unidad);
+  if (!tamano || !cantidad) return null;
+  const texto = descripcion.toLowerCase().split(",").join(".");
+  const numeros = [cantidad, cantidad / 1000]
+    .filter((v) => v >= 0.1)
+    .map((v) => String(Number(v.toFixed(2))));
+  const aparece = numeros.some((n) =>
+    new RegExp("(^|[^0-9.])" + n.split(".").join("[.]") + "(?![0-9])").test(texto)
+  );
+  return aparece ? null : tamano;
+}
+
