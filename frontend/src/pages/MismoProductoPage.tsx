@@ -44,14 +44,16 @@ function Aviso({ children }: { children: React.ReactNode }) {
   );
 }
 
-function VistaProducto({ estado, onVolver }: { estado: Detalle | null; onVolver: () => void }) {
+function VistaProducto({ estado, onVolver }: { estado: Detalle | null; onVolver?: () => void }) {
   if (estado === null) return <p className="text-sm text-tinta-suave mb-10">Cargando…</p>;
 
-  const volver = (
+  // Sin onVolver la vista se usa como ejemplo dentro de la portada de la
+  // seccion, donde no hay de donde volver.
+  const volver = onVolver ? (
     <button onClick={onVolver} className="text-sm text-tinta-media hover:text-tinta mb-6">
       ← Todos los productos
     </button>
-  );
+  ) : null;
 
   if (estado.error || !estado.producto) {
     return (
@@ -205,6 +207,7 @@ function MismoProductoPage() {
   const [busqueda, setBusqueda] = useState<Busqueda | null>(null);
   const [detalle, setDetalle] = useState<Detalle | null>(null);
   const [destacados, setDestacados] = useState<Destacados | null>(null);
+  const [ejemplos, setEjemplos] = useState<ProductoDetalle[]>([]);
 
   useEffect(() => {
     let cancelado = false;
@@ -237,6 +240,33 @@ function MismoProductoPage() {
       clearTimeout(espera);
     };
   }, [consulta]);
+
+  /*
+    La portada de la seccion abria con una lista de nombres y un porcentaje. Lo
+    que hace interesante a esta pagina -la comparacion del mismo codigo de
+    barras entre cadenas- quedaba a un click de distancia y no se descubria: el
+    visitante veia productos que no le importaban y se iba antes de buscar el
+    suyo.
+
+    Ahora se despliegan dos ejemplos ya armados. No cuesta cuota: los detalles
+    salen del mismo indice en memoria que ya se cargo para los destacados.
+  */
+  useEffect(() => {
+    if (id) return;
+    const primeros = (destacados?.productos ?? []).slice(0, 2);
+    if (primeros.length === 0) return;
+    let cancelado = false;
+    Promise.all(primeros.map((p) => obtenerProducto(p.id_producto)))
+      .then((detalles) => {
+        if (!cancelado) setEjemplos(detalles);
+      })
+      .catch(() => {
+        // Sin ejemplos la pagina sigue sirviendo: el buscador es lo principal.
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [id, destacados]);
 
   useEffect(() => {
     if (!id) return;
@@ -318,6 +348,17 @@ function MismoProductoPage() {
           </ul>
         )}
       </section>
+
+      {!id && consulta.length < 2 && ejemplos.length > 0 && (
+        <section aria-labelledby="titulo-ejemplos" className="mb-12">
+          <h2 id="titulo-ejemplos" className="text-xs font-semibold uppercase tracking-wider text-tinta-suave mb-4">
+            Asi se ve la comparacion
+          </h2>
+          {ejemplos.map((producto) => (
+            <VistaProducto key={producto.id_producto} estado={{ id: producto.id_producto, producto }} />
+          ))}
+        </section>
+      )}
 
       {!id && consulta.length < 2 && (
         <section aria-labelledby="titulo-destacados">
