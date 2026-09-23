@@ -15,6 +15,11 @@
   respaldo, asi que el color acompana una escala de confianza y no una
   identidad.
 */
+/*
+  "ayuda" es a la vez el tooltip de cada pildora y la explicacion del listado,
+  para que las dos digan siempre lo mismo. Esta escrita para quien no sabe que
+  es SEPA: que hizo el super, contra que se comparo, y nada mas.
+*/
 export const EVIDENCIA = {
   leyenda: {
     // Solo el color del texto, para donde no hay lugar para la pildora.
@@ -25,18 +30,22 @@ export const EVIDENCIA = {
     // verificado por quien.
     texto: "lo declara la cadena",
     clase: "bg-ahorro-tenue text-ahorro border-ahorro-borde",
-    ayuda: "La cadena informa el porcentaje de descuento y coincide con la diferencia entre sus propios precios.",
+    ayuda: "El super anuncia el porcentaje (\"30% de descuento\") y coincide con la rebaja de sus precios.",
   },
   mercado: {
     color: "text-dato-azul",
     texto: "verificado con otras cadenas",
     clase: "bg-dato-azul-tenue text-dato-azul border-dato-azul/25",
-    ayuda: "El precio de promo se sostiene frente al del mismo producto en otras empresas, no solo frente a la lista propia.",
+    ayuda: "El super no anuncia el porcentaje, pero el precio rebajado no es sospechosamente bajo al lado de lo que cobran otras cadenas por el mismo producto.",
   },
   sin_verificar: {
     color: "text-aviso",
     texto: "nadie lo confirma",
     clase: "bg-aviso-tenue text-aviso border-aviso/25",
-    ayuda: "Solo se sabe que el descuento es chico como para no ser inverosimil. La cadena no lo declara y el mercado no lo respalda.",
+    // El 50 es promos_techo_descuento_sin_verificar de dbt_project.yml.
+    ayuda: "Ninguna otra cadena vende ese producto para comparar. Solo se muestra si el descuento es de hasta 50%.",
   },
 } as const;
+
+/** Del respaldo mas firme al mas debil: el orden en que se explican. */
+export const NIVELES_EVIDENCIA = ["leyenda", "mercado", "sin_verificar"] as const;

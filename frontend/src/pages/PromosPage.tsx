@@ -10,8 +10,18 @@ import FiltroCategorias, { type Seleccion } from "../components/FiltroCategorias
 import { obtenerLugares, obtenerPromosMapa } from "../api/client";
 import type { LugarMapa, PromoMapa, SucursalMapa } from "../types";
 import { formatearNumero } from "../utils/formato";
+import { EVIDENCIA, NIVELES_EVIDENCIA } from "../utils/evidencia";
 
 const TANDA = 60;
+
+/*
+  Cuantas promos pide cada movida del mapa. Con 2000 (hasta el 2026-09-23) el
+  corte dejaba solo los descuentos mas grandes, y esos son casi todos de
+  Carrefour: en el Gran Buenos Aires se veian 92 promos de Dia de 493, 3 de La
+  Anonima de 89 y 447 de Almacen de 1728, y solo en Palermo hay 5829. Con la
+  respuesta comprimida, 6000 son unos 470 KB. Es el tope de la API.
+*/
+const PROMOS_POR_ZONA = 6000;
 
 function PromosPage() {
   const [promos, setPromos] = useState<PromoMapa[]>([]);
@@ -66,7 +76,7 @@ function PromosPage() {
       // setState sincronicamente en un efecto encadena renders (lo marca
       // react-hooks/set-state-in-effect).
       setCargando(true);
-      obtenerPromosMapa({ busqueda, provincia, limite: 2000, bbox })
+      obtenerPromosMapa({ busqueda, provincia, limite: PROMOS_POR_ZONA, bbox })
         .then((respuesta) => {
           if (cancelado) return;
           setPromos(respuesta.promos);
@@ -98,9 +108,9 @@ function PromosPage() {
   }, [promos, filtro]);
 
   /*
-    Se renderiza de a tandas. La consulta trae hasta 2000 promos y pintarlas
-    todas de golpe, con el mapa de Leaflet al lado, hace que la pagina se
-    arrastre al scrollear.
+    Se renderiza de a tandas. La consulta trae hasta PROMOS_POR_ZONA promos y
+    pintarlas todas de golpe, con el mapa de Leaflet al lado, hace que la pagina
+    se arrastre al scrollear.
 
     El reseteo se hace comparando durante el render y no con un useEffect: es el
     patron que recomienda React para ajustar estado cuando cambian los datos de
@@ -236,20 +246,33 @@ function PromosPage() {
           )}
 
           {/*
-            Una linea explica de donde sale el respaldo de cada promo. La
-            etiqueta sola no alcanzaba: decir "verificado" invita a preguntar
-            verificado por quien, y esa respuesta es justamente lo que separa a
-            este listado de copiar los carteles de la gondola.
+            De donde sale el respaldo de cada promo. La etiqueta sola no
+            alcanzaba: decir "verificado" invita a preguntar verificado por
+            quien, y esa respuesta es justamente lo que separa a este listado de
+            copiar los carteles de la gondola.
+
+            Hasta el 2026-09-23 era un solo parrafo con las tres definiciones
+            entre parentesis ("se sostiene frente al mismo producto en otras
+            empresas", "no es inverosimil") y no se entendia. Ahora es una
+            pregunta y una linea por etiqueta, en palabras de quien compra.
           */}
-          <p className="text-xs text-tinta-media bg-papel-hundido rounded-lg px-3 py-2 mb-4 leading-relaxed">
-            Cada promo dice con que se sostiene su descuento:{" "}
-            <strong className="text-ahorro font-medium">lo declara la cadena</strong> (informa el porcentaje y
-            coincide con sus precios),{" "}
-            <strong className="text-dato-azul font-medium">verificado con otras cadenas</strong> (el precio de
-            promo se sostiene frente al mismo producto en otras empresas) o{" "}
-            <strong className="text-aviso font-medium">nadie lo confirma</strong> (solo se sabe que el descuento
-            no es inverosimil). Las que no pasan ninguno de los tres no se muestran.
-          </p>
+          <div className="text-xs text-tinta-media bg-papel-hundido rounded-lg px-3 py-2.5 mb-4 leading-relaxed">
+            <p className="font-semibold text-tinta">Como sabemos que el descuento es real</p>
+            <ul className="mt-1.5 space-y-1">
+              {NIVELES_EVIDENCIA.map((nivel) => (
+                <li key={nivel}>
+                  <strong className={`font-medium ${EVIDENCIA[nivel].color}`}>
+                    {EVIDENCIA[nivel].texto.charAt(0).toUpperCase() + EVIDENCIA[nivel].texto.slice(1)}.
+                  </strong>{" "}
+                  {EVIDENCIA[nivel].ayuda}
+                </li>
+              ))}
+            </ul>
+            <p className="mt-1.5">
+              Si un descuento no cierra por ningun lado, la promo no se muestra: por ejemplo, una notebook de
+              $1.439.000 &quot;a $214.900&quot;.
+            </p>
+          </div>
 
           {/* Filas separadas por linea fina, como los demas listados del sitio. */}
           <div className="border-t border-linea divide-y divide-linea">

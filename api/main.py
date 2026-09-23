@@ -9,6 +9,7 @@ from zoneinfo import ZoneInfo
 from fastapi import FastAPI, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 from google.api_core.exceptions import GoogleAPICallError
 from google.cloud import bigquery
 from google.oauth2 import service_account
@@ -345,7 +346,12 @@ def obtener_promos_mapa(
     )
     # Cada promo trae los numeros de sus sucursales; los datos de cada sucursal
     # viajan una sola vez en "sucursales". Ver mapa_promos._fila.
-    return {"promos": promos, "hay_mas": hay_mas, "sucursales": mapa_promos.tabla_de_sucursales(indice, promos)}
+    # JSONResponse directo y no el dict: FastAPI pasaria cada campo de cada promo
+    # por jsonable_encoder, y con 6000 promos eso eran 290 ms, mas que la busqueda
+    # entera. Todo lo que arma mapa_promos ya son tipos de JSON.
+    return JSONResponse(
+        {"promos": promos, "hay_mas": hay_mas, "sucursales": mapa_promos.tabla_de_sucursales(indice, promos)}
+    )
 
 
 @api.get("/gama")
@@ -864,6 +870,12 @@ def obtener_mismo_producto(id_producto: str):
 # ---------------------------------------------------------------------------
 app = FastAPI(title="precios_sepa")
 app.mount("/api", api)
+
+# Comprimir las respuestas (2026-09-23). Sin esto, cada movida del mapa bajaba
+# 1,5 MB de JSON con 2000 promos: casi todo son los numeros de sucursal de cada
+# una, que se repiten y comprimen 8 a 1 (179 KB). Va en la app exterior para
+# que cubra tambien el bundle del frontend, que pasa los 500 KB.
+app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 ESTATICOS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
 
