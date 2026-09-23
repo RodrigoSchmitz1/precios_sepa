@@ -46,11 +46,17 @@ function PromoCard({ promo }: { promo: PromoMostrable }) {
     .join(" · ");
 
   return (
-    <article className="flex items-baseline gap-4 py-3">
+    <article className="flex items-baseline gap-4 py-4">
       <div className="min-w-0 flex-1">
-        <h3 className="text-sm text-tinta leading-snug">{nombreLegible(promo.descripcion, promo.marca)}</h3>
-        <p className="text-xs text-tinta-suave truncate">{donde}</p>
-        {promo.leyenda && <p className="text-[11px] text-tinta-suave truncate">{promo.leyenda}</p>}
+        {/*
+          Un escalon mas de cuerpo en las tres lineas (2026-09-23). El nombre del
+          producto es lo que se viene a leer y estaba en 14px, el mismo cuerpo
+          que la nota al pie de la pagina; ahora la jerarquia adentro de la fila
+          se corresponde con la importancia de cada dato.
+        */}
+        <h3 className="text-base text-tinta leading-snug">{nombreLegible(promo.descripcion, promo.marca)}</h3>
+        <p className="text-sm text-tinta-suave truncate">{donde}</p>
+        {promo.leyenda && <p className="text-xs text-tinta-suave truncate">{promo.leyenda}</p>}
       </div>
 
       <div
@@ -58,8 +64,8 @@ function PromoCard({ promo }: { promo: PromoMostrable }) {
         title={ahorro > 0 ? `Ahorras ${formatearPesos(ahorro)} sobre el precio de lista` : undefined}
       >
         {/* El importe en serif, como los demas numeros grandes del sitio. */}
-        <p className="font-display text-xl text-tinta leading-none">{formatearPesos(promo.precio_promo)}</p>
-        <p className="numero text-xs text-tinta-suave mt-1">
+        <p className="font-display text-2xl text-tinta leading-none">{formatearPesos(promo.precio_promo)}</p>
+        <p className="numero text-sm text-tinta-suave mt-1">
           <span className="line-through">{formatearPesos(promo.precio_lista)}</span>{" "}
           <span className="text-ahorro font-medium">−{promo.descuento_pct}%</span>
         </p>

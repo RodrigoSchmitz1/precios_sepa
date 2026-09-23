@@ -93,7 +93,13 @@ function PromosPage() {
   const categoriasDistintas = new Set(promos.map((p) => p.categoria).filter(Boolean)).size;
 
   return (
-    <div className="max-w-5xl mx-auto">
+    /*
+      Mas ancha que las demas paginas (6xl contra 4xl). Esta es la unica que
+      tiene barra de filtros al costado: con 5xl, la columna de la lista quedaba
+      en 784px y las filas se leian apretadas mientras sobraban 128px de margen
+      a cada lado. El ancho extra va entero a la lista.
+    */
+    <div className="max-w-6xl mx-auto">
       <Presentacion />
 
       {/*
