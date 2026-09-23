@@ -10,6 +10,9 @@ export type Promo = {
   descuento_pct: number;
   leyenda: string;
   sucursales_con_esta_promo: number;
+  /** En cuantas provincias rige esta promo AL MISMO PRECIO. La API agrupa por
+   *  precio, asi que si en otra provincia cuesta distinto es otra fila. */
+  provincias: number;
 };
 
 export type PromoMapa = {

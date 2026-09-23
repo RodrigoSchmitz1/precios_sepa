@@ -224,13 +224,36 @@ def obtener_promos(
 
     where = f"WHERE {' AND '.join(condiciones)}" if condiciones else ""
 
+    # Se agrupa por producto + cadena + PRECIO, no se listan las filas tal cual.
+    #
+    # El mart tiene una fila por producto x cadena x provincia, a proposito: el
+    # precio de una promo suele variar por region. Pero cuando NO varia, listar
+    # las filas crudas repite la misma promo una vez por provincia, y como la
+    # lista se ordena por descuento, las primeras pantallas quedan tomadas por
+    # dos o tres productos repetidos. Medido el 2026-09-23: de 31 grupos con
+    # mas de una provincia, 11 tenian el mismo precio en todas (el repelente de
+    # Dia ocupaba 8 filas identicas a $890).
+    #
+    # Agrupar por precio conserva la variacion real y borra solo la repeticion:
+    # ese repelente pasa a 1 fila, y el alfajor de Express, que si cambia de
+    # precio entre provincias, pasa de 12 filas a 5 (una por precio distinto).
+    #
+    # El GROUP BY va en SQL y no en Python para que el LIMIT cuente filas ya
+    # agrupadas; si no, pedir 200 devolveria menos de 200 promos visibles y la
+    # paginacion de la pagina quedaria corrida.
     query = f"""
         SELECT
-            descripcion, marca, categoria, rubro, cadena, provincia,
-            precio_lista, precio_promo, descuento_pct, leyenda,
-            sucursales_con_esta_promo
+            descripcion, marca, categoria, rubro, cadena,
+            precio_lista, precio_promo, descuento_pct,
+            ANY_VALUE(leyenda) AS leyenda,
+            -- Representa al grupo la provincia donde mas sucursales la tienen.
+            ARRAY_AGG(provincia ORDER BY sucursales_con_esta_promo DESC LIMIT 1)[OFFSET(0)] AS provincia,
+            COUNT(DISTINCT provincia) AS provincias,
+            SUM(sucursales_con_esta_promo) AS sucursales_con_esta_promo
         FROM `{PROYECTO}.dbt_precios.mart_promos_vigentes`
         {where}
+        GROUP BY descripcion, marca, categoria, rubro, cadena,
+                 precio_lista, precio_promo, descuento_pct
         ORDER BY descuento_pct DESC
         LIMIT @limite
     """

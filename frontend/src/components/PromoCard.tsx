@@ -30,6 +30,8 @@ type PromoMostrable = {
   nombre_sucursal?: string;
   calle?: string;
   numero?: string;
+  /** Solo en el listado agrupado (/promos), no en el del mapa. */
+  provincias?: number;
 };
 
 function direccionDe(promo: PromoMostrable): string | null {
@@ -41,9 +43,15 @@ function direccionDe(promo: PromoMostrable): string | null {
 function PromoCard({ promo }: { promo: PromoMostrable }) {
   const direccion = direccionDe(promo);
   const ahorro = promo.precio_lista - promo.precio_promo;
-  const donde = [promo.cadena, promo.categoria, direccion ?? nombreProvincia(promo.provincia)]
-    .filter(Boolean)
-    .join(" · ");
+  /*
+    Con la promo al mismo precio en varias provincias se nombra una y se cuenta
+    el resto. Decir "Buenos Aires" a secas escondería que rige en otras siete, y
+    listarlas todas no entra en una linea ni aporta: lo que importa es que no es
+    una promo local.
+  */
+  const otras = (promo.provincias ?? 1) - 1;
+  const zona = direccion ?? nombreProvincia(promo.provincia) + (otras > 0 ? ` y ${otras} provincia${otras > 1 ? "s" : ""} mas` : "");
+  const donde = [promo.cadena, promo.categoria, zona].filter(Boolean).join(" · ");
 
   return (
     <article className="flex items-baseline gap-4 py-4">
