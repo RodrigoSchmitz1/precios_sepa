@@ -6,7 +6,7 @@ Tests del mapa de promos en memoria, sin BigQuery.
 
 import unittest
 
-from mapa_promos import armar_indice, buscar, tabla_de_sucursales
+from mapa_promos import armar_indice, buscar, lugares, tabla_de_sucursales
 
 
 def sucursal(clave, latitud, longitud, provincia="AR-B", cadena="Coto"):
@@ -159,5 +159,66 @@ class TestMapaPromos(unittest.TestCase):
         self.assertEqual(len([f for f in filas if f["descripcion"] == "GASEOSA COLA 2 L"]), 1)
 
 
+def sucursal_en(sucursal, localidad, provincia, lat, lng, barrio=None):
+    return {
+        "sucursal": sucursal, "cadena": "Coto", "nombre_sucursal": sucursal, "calle": "", "numero": "",
+        "barrio": barrio, "localidad": localidad, "provincia": provincia, "latitud": lat, "longitud": lng,
+    }
+
+
+class TestLugares(unittest.TestCase):
+    """Casos reales del 2026-09-23: las 8 sucursales de Moreno se repartian en
+    10.745 km por una coordenada rota, "BUENOS AIRES" era una provincia cargada
+    como localidad, y en CABA la localidad es "Capital Federal" para todo."""
+
+    def indice(self, sucursales):
+        return armar_indice(sucursales, [])
+
+    def test_una_coordenada_rota_no_mueve_el_centro(self):
+        moreno = [sucursal_en(f"m{i}", "Moreno", "AR-B", -34.65 + i * 0.001, -58.79) for i in range(7)]
+        moreno.append(sucursal_en("m7", "Moreno", "AR-B", 40.0, 120.0))  # en otro continente
+        (lugar,) = lugares(self.indice(moreno))
+        self.assertAlmostEqual(lugar["latitud"], -34.647, places=2)
+        self.assertEqual(lugar["sucursales"], 8)
+
+    def test_una_provincia_disfrazada_de_localidad_no_se_ofrece(self):
+        provincia = [sucursal_en(f"b{i}", "BUENOS AIRES", "AR-B", -34.0 - i * 0.8, -58.0 - i * 0.5) for i in range(6)]
+        self.assertEqual(lugares(self.indice(provincia)), [])
+
+    def test_en_caba_se_puede_buscar_el_barrio(self):
+        caba = [sucursal_en(f"c{i}", "CAPITAL FEDERAL", "AR-C", -34.58, -58.42, barrio="PALERMO") for i in range(3)]
+        nombres = {l["nombre"] for l in lugares(self.indice(caba))}
+        self.assertIn("Palermo", nombres)
+        self.assertIn("Capital Federal", nombres)
+
+    def test_si_barrio_y_localidad_coinciden_no_cuenta_dos_veces(self):
+        mismo = [sucursal_en(f"s{i}", "SALTA", "AR-A", -24.78, -65.41, barrio="SALTA") for i in range(4)]
+        (lugar,) = lugares(self.indice(mismo))
+        self.assertEqual(lugar["sucursales"], 4)
+
+    def test_el_mismo_lugar_sin_provincia_se_fusiona(self):
+        con = [sucursal_en(f"a{i}", "SALTA", "AR-A", -24.78, -65.41) for i in range(5)]
+        sin = [sucursal_en(f"n{i}", "Salta", None, -24.79, -65.40) for i in range(2)]
+        (lugar,) = lugares(self.indice(con + sin))
+        self.assertEqual((lugar["provincia"], lugar["sucursales"]), ("AR-A", 7))
+
+    def test_la_provincia_mal_cargada_se_corrige_por_la_mayoria(self):
+        bien = [sucursal_en(f"x{i}", "Cordoba", "AR-X", -31.42, -64.18) for i in range(6)]
+        mal = [sucursal_en(f"c{i}", "Cordoba", "AR-C", -31.41, -64.19) for i in range(2)]
+        (lugar,) = lugares(self.indice(bien + mal))
+        self.assertEqual(lugar["provincia"], "AR-X")
+
+    def test_dos_lugares_con_el_mismo_nombre_lejos_no_se_fusionan(self):
+        # San Martin hay en muchas provincias: no es el mismo lugar.
+        mendoza = [sucursal_en("m", "San Martin", "AR-M", -33.08, -68.47)]
+        pba = [sucursal_en("b", "San Martin", "AR-B", -34.57, -58.53)]
+        self.assertEqual(len(lugares(self.indice(mendoza + pba))), 2)
+
+    def test_los_articulos_van_en_minuscula(self):
+        villa = [sucursal_en("v", "VILLA DEL PARQUE", "AR-C", -34.6, -58.49)]
+        self.assertEqual(lugares(self.indice(villa))[0]["nombre"], "Villa del Parque")
+
+
 if __name__ == "__main__":
     unittest.main()
+

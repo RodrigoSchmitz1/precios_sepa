@@ -1,4 +1,4 @@
-import { MapContainer, Marker, Popup, useMapEvents } from "react-leaflet";
+import { MapContainer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import { useEffect, useRef } from "react";
 import "leaflet/dist/leaflet.css";
@@ -82,13 +82,32 @@ function DetectorMovimiento({ onMoverMapa }: DetectorMovimientoProps) {
   return null;
 }
 
+export type Destino = { latitud: number; longitud: number; zoom: number };
+
+/*
+  Lleva el mapa al lugar elegido en el buscador. Al terminar el vuelo Leaflet
+  dispara moveend, y DetectorMovimiento pide las promos de la zona nueva: no hace
+  falta avisar nada mas.
+
+  Cada eleccion es un objeto nuevo, asi que elegir dos veces el mismo lugar
+  despues de haberse movido vuelve a volar.
+*/
+function Volar({ destino }: { destino: Destino | null }) {
+  const mapa = useMap();
+  useEffect(() => {
+    if (destino) mapa.flyTo([destino.latitud, destino.longitud], destino.zoom, { duration: 0.8 });
+  }, [mapa, destino]);
+  return null;
+}
+
 type Props = {
   promos: PromoMapa[];
   sucursales: Record<string, SucursalMapa>;
   onMoverMapa: (bbox: BoundingBox) => void;
+  destino: Destino | null;
 };
 
-function MapaPromos({ promos, sucursales, onMoverMapa }: Props) {
+function MapaPromos({ promos, sucursales, onMoverMapa, destino }: Props) {
   const centroDefault: [number, number] = [-34.6, -58.4];
   const grupos = agruparPorSucursal(promos, sucursales);
 
@@ -100,6 +119,7 @@ function MapaPromos({ promos, sucursales, onMoverMapa }: Props) {
       style={{ height: "500px", width: "100%", borderRadius: "16px" }}
     >
       <DetectorMovimiento onMoverMapa={onMoverMapa} />
+      <Volar destino={destino} />
       <MapaBase />
       <MarkerClusterGroup chunkedLoading>
         {grupos.map((grupo, i) => (

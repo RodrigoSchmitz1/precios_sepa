@@ -1,13 +1,14 @@
 import { useState, useEffect, useMemo } from "react";
 import MapaPromos from "../components/MapaPromos";
-import type { BoundingBox } from "../components/MapaPromos";
+import type { BoundingBox, Destino } from "../components/MapaPromos";
 import PromoCard from "../components/PromoCard";
 import Presentacion from "../components/Presentacion";
 import Filtros from "../components/Filtros";
+import BuscadorProducto from "../components/BuscadorProducto";
 import FilaDeCifras from "../components/FilaDeCifras";
 import FiltroCategorias, { type Seleccion } from "../components/FiltroCategorias";
-import { obtenerPromosMapa } from "../api/client";
-import type { PromoMapa, SucursalMapa } from "../types";
+import { obtenerLugares, obtenerPromosMapa } from "../api/client";
+import type { LugarMapa, PromoMapa, SucursalMapa } from "../types";
 import { formatearNumero } from "../utils/formato";
 
 const TANDA = 60;
@@ -23,6 +24,33 @@ function PromosPage() {
   const [provincia, setProvincia] = useState("");
   const [filtro, setFiltro] = useState<Seleccion>(null);
   const [bbox, setBbox] = useState<BoundingBox | null>(null);
+  const [lugares, setLugares] = useState<LugarMapa[]>([]);
+  const [destino, setDestino] = useState<Destino | null>(null);
+
+  // Si falla, el buscador de lugares queda sin sugerencias y el resto de la
+  // pagina sigue andando: no vale la pena un cartel de error por esto.
+  useEffect(() => {
+    obtenerLugares()
+      .then(setLugares)
+      .catch(() => setLugares([]));
+  }, []);
+
+  function irALugar(lugar: LugarMapa) {
+    setDestino({ latitud: lugar.latitud, longitud: lugar.longitud, zoom: 13 });
+    // Con otra provincia elegida el mapa llegaria a una zona sin promos.
+    if (provincia && lugar.provincia !== provincia) setProvincia("");
+  }
+
+  /*
+    Elegir provincia ahora tambien lleva el mapa ahi, a su localidad con mas
+    sucursales. Antes solo filtraba lo que ya estaba a la vista: mirando CABA y
+    eligiendo Mendoza, el mapa quedaba vacio y decia que no habia promos.
+  */
+  function elegirProvincia(codigo: string) {
+    setProvincia(codigo);
+    const principal = lugares.find((l) => l.provincia === codigo);
+    if (principal) setDestino({ latitud: principal.latitud, longitud: principal.longitud, zoom: 11 });
+  }
 
   useEffect(() => {
     if (!bbox) return;
@@ -134,20 +162,24 @@ function PromosPage() {
 
       <div className="mb-5">
         <Filtros
-          busqueda={busqueda}
-          onBusquedaChange={setBusqueda}
+          lugares={lugares}
+          onElegirLugar={irALugar}
           provincia={provincia}
-          onProvinciaChange={setProvincia}
+          onProvinciaChange={elegirProvincia}
         />
       </div>
 
       <div className="mb-8">
         <div className="rounded-xl overflow-hidden border border-linea">
-          <MapaPromos promos={promos} sucursales={sucursales} onMoverMapa={setBbox} />
+          <MapaPromos promos={promos} sucursales={sucursales} onMoverMapa={setBbox} destino={destino} />
         </div>
         <p className="text-xs text-tinta-suave mt-2">
           Movete o haces zoom en el mapa para ver las promos de otra zona.
         </p>
+      </div>
+
+      <div className="mb-6">
+        <BuscadorProducto busqueda={busqueda} onBusquedaChange={setBusqueda} />
       </div>
 
       {/*
@@ -155,8 +187,12 @@ function PromosPage() {
         auto, asi que la lista no podia achicarse por debajo del ancho de su
         contenido y empujaba la pagina hasta meter scroll horizontal. Con 5xl no
         se notaba porque sobraba margen; al ensanchar a 6xl quedo a la vista.
+
+        En el celular pasaba lo mismo con la unica columna implicita: los rubros
+        van en una linea con puntos suspensivos, y la columna crecia hasta el
+        nombre mas largo. La pagina medía 829px en una pantalla de 375.
       */}
-      <div className="grid lg:grid-cols-[13rem_minmax(0,1fr)] gap-x-8 gap-y-6">
+      <div className="grid grid-cols-[minmax(0,1fr)] lg:grid-cols-[13rem_minmax(0,1fr)] gap-x-8 gap-y-6">
         <aside className="lg:sticky lg:top-24 lg:self-start">
           <FiltroCategorias promos={promos} elegido={filtro} onElegir={setFiltro} />
         </aside>
@@ -192,7 +228,9 @@ function PromosPage() {
           {!cargando && !error && promosVisibles.length === 0 && (
             <p className="text-sm text-tinta-suave">
               {promos.length === 0
-                ? "No se encontraron promos en esta zona."
+                ? busqueda.trim()
+                  ? `No hay promos de "${busqueda.trim()}" en esta zona.`
+                  : "No se encontraron promos en esta zona."
                 : `No hay promos de ${filtro?.valor} en esta zona.`}
             </p>
           )}

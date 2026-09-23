@@ -1,6 +1,7 @@
 import type {
   Promo,
   PromoMapa,
+  LugarMapa,
   SucursalMapa,
   QuienGana,
   Canasta,
@@ -93,6 +94,16 @@ export async function obtenerPromosMapa(filtros: FiltrosMapa): Promise<Respuesta
   }
   const respuesta = await fetch(`${API_BASE}/promos/mapa?${params.toString()}`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer promos del mapa");
+  return respuesta.json();
+}
+
+/*
+  La lista entera de localidades y barrios, una sola vez: pesa unas decenas de
+  KB y el buscador la filtra al tipear sin volver a pedir nada.
+*/
+export async function obtenerLugares(): Promise<LugarMapa[]> {
+  const respuesta = await fetch(`${API_BASE}/promos/lugares`);
+  if (!respuesta.ok) await fallar(respuesta, "Error al traer las localidades");
   return respuesta.json();
 }
 

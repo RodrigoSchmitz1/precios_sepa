@@ -30,6 +30,16 @@ export type SucursalMapa = {
   longitud: number;
 };
 
+/** Una localidad o barrio al que el buscador de arriba del mapa puede llevar. */
+export type LugarMapa = {
+  nombre: string;
+  provincia: string | null;
+  latitud: number;
+  longitud: number;
+  /** Sucursales con datos en ese lugar: ordena las sugerencias. */
+  sucursales: number;
+};
+
 export type PromoMapa = {
   descripcion: string;
   marca: string;

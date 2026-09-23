@@ -310,6 +310,17 @@ def _indice_mapa():
         return _cargar_indice_mapa()
 
 
+@api.get("/promos/lugares")
+def obtener_lugares_del_mapa():
+    """Localidades y barrios para el buscador que mueve el mapa.
+
+    Sale del indice del mapa, que ya esta en memoria: no consulta BigQuery. La
+    lista entera pesa unas decenas de KB y la pagina la filtra al tipear, asi
+    que cada letra no es un pedido.
+    """
+    return mapa_promos.lugares(_indice_mapa())
+
+
 @api.get("/promos/mapa")
 def obtener_promos_mapa(
     busqueda: Optional[str] = Query(None, description="Buscar en la descripcion del producto"),

@@ -1,10 +1,13 @@
 """Promos del mapa resueltas en memoria: mover el mapa no consulta BigQuery."""
 
 import heapq
+import math
+import statistics
 from array import array
+from collections import Counter
 from itertools import groupby, islice, repeat
 
-
+from mismo_producto import normalizar
 
 CAMPOS_SUCURSAL = (
     "cadena",
@@ -178,3 +181,111 @@ def buscar(
     grupos = groupby(pares, key=lambda par: par[0])
     seleccion = [(pos, [suc for _, suc in grupo]) for pos, grupo in islice(grupos, limite + 1)]
     return [_fila(indice, pos, sucs) for pos, sucs in seleccion[:limite]], len(seleccion) > limite
+
+
+# ---------------------------------------------------------------------------
+# Lugares para el buscador del mapa
+# ---------------------------------------------------------------------------
+
+# Un lugar cuyas sucursales estan, en la mediana, a mas de esto de su centro no
+# es una localidad: es una provincia cargada en el campo de localidad. Medido el
+# 2026-09-23: "BUENOS AIRES" agrupaba 423 sucursales en 796 km, y lo mismo
+# pasaba con CORRIENTES, ENTRE RIOS y SANTA FE. Llevar el mapa a su "centro"
+# dejaria al usuario en medio del campo.
+DISPERSION_MAXIMA_KM = 15
+
+# Dos lugares con el mismo nombre a menos de esto son el mismo lugar cargado
+# distinto. Ver lugares().
+DISTANCIA_MISMO_LUGAR_KM = 20
+
+PALABRAS_EN_MINUSCULA = {"de", "del", "la", "las", "los", "el", "y"}
+
+
+def _nombre_legible(nombre: str) -> str:
+    """Las cadenas escriben la misma localidad en mayusculas o no ("AGRONOMIA",
+    "Ciudad de Salta"). Se pasa a titulo, con los articulos en minuscula."""
+    if not nombre.isupper():
+        return nombre
+    palabras = nombre.lower().split()
+    return " ".join(
+        p if i > 0 and p in PALABRAS_EN_MINUSCULA else p.capitalize() for i, p in enumerate(palabras)
+    )
+
+
+def _km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
+    """Distancia aproximada, sobrada para decidir si un lugar es compacto."""
+    return math.hypot((lat2 - lat1) * 111.0, (lng2 - lng1) * 111.0 * math.cos(math.radians((lat1 + lat2) / 2)))
+
+
+def lugares(indice: IndiceMapa) -> list[dict]:
+    """Localidades y barrios con sucursales, para que el mapa pueda ir a uno.
+
+    Se buscan los dos campos porque dicen cosas distintas: en CABA la localidad
+    es "Capital Federal" para todo el distrito y el barrio es lo que la gente
+    escribe ("Palermo"); en el resto del pais el barrio suele traer el partido.
+
+    El centro es la MEDIANA de las sucursales y no el promedio ni el rectangulo
+    que las contiene. Hay sucursales con coordenadas rotas -las 8 de Moreno se
+    repartian en 10.745 km- y una sola alcanza para correr un promedio o
+    estirar un rectangulo hasta otro continente; la mediana ni se entera.
+    """
+    grupos: dict = {}
+    for i, s in enumerate(indice.sucursales):
+        for campo in ("barrio", "localidad"):
+            nombre = (s.get(campo) or "").strip()
+            if len(nombre) < 3 or not any(c.isalpha() for c in nombre):
+                continue
+            clave = (normalizar(nombre), s["provincia"])
+            grupo = grupos.setdefault(clave, {"nombres": Counter(), "sucursales": set(), "provincias": Counter()})
+            grupo["nombres"][nombre] += 1
+            grupo["sucursales"].add(i)
+            grupo["provincias"][s["provincia"]] += 1
+
+    def centro(sucursales: set) -> tuple[float, float]:
+        puntos = [indice.sucursales[i] for i in sucursales]
+        return (statistics.median(p["latitud"] for p in puntos), statistics.median(p["longitud"] for p in puntos))
+
+    # Mismo nombre y centros a menos de DISTANCIA_MISMO_LUGAR_KM: es el mismo
+    # lugar cargado distinto. Pasa con sucursales sin provincia ("Salta" sin
+    # codigo junto a "Salta" en AR-A) y con provincias mal cargadas (23 de
+    # Cordoba marcadas como CABA). Sin fusionar, el buscador ofrecia "Salta" dos
+    # veces y "Cordoba, CABA". Se procesa de mayor a menor, asi la provincia que
+    # queda es la de la mayoria.
+    por_nombre: dict = {}
+    for (norma, _), grupo in grupos.items():
+        por_nombre.setdefault(norma, []).append(grupo)
+    fusionados = []
+    for candidatos in por_nombre.values():
+        candidatos.sort(key=lambda g: -len(g["sucursales"]))
+        propios: list = []
+        for g in candidatos:
+            c = centro(g["sucursales"])
+            destino = next((f for f in propios if _km(*c, *f["centro"]) < DISTANCIA_MISMO_LUGAR_KM), None)
+            if destino is None:
+                propios.append({**g, "centro": c})
+            else:
+                destino["sucursales"] = destino["sucursales"] | g["sucursales"]
+                destino["nombres"] = destino["nombres"] + g["nombres"]
+                destino["provincias"] = destino["provincias"] + g["provincias"]
+        fusionados.extend(propios)
+
+    resultado = []
+    for grupo in fusionados:
+        puntos = [indice.sucursales[i] for i in grupo["sucursales"]]
+        lat, lng = centro(grupo["sucursales"])
+        dispersion = statistics.median(_km(lat, lng, p["latitud"], p["longitud"]) for p in puntos)
+        if dispersion > DISPERSION_MAXIMA_KM:
+            continue
+        provincias = [(n, prov) for prov, n in grupo["provincias"].items() if prov]
+        resultado.append(
+            {
+                "nombre": _nombre_legible(grupo["nombres"].most_common(1)[0][0]),
+                "provincia": max(provincias)[1] if provincias else None,
+                "latitud": lat,
+                "longitud": lng,
+                "sucursales": len(puntos),
+            }
+        )
+    resultado.sort(key=lambda l: (-l["sucursales"], l["nombre"]))
+    return resultado
+
