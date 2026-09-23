@@ -277,11 +277,30 @@ def obtener_promos(
 _candado_mapa = threading.Lock()
 
 
+# Filas por pagina al leer un mart entero con list_rows.
+#
+# Sin este parametro list_rows trae paginas enormes, y la memoria salta mientras
+# se decodifican. Medido el 2026-09-23 sobre mart_mismo_producto (200 mil filas),
+# solo recorriendolas sin armar nada:
+#
+#   sin definir   pico 508 MB   59 s
+#   20.000        pico 226 MB   66 s
+#   5.000         pico  57 MB   77 s
+#
+# Cloud Run corre este servicio con 512 MiB. Con el default, la carga de Mismo
+# producto sola ya se pasaba y el contenedor moria al primer pedido. Con 5.000,
+# el peor caso -una instancia recien levantada cargando los dos indices a la
+# vez, mas lo que ya retienen y el proceso base- queda cerca de 330 MB. Con
+# 20.000 dejaria de entrar. Cuesta unos 18 segundos mas en la primera carga de
+# cada instancia, que despues queda en la cache de 6 horas.
+FILAS_POR_PAGINA = 5_000
+
+
 @cachear
 def _cargar_indice_mapa():
     # list_rows lee con tabledata.list: no es una consulta y no consume la cuota.
-    sucursales = cliente_bq.list_rows(f"{PROYECTO}.dbt_precios.mart_mapa_sucursales")
-    promos = cliente_bq.list_rows(f"{PROYECTO}.dbt_precios.mart_mapa_promos")
+    sucursales = cliente_bq.list_rows(f"{PROYECTO}.dbt_precios.mart_mapa_sucursales", page_size=FILAS_POR_PAGINA)
+    promos = cliente_bq.list_rows(f"{PROYECTO}.dbt_precios.mart_mapa_promos", page_size=FILAS_POR_PAGINA)
     return mapa_promos.armar_indice((dict(f) for f in sucursales), (dict(f) for f in promos))
 
 
@@ -677,7 +696,7 @@ MAXIMO_ITEMS_OPTIMIZAR = 80
 
 @cachear
 def _cargar_indice_sucursales():
-    filas = cliente_bq.list_rows(f"{PROYECTO}.dbt_precios.mart_precio_categoria_sucursal")
+    filas = cliente_bq.list_rows(f"{PROYECTO}.dbt_precios.mart_precio_categoria_sucursal", page_size=FILAS_POR_PAGINA)
     return precios_por_sucursal.armar_indice(dict(fila) for fila in filas)
 
 
@@ -768,7 +787,7 @@ _candado_mismo_producto = threading.Lock()
 def _cargar_indice_mismo_producto():
     # list_rows lee con tabledata.list: no es una consulta y no consume la cuota.
     # El mart tiene solo el ultimo dia, asi que no hace falta filtrar por fecha.
-    filas = cliente_bq.list_rows(f"{PROYECTO}.dbt_precios.mart_mismo_producto")
+    filas = cliente_bq.list_rows(f"{PROYECTO}.dbt_precios.mart_mismo_producto", page_size=FILAS_POR_PAGINA)
     return mismo_producto.armar_indice(dict(fila) for fila in filas)
 
 
