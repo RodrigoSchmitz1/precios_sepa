@@ -73,6 +73,15 @@
     luminosidad >= 0.06 y el paso mas claro a 2.09:1 contra el blanco, o sea que
     no se confunde con la superficie.
   */
+  /*
+    Acentos para leer SOBRE la banda oscura del titular. No alcanza con reusar
+    --color-alerta: sobre #1a1815 da 3,26:1, que es el minimo para texto grande
+    y nada mas. Estos dan 7,7:1 y 8,5:1, asi que sirven tambien en cifras
+    chicas, y conservan el significado (calido = caro, verde = barato).
+  */
+  --color-sobre-oscuro-caro: #ff8a75;
+  --color-sobre-oscuro-barato: #6bc4a2;
+
   --color-escala-1: #6bc4a2;
   --color-escala-2: #3fae87;
   --color-escala-3: #1a9670;
