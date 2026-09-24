@@ -35,30 +35,36 @@ import type { CanastaGuardada } from "../utils/canastaGuardada";
   descripcion cortada a 38 letras ("Somos una familia de 4, dos adultos y …") y
   no habia forma de leer el resto antes de elegirla.
 
-  Cubren los hogares mas comunes y cada uno toca algo distinto de la canasta:
-  cantidad de personas, bebe, dieta, presupuesto.
+  Describen solo que come y toma cada hogar, sin hablar de presupuesto ni de
+  quien es la persona: "jubilados, presupuesto ajustado" podia leerse como un
+  juicio. La gama se elige despues, y si no se dice nada la IA usa economica.
+  Cada uno toca algo distinto de la canasta: cantidad de personas, bebe, dieta
+  sin carne, mucha carne, alcohol, comida hecha.
 */
 const EJEMPLOS = [
   {
     titulo: "Familia de 4",
-    texto: "Somos una familia de 4, dos adultos y dos chicos, comemos bastante carne y pollo, tomamos mate, presupuesto medio",
-  },
-  { titulo: "Vivo solo", texto: "Vivo solo, cocino poco, compro mucha fruta y verdura, no tomo gaseosa" },
-  {
-    titulo: "Pareja vegetariana",
-    texto: "Pareja vegetariana, cocinamos todo en casa, priorizamos calidad sobre precio",
-  },
-  {
-    titulo: "Jubilados",
-    texto: "Somos una pareja de jubilados, comemos liviano, mucha verdura, lácteos y pan, tomamos mate y té, presupuesto ajustado",
+    texto: "Somos una familia de 4, dos adultos y dos chicos, comemos carne y pollo varias veces por semana y tomamos mate",
   },
   {
     titulo: "Familia con bebé",
-    texto: "Somos dos adultos y un bebé de un año, necesitamos pañales y leche, cocinamos en casa, presupuesto medio",
+    texto: "Somos dos adultos y un bebé de un año, usamos pañales, tomamos mucha leche y cocinamos en casa",
   },
   {
-    titulo: "Estudiante",
-    texto: "Soy estudiante y vivo solo, como mucho fideos, arroz y milanesas, tomo mate, presupuesto ajustado",
+    titulo: "Vegetariano",
+    texto: "Soy vegetariano, como muchas verduras, frutas, legumbres, huevos y queso, y cocino en casa",
+  },
+  {
+    titulo: "Carne, huevos y mate",
+    texto: "Vivo solo, como mucha carne y muchos huevos, y tomo mate todos los días",
+  },
+  {
+    titulo: "Asado y cerveza",
+    texto: "Somos una pareja, cocinamos en casa, los fines de semana hacemos asado y tomamos cerveza de vez en cuando",
+  },
+  {
+    titulo: "Cocino poco",
+    texto: "Vivo solo y cocino poco: compro fruta, yogur, fideos y comidas preparadas, y no tomo gaseosa",
   },
 ];
 
