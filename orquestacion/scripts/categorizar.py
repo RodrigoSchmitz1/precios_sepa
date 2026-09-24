@@ -193,7 +193,8 @@ Reglas:
   - "Pastas frescas y tapas": pastas frescas o rellenas (ravioles, sorrentinos, capeletis, noquis, tallarines frescos, lasagna) y tapas de empanadas y de tarta.
   - "Facturas y reposteria": productos de panaderia YA HECHOS (facturas, tortas, budines, alfajores de panaderia). Una premezcla para hacerlos en casa va en Premezclas e ingredientes para hornear.
   - La avena, el salvado y la granola van en Dietetica suplementos y frutos secos.
-- "Comidas preparadas": comidas listas o para calentar: pizzas y prepizzas, empanadas, tartas, quiches, tortillas, canelones y lasagnas ya armados, sandwiches, y platos listos frescos o congelados. Una milanesa o hamburguesa sola sigue en Elaborados de carne.
+- "Panales": SOLO panales de bebe (tambien los pants de bebe). Los panales, pants, apositos y protectores de ADULTO (Tena, Nonisec, Cotidian, Plenitud, Promise) van en Higiene personal.
+- "Comidas preparadas": comidas listas o para calentar: pizzas y prepizzas, empanadas, tartas, quiches, tortillas, canelones y lasagnas ya armados, sandwiches, y platos listos frescos o congelados. Una milanesa o hamburguesa sola sigue en Elaborados de carne. Los helados y postres helados NO son comidas preparadas: van en Golosinas y chocolates.
 - Usa "Otros" SOLO si realmente no encaja en ninguna (debe ser muy poco).
 
 Devolve UNICAMENTE un JSON valido: una lista donde cada elemento tiene "n" (numero del producto) y "categoria" (una de las categorias exactas de la lista). Sin texto adicional, sin markdown.
