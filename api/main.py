@@ -807,41 +807,61 @@ def optimizar_compra_canasta(datos: OptimizarCompraRequest):
     )
 
 
-@api.get("/canasta-personalizada/localidades")
+# Una localidad se ofrece si tiene precio en al menos esta cantidad de
+# categorias: con menos, casi cualquier canasta quedaria a medio cotizar.
+CATEGORIAS_MINIMAS_LOCALIDAD = 15
+
+
 @cachear
+def _localidades_canasta():
+    """Localidades donde se puede cotizar Tu canasta, leidas una vez.
+
+    Hasta el 2026-09-24 cada texto del buscador era una consulta a BigQuery
+    (10 MB facturados como minimo, y una clave de cache nueva por cada letra):
+    la unica parte de Tu canasta que gastaba cuota por visitante. Ademas
+    comparaba con LIKE en minusculas, asi que "cordoba" no encontraba
+    "Cordoba" con tilde. Ahora el mart se lee con list_rows, que no consume
+    cuota, y se busca en memoria con la misma normalizacion que los demas
+    buscadores. Sale del mart de precios por categoria, contra el que cotiza
+    la canasta, y no del de canasta basica, que solo tiene las localidades con
+    la canasta INDEC completa.
+    """
+    tabla = cliente_bq.get_table(f"{PROYECTO}.dbt_precios.mart_precio_categoria_localidad")
+    campos = [c for c in tabla.schema if c.name in ("localidad", "provincia", "categoria", "fecha_datos")]
+    filas = [dict(f) for f in cliente_bq.list_rows(tabla, selected_fields=campos, page_size=FILAS_POR_PAGINA)]
+    return armar_localidades(filas, CATEGORIAS_MINIMAS_LOCALIDAD)
+
+
+def armar_localidades(filas, categorias_minimas: int) -> list[dict]:
+    """Localidades del ultimo dia con precio en suficientes categorias, ordenadas."""
+    if not filas:
+        return []
+    ultima = max(f["fecha_datos"] for f in filas)
+    categorias: dict = {}
+    for f in filas:
+        # Sin provincia no se puede cotizar: calcular la pide para no mezclar
+        # localidades homonimas de provincias distintas.
+        if f["fecha_datos"] == ultima and f["localidad"] and f["provincia"]:
+            categorias.setdefault((f["localidad"], f["provincia"]), set()).add(f["categoria"])
+    return [
+        {"localidad": loc, "provincia": prov, "_texto": mismo_producto.normalizar(loc)}
+        for (loc, prov), cats in sorted(categorias.items())
+        if len(cats) >= categorias_minimas
+    ]
+
+
+def filtrar_localidades(localidades: list[dict], busqueda: Optional[str], limite: int) -> list[dict]:
+    buscado = mismo_producto.normalizar(busqueda or "").strip()
+    elegidas = [l for l in localidades if buscado in l["_texto"]] if buscado else localidades
+    return [{"localidad": l["localidad"], "provincia": l["provincia"]} for l in elegidas[:limite]]
+
+
+@api.get("/canasta-personalizada/localidades")
 def obtener_localidades_disponibles(
     busqueda: Optional[str] = Query(None, description="Buscar localidad por texto"),
     limite: int = Query(50, le=200, description="Cantidad maxima de resultados"),
 ):
-    # Se consulta el mart de precios por categoria, que es contra el que
-    # realmente cotiza la canasta personalizada, y no el de canasta basica.
-    # Salian de ahi por inercia, y desde que ese mart emite solo localidades con
-    # la canasta INDEC completa habria dejado al usuario con 31 opciones cuando
-    # su canasta a medida se puede calcular en cientos de localidades.
-    tabla = f"{PROYECTO}.dbt_precios.mart_precio_categoria_localidad"
-    condiciones = [solo_ultima_fecha(tabla)]
-    parametros = []
-
-    if busqueda:
-        condiciones.append("LOWER(localidad) LIKE @busqueda")
-        parametros.append(bigquery.ScalarQueryParameter("busqueda", "STRING", f"%{busqueda.lower()}%"))
-
-    where = f"WHERE {' AND '.join(condiciones)}"
-
-    query = f"""
-        SELECT localidad, provincia
-        FROM `{tabla}`
-        {where}
-        GROUP BY localidad, provincia
-        HAVING COUNT(DISTINCT categoria) >= 15
-        ORDER BY localidad
-        LIMIT @limite
-    """
-    parametros.append(bigquery.ScalarQueryParameter("limite", "INT64", limite))
-
-    job_config = bigquery.QueryJobConfig(query_parameters=parametros)
-    resultados = cliente_bq.query(query, job_config=job_config).result()
-    return [dict(fila) for fila in resultados]
+    return filtrar_localidades(_localidades_canasta(), busqueda, limite)
 
 
 # ---------------------------------------------------------------------------
