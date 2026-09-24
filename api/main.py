@@ -475,6 +475,46 @@ def obtener_canasta(
     return [dict(fila) for fila in resultados]
 
 
+# Grupos para mostrar la composicion de la canasta. Es presentacion: el orden
+# dentro de cada grupo es el de las listas y una categoria que falte aca cae en
+# "Otros" en vez de desaparecer.
+GRUPOS_CANASTA = {
+    "Pan, harinas y almacen": [
+        "Pan", "Galletitas saladas", "Galletitas dulces", "Arroz", "Harina", "Fideos",
+        "Legumbres", "Azucar", "Dulces y mermeladas",
+    ],
+    "Frutas y verduras": ["Papa y tuberculos", "Verduras", "Frutas"],
+    "Carnes y huevos": ["Carne vacuna", "Pollo", "Pescado", "Achuras y menudencias", "Fiambres", "Huevos"],
+    "Lacteos": ["Leche fluida", "Quesos", "Yogur", "Manteca y margarina"],
+    "Aceite y condimentos": ["Aceite", "Sal", "Otros condimentos", "Vinagre"],
+    "Bebidas e infusiones": ["Gaseosas", "Aguas", "Jugos", "Cerveza", "Vinos y licores", "Cafe", "Yerba mate"],
+}
+
+
+@cachear
+def _composicion_canasta():
+    # La seed es chica y list_rows no consume cuota.
+    filas = {f["categoria"]: dict(f) for f in cliente_bq.list_rows(f"{PROYECTO}.dbt_precios.composicion_canasta")}
+    grupos = []
+    for grupo, categorias in GRUPOS_CANASTA.items():
+        items = [filas.pop(c) for c in categorias if c in filas]
+        if items:
+            grupos.append({"grupo": grupo, "items": items})
+    if filas:
+        grupos.append({"grupo": "Otros", "items": sorted(filas.values(), key=lambda f: f["categoria"])})
+    return grupos
+
+
+@api.get("/canasta/composicion")
+def obtener_composicion_canasta():
+    """Que tiene la canasta basica: cada categoria con su cantidad mensual por adulto.
+
+    Sin esto el visitante veia un total de $243.000 sin saber que compraba con
+    eso, y lo comparaba con Tu canasta de una familia entera.
+    """
+    return _composicion_canasta()
+
+
 @api.get("/canasta/detalle")
 @cachear
 def obtener_canasta_detalle(

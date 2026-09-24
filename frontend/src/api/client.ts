@@ -6,6 +6,7 @@ import type {
   QuienGana,
   Canasta,
   CanastaDetalle,
+  GrupoComposicion,
   Inflacion,
   InflacionResumen,
   ItemCanastaIA,
@@ -123,6 +124,12 @@ export async function obtenerCanasta(filtros: FiltrosPromos): Promise<Canasta[]>
   const query = armarQuery(filtros);
   const respuesta = await fetch(`${API_BASE}/canasta?${query}`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer canasta");
+  return respuesta.json();
+}
+
+export async function obtenerComposicionCanasta(): Promise<GrupoComposicion[]> {
+  const respuesta = await fetch(`${API_BASE}/canasta/composicion`);
+  if (!respuesta.ok) await fallar(respuesta, "Error al traer la composicion");
   return respuesta.json();
 }
 

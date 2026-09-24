@@ -7,6 +7,7 @@ import Titular, { Resaltado } from "../components/Titular";
 import FilaDeCifras from "../components/FilaDeCifras";
 import TiraDePuntos from "../components/TiraDePuntos";
 import DetalleCanasta from "../components/DetalleCanasta";
+import ComposicionCanasta from "../components/ComposicionCanasta";
 import type { Canasta } from "../types";
 
 /*
@@ -24,6 +25,14 @@ import type { Canasta } from "../types";
 */
 
 const TANDA = 50;
+
+/*
+  Adultos equivalentes de un hogar de dos adultos y dos chicos, segun el INDEC
+  ("La medicion de la pobreza y la indigencia en la Argentina", Metodologia 22).
+  La canasta se publica por adulto; sin esta referencia el total se comparaba
+  con Tu canasta de una familia entera y parecia tres veces mas barato.
+*/
+const ADULTOS_HOGAR_TIPO = 3.09;
 
 function CanastaPage() {
   const [estado, setEstado] = useState<{ filas?: Canasta[]; error?: string } | null>(null);
@@ -105,8 +114,19 @@ function CanastaPage() {
           masBarata ? (
             <>
               <p>
-                Es la canasta alimentaria del INDEC, adaptada: las mismas {categorias} categorias y las mismas
-                cantidades en todas las localidades. Solo entran las localidades donde se puede medir la canasta
+                Es lo que come <strong className="font-medium">un adulto durante un mes</strong> segun la canasta
+                alimentaria del INDEC
+                {mediana && (
+                  <>
+                    . Para una familia de dos adultos y dos chicos, que el INDEC cuenta como {ADULTOS_HOGAR_TIPO.toLocaleString("es-AR")}{" "}
+                    adultos, son unos {formatearPesos(mediana.costo_canasta_total * ADULTOS_HOGAR_TIPO)} en la
+                    localidad del medio
+                  </>
+                )}
+                .
+              </p>
+              <p className="mt-2">
+                Las mismas {categorias} categorias y las mismas cantidades en todas las localidades. Solo entran las localidades donde se puede medir la canasta
                 completa, porque sumar las categorias que cada una tenga haria parecer mas baratas a las que tienen
                 menos datos. Si a una le faltan observaciones de una categoria se usa la mediana de su provincia, en
                 hasta 2 de las {categorias}.
@@ -167,7 +187,7 @@ function CanastaPage() {
                       {
                         etiqueta: "Mediana",
                         valor: formatearPesos(mediana.costo_canasta_total),
-                        detalle: "la localidad del medio",
+                        detalle: "por adulto, en la localidad del medio",
                       },
                     ]
                   : []),
@@ -180,6 +200,8 @@ function CanastaPage() {
               ]}
             />
           </div>
+
+          <ComposicionCanasta />
 
           <input
             type="search"
@@ -226,7 +248,7 @@ function CanastaPage() {
                         onClick={() => setAbierta(estaAbierta ? null : clave)}
                         aria-expanded={estaAbierta}
                         className={[
-                          "w-full flex items-center gap-4 py-3 text-left transition-colors",
+                          "w-full flex items-center gap-3 sm:gap-4 py-3 text-left transition-colors",
                           estaAbierta ? "bg-papel-hundido" : "hover:bg-papel-hundido",
                         ].join(" ")}
                       >
@@ -234,7 +256,8 @@ function CanastaPage() {
                           {posicion}
                         </span>
 
-                        <span className="min-w-0 w-48 shrink-0">
+                        {/* Flexible en el celular: con w-48 fijo, la fila medía 424 px en 375. */}
+                        <span className="min-w-0 flex-1 sm:flex-none sm:w-48 sm:shrink-0">
                           <span className="block text-sm font-medium text-tinta truncate">{c.localidad}</span>
                           <span className="block text-xs text-tinta-suave truncate">
                             {nombreProvincia(c.provincia)}
@@ -255,7 +278,7 @@ function CanastaPage() {
                           />
                         </span>
 
-                        <span className="text-right shrink-0 w-28">
+                        <span className="text-right shrink-0 w-24 sm:w-28">
                           <span className="numero block text-sm font-semibold text-tinta">
                             {formatearPesos(c.costo_canasta_total)}
                           </span>

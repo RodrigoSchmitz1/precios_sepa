@@ -151,6 +151,13 @@ export type ResultadoCanastaPersonalizada = {
   categorias_pedidas: number;
 };
 
+/** Que tiene la canasta basica, agrupado para mostrar. Cantidades por adulto
+ *  equivalente y por mes, como las publica el INDEC. */
+export type GrupoComposicion = {
+  grupo: string;
+  items: { categoria: string; cantidad: number; unidad: "g" | "cc" | "unidad" }[];
+};
+
 /** Una linea del desglose de la canasta de una localidad. */
 export type CanastaDetalle = {
   categoria: string;
