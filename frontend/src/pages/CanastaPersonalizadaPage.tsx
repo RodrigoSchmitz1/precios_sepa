@@ -498,7 +498,7 @@ function CanastaPersonalizadaPage() {
               </p>
             )}
 
-            <div className="grid gap-2.5">
+            <div className="grid gap-1.5">
               {cotizables.map((item) => (
                 <ItemCanastaEditable
                   key={item.categoria}

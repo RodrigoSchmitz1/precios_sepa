@@ -67,7 +67,10 @@ class TestCatalogo(unittest.TestCase):
         prompt = construir_prompt("vivo solo")
         for nombre, datos in CATEGORIAS.items():
             self.assertIn(f"{nombre} ({datos['unidad']})", prompt)
-        self.assertIn("Yogur: 300-600g", prompt)
+        # Las referencias son las del INDEC, como Canasta basica: si no, el mismo
+        # hogar costaba la mitad en Tu canasta.
+        self.assertIn("Pan: 6750g", prompt)
+        self.assertIn("ADULTOS EQUIVALENTES", prompt)
 
     def test_coincide_con_la_taxonomia_de_la_categorizacion(self):
         """Falla si esta lista y la taxonomia de categorizar.py se desincronizan.

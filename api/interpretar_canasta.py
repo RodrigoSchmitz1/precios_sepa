@@ -113,34 +113,34 @@ CATEGORIAS = {
 GAMAS = ("economico", "medio", "premium")
 MASA_O_VOLUMEN = {"g", "cc"}
 
-REFERENCIAS_MENSUALES_PER_CAPITA = """Como referencia de cantidades MENSUALES razonables para UN adulto (basadas en consumo promedio real en Argentina), antes de ajustar segun lo que describa el usuario:
-- Pan: 1500-2000g
-- Arroz: 500-800g
-- Fideos: 600-900g
-- Harina: 400-600g
-- Papa y tuberculos: 1500-2500g (NO mas de 3000g salvo consumo muy alto declarado)
-- Azucar: 400-600g
-- Aceite: 400-600cc
-- Carne vacuna: 1500-2500g (solo cortes vacunos; el cerdo, las achuras y las milanesas o hamburguesas van en sus propias categorias)
-- Pollo: 1000-1500g (pollo entero y presas)
-- Pescado: 400-800g
-- Cerdo: 300-700g (si se consume)
-- Achuras y menudencias: 200-500g (si se consumen)
-- Elaborados de carne: 500-1000g (milanesas, hamburguesas, nuggets; si se consumen)
-- Huevos: 8-15 unidades
-- Leche fluida: 2000-3000cc
-- Quesos: 200-400g
-- Yogur: 300-600g
-- Frutas: 2000-3000g
-- Verduras: 2000-3000g
-- Aguas: 6000-9000cc (2-3 litros por dia)
-- Gaseosas/Jugos: 1000-2000cc cada una (si se consumen)
-- Cerveza: 1000-2000cc si se toma de vez en cuando, 4000-6000cc si se toma seguido
-- Yerba mate: 300-500g (si se consume)
-- Cafe: 100-200g (si se consume)
-- Legumbres: 200-400g
+# Referencias de cantidad: las de la Canasta Basica Alimentaria del INDEC para
+# Gran Buenos Aires, por adulto equivalente y por mes (las mismas de la seed
+# composicion_canasta). Hasta el 2026-09-24 eran rangos sin fuente ("basadas en
+# consumo promedio real") y muy por debajo: pan 1,5-2 kg contra 6,75 del INDEC,
+# leche 2-3 litros contra 9,27, carne 1,5-2,5 kg contra 4,44. Ademas se
+# multiplicaba por personas y no por adultos equivalentes. El resultado: la
+# misma familia de 4 en Palermo costaba $332.858 en Tu canasta y $669.923 en
+# Canasta basica, en el mismo sitio.
+REFERENCIAS_MENSUALES_PER_CAPITA = """Referencias de cantidad MENSUAL por ADULTO EQUIVALENTE, de la Canasta Basica Alimentaria del INDEC (Gran Buenos Aires). Son el punto de partida; despues se ajusta segun lo que describa el usuario:
+- Pan: 6750g
+- Galletitas saladas: 420g. Galletitas dulces: 210g
+- Arroz: 1200g. Fideos: 1740g. Harina: 1290g. Legumbres: 240g
+- Papa y tuberculos: 7020g
+- Verduras: 5730g. Frutas: 4950g
+- Carne vacuna: 4440g. Pollo: 1650g. Pescado: 180g. Fiambres: 60g
+- Huevos: 11 unidades
+- Leche fluida: 9270cc. Quesos: 330g. Yogur: 570g. Manteca y margarina: 60g
+- Aceite: 1200cc
+- Azucar: 1230g. Dulces y mermeladas: 330g
+- Gaseosas, Jugos y Aguas: 1150cc cada una (si se consumen)
+- Cerveza y Vinos y licores: 540cc cada una (si se consumen); 4000-6000cc de cerveza si se toma seguido
+- Yerba mate: 510g. Cafe: 30g
+- Sal: 120g. Otros condimentos: 120g. Vinagre: 60cc
+- Lo que no esta en la lista (cerdo, elaborados de carne, embutidos, limpieza, higiene, panales, etc.): una cantidad razonable si el usuario lo menciona.
 
-Estos son valores de referencia para UNA persona por UN mes. Multiplica proporcionalmente segun la cantidad de personas que mencione el usuario, y ajusta hacia arriba o abajo segun lo que describa (ej. "comemos mucha carne" -> subir esa categoria; "casi no tomamos gaseosa" -> bajarla o no incluirla)."""
+ADULTOS EQUIVALENTES (como el INDEC): cada adulto cuenta 0,9; cada chico en edad escolar 0,65; un bebe 0,35. Una familia de dos adultos y dos chicos son 3,1 adultos equivalentes: multiplica las referencias por ese numero, no por la cantidad de personas.
+
+Ajusta hacia arriba o abajo segun lo que describa (ej. "comemos mucha carne" -> subir esa categoria; "casi no tomamos gaseosa" -> bajarla o no incluirla)."""
 
 PROMPT_BASE = """Sos un asistente que arma canastas de compra personalizadas para supermercados en Argentina.
 
@@ -151,7 +151,7 @@ El usuario va a describir en lenguaje natural que consume o que necesita. Tu tra
 REGLAS ESTRICTAS:
 1. SOLO podes usar categorias de esta lista exacta, tal cual estan escritas. Entre parentesis figura la unidad en la que se mide cada una: {categorias}
 2. NUNCA inventes una categoria que no este en la lista.
-3. Usa las referencias de cantidad de arriba como punto de partida, multiplicando por la cantidad de personas que el usuario menciona (si no menciona, asumi 1 adulto), y ajustando segun lo que describa.
+3. Usa las referencias de cantidad de arriba como punto de partida, multiplicando por los ADULTOS EQUIVALENTES del hogar (si no menciona, asumi 1 adulto: 0,9), y ajustando segun lo que describa.
 4. La unidad de cada item tiene que ser EXACTAMENTE la que figura entre parentesis para su categoria: "g" (gramos), "cc" (mililitros) o "unidad".
 5. El campo "gama" debe ser "economico", "medio", o "premium" segun el presupuesto que el usuario describa. Si no lo menciona, usa "economico".
 6. Los basicos van en su categoria basica salvo que el usuario pida la variante: "aceite" es Aceite (girasol, maiz, mezcla), no Aceite de oliva y especiales; "papas" es Papa y tuberculos, no Verduras y papas procesadas; "azucar" es Azucar, no Edulcorantes; "fideos" es Fideos, no Pastas frescas y tapas; "harina" es Harina. Usa la categoria de la variante solo si la menciona (aceite de oliva, papas fritas congeladas, edulcorante, ravioles, premezcla, pan rallado). Y si menciona SOLO la variante, no agregues tambien el basico: "papas congeladas" es Verduras y papas procesadas y nada de Papa y tuberculos.
