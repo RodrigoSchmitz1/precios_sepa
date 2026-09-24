@@ -15,7 +15,16 @@ name: Transformacion diaria (dbt)
 
 on:
   schedule:
-    - cron: "0 11 * * *"  # 11:00 UTC = 08:00 ART, una hora despues de la ingesta local
+    # 11:37 UTC = 08:37 ART, despues de la ingesta local (07:00 ART).
+    #
+    # No es en punto a proposito. GitHub no garantiza el horario de los cron y
+    # los de minuto 0 son los que mas se demoran, porque se acumulan los de todo
+    # el mundo. Con "0 11" la corrida arrancaba entre 3 y 6 horas tarde (medido
+    # del 07 al 24-09: 3h45m tipico, 5h45m peor), y los dias de trabajo manual
+    # llegaba con la cuota de BigQuery ya gastada: el 22 y el 23-09 fallo por
+    # eso. Si la demora sigue, la salida de fondo es que la ingesta local
+    # dispare este workflow por workflow_dispatch al terminar.
+    - cron: "37 11 * * *"
   workflow_dispatch: {}
 
 jobs:

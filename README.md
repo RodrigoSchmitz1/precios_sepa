@@ -29,8 +29,12 @@ Portal SEPA ──> Ingesta local ──> BigQuery ──> dbt ──> FastAPI +
  (datos.gob)     (Python)          (crudo)    (27 modelos)   (Cloud Run)
                      │                             │
               Task Scheduler                GitHub Actions
-                 07:00 ART                    08:00 ART
+                 07:00 ART                    08:37 ART*
 ```
+
+\* Programado a esa hora; GitHub no garantiza el horario de los cron y hasta
+septiembre de 2026 arrancaba entre 3 y 6 horas tarde. Ver el comentario en
+`.github/workflows/pipeline_diario.yml`.
 
 **La descarga corre en una máquina local y no en la nube, y no es un descuido.**
 El portal `datos.produccion.gob.ar` responde 403 a los rangos de IP de
