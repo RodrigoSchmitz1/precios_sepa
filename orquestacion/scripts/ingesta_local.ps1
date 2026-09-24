@@ -1,4 +1,4 @@
-# Ingesta diaria de SEPA, para correr desde el Programador de tareas de Windows.
+﻿# Ingesta diaria de SEPA, para correr desde el Programador de tareas de Windows.
 #
 # Este paso corre local y no en la nube porque el portal de SEPA responde 403 a
 # los rangos de IP de GitHub Actions y de Google (verificado el 2026-09-06).
@@ -9,9 +9,10 @@
 # detecta la fecha faltante y la recupera sola, mientras siga dentro de la
 # ventana que retiene el crudo.
 #
-# Para registrar la tarea (una sola vez, desde una consola como administrador):
-#
-#   schtasks /create /tn "Ingesta SEPA" /sc daily /st 07:00 /tr "powershell -NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File C:\Users\rschmitz\Desktop\precios_sepa\orquestacion\scripts\ingesta_local.ps1"
+# Para instalarla en una PC nueva y registrar la tarea: instalar_ingesta.ps1
+# (crea el entorno, prueba la conexion y programa la tarea). Desde el
+# 2026-09-24 corre en dos maquinas: la de escritorio a las 07:00 y la notebook
+# de respaldo a las 10:00; la segunda no hace nada si la primera ya cargo.
 #
 # -WindowStyle Hidden no es cosmetico. La tarea corre en la sesion del usuario y
 # antes abria una consola visible al iniciar sesion: el 2026-09-10 esa ventana se

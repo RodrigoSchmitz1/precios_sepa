@@ -36,7 +36,7 @@ Portal SEPA ──> Ingesta local ──> BigQuery ──> dbt ──> FastAPI +
 septiembre de 2026 arrancaba entre 3 y 6 horas tarde. Ver el comentario en
 `.github/workflows/pipeline_diario.yml`.
 
-**La descarga corre en una máquina local y no en la nube, y no es un descuido.**
+**La descarga corre en máquinas de casa y no en la nube, y no es un descuido.**
 El portal `datos.produccion.gob.ar` responde 403 a los rangos de IP de
 datacenter: se verificó empíricamente contra GitHub Actions y Google Colab,
 mientras que una conexión doméstica recibe 200. No es un problema de
@@ -45,6 +45,15 @@ BigQuery y Gemini, así que corre en la nube sin restricciones.
 
 Se descartó montar un relay por proxy residencial para saltear el bloqueo: es
 eludir deliberadamente un control que el portal puso a propósito.
+
+Para que no dependa de una sola PC, la ingesta corre en dos: una de escritorio
+que queda prendida, a las 07:00, y una notebook de respaldo a las 10:00. Correr
+dos veces es inocuo, porque la ingesta calcula qué fechas faltan en BigQuery y
+si no falta ninguna no hace nada; y como SEPA publica los últimos 7 días, las
+dos tendrían que estar apagadas una semana para perder datos. Si el dato del
+día no llega, el pipeline falla por un test de frescura y GitHub avisa por
+mail. `orquestacion/scripts/instalar_ingesta.ps1` deja una PC lista con un
+comando.
 
 ---
 
