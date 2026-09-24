@@ -29,10 +29,37 @@ import {
 } from "../utils/canastaGuardada";
 import type { CanastaGuardada } from "../utils/canastaGuardada";
 
+/*
+  Perfiles de ejemplo: un titulo corto para el boton y la descripcion completa,
+  que es lo que se carga en el cuadro. Hasta el 2026-09-24 el boton mostraba la
+  descripcion cortada a 38 letras ("Somos una familia de 4, dos adultos y …") y
+  no habia forma de leer el resto antes de elegirla.
+
+  Cubren los hogares mas comunes y cada uno toca algo distinto de la canasta:
+  cantidad de personas, bebe, dieta, presupuesto.
+*/
 const EJEMPLOS = [
-  "Somos una familia de 4, dos adultos y dos chicos, comemos bastante carne y pollo, tomamos mate, presupuesto medio",
-  "Vivo solo, cocino poco, compro mucha fruta y verdura, no tomo gaseosa",
-  "Pareja vegetariana, cocinamos todo en casa, priorizamos calidad sobre precio",
+  {
+    titulo: "Familia de 4",
+    texto: "Somos una familia de 4, dos adultos y dos chicos, comemos bastante carne y pollo, tomamos mate, presupuesto medio",
+  },
+  { titulo: "Vivo solo", texto: "Vivo solo, cocino poco, compro mucha fruta y verdura, no tomo gaseosa" },
+  {
+    titulo: "Pareja vegetariana",
+    texto: "Pareja vegetariana, cocinamos todo en casa, priorizamos calidad sobre precio",
+  },
+  {
+    titulo: "Jubilados",
+    texto: "Somos una pareja de jubilados, comemos liviano, mucha verdura, lácteos y pan, tomamos mate y té, presupuesto ajustado",
+  },
+  {
+    titulo: "Familia con bebé",
+    texto: "Somos dos adultos y un bebé de un año, necesitamos pañales y leche, cocinamos en casa, presupuesto medio",
+  },
+  {
+    titulo: "Estudiante",
+    texto: "Soy estudiante y vivo solo, como mucho fideos, arroz y milanesas, tomo mate, presupuesto ajustado",
+  },
 ];
 
 /*
@@ -313,13 +340,19 @@ function CanastaPersonalizadaPage() {
         {items.length === 0 && !generando && (
           <div className="flex flex-wrap gap-2 mt-3">
             <span className="text-xs text-tinta-suave py-1">Probá con:</span>
-            {EJEMPLOS.map((ejemplo, indice) => (
+            {EJEMPLOS.map((ejemplo) => (
               <button
-                key={indice}
-                onClick={() => setDescripcion(ejemplo)}
-                className="text-xs text-tinta-media bg-papel border border-linea rounded-full px-3 py-1 hover:border-linea-fuerte hover:text-tinta transition-colors"
+                key={ejemplo.titulo}
+                onClick={() => setDescripcion(ejemplo.texto)}
+                title={ejemplo.texto}
+                aria-label={`Usar el ejemplo: ${ejemplo.texto}`}
+                className={`text-xs border rounded-full px-3 py-1 transition-colors ${
+                  descripcion === ejemplo.texto
+                    ? "text-ahorro bg-ahorro-tenue border-ahorro-borde"
+                    : "text-tinta-media bg-papel border-linea hover:border-linea-fuerte hover:text-tinta"
+                }`}
               >
-                {ejemplo.slice(0, 38)}…
+                {ejemplo.titulo}
               </button>
             ))}
           </div>
