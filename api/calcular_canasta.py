@@ -29,19 +29,45 @@ def calcular_costo_canasta(cliente_bq, items: list, localidades: list) -> dict:
     localidad barata entera pueda quedar recortada al compararla con otra cara.
     """
     if not items or not localidades:
-        return {"items": [], "costo_total": 0, "categorias_calculadas": 0, "categorias_pedidas": len(items)}
+        return {
+            "items": [],
+            "costo_total": 0,
+            "categorias_calculadas": 0,
+            "categorias_pedidas": len(items),
+            "categorias_provinciales": 0,
+        }
 
-    precios = _traer_precios(cliente_bq, items, localidades)
+    zona, provincia = _traer_precios(cliente_bq, items, localidades)
+    return armar_resultado(items, zona, provincia)
 
-    resultados_por_categoria = []
+
+def armar_resultado(items: list, zona: dict, provincia: dict) -> dict:
+    """Cotiza cada item con el precio de la zona o, si no alcanza, el de la provincia.
+
+    RESPALDO PROVINCIAL (2026-09-24). Una categoria sin 10 precios en la zona
+    elegida quedaba fuera del total. Al cargar la canasta basica para 2 adultos
+    y 2 chicos en Palermo, el pollo economico no tenia datos y la canasta salia
+    sin pollo, mas barata que la real, con un aviso al pie que era facil no ver.
+    Canasta basica ya resolvia lo mismo con la mediana de la provincia, como
+    hacen los indices oficiales con los precios faltantes; ahora Tu canasta
+    tambien, y cada item dice de donde salio su precio (origen_precio) para que
+    la pagina lo marque. A diferencia de Canasta basica no hay tope de
+    categorias imputadas: aca no se comparan localidades entre si, se cotiza la
+    canasta de una persona, y un precio provincial marcado es mejor que un hueco.
+
+    Separada de la consulta para poder probarla sin BigQuery.
+    """
+    resultados = []
     for item in items:
         clave = (item["categoria"], item["gama"], item["unidad"])
-        dato = precios.get(clave)
+        dato, origen = zona.get(clave), "zona"
+        if not dato or dato["muestras"] < MIN_MUESTRAS:
+            dato, origen = provincia.get(clave), "provincia"
         if not dato or dato["muestras"] < MIN_MUESTRAS:
             continue
 
         precio_unitario = dato["precio_mediano_unidad"]
-        resultados_por_categoria.append({
+        resultados.append({
             "categoria": item["categoria"],
             "cantidad": item["cantidad"],
             "unidad": item["unidad"],
@@ -50,40 +76,61 @@ def calcular_costo_canasta(cliente_bq, items: list, localidades: list) -> dict:
             "precio_unitario": round(precio_unitario, 4),
             "costo_categoria": round(precio_unitario * item["cantidad"], 2),
             "muestras": dato["muestras"],
+            "origen_precio": origen,
         })
 
-    costo_total = round(sum(r["costo_categoria"] for r in resultados_por_categoria), 2)
-
     return {
-        "items": resultados_por_categoria,
-        "costo_total": costo_total,
-        "categorias_calculadas": len(resultados_por_categoria),
+        "items": resultados,
+        "costo_total": round(sum(r["costo_categoria"] for r in resultados), 2),
+        "categorias_calculadas": len(resultados),
         "categorias_pedidas": len(items),
+        "categorias_provinciales": sum(r["origen_precio"] == "provincia" for r in resultados),
     }
 
 
-def _traer_precios(cliente_bq, items: list, localidades: list) -> dict:
-    """Trae en UNA sola query el precio de todas las categorias pedidas.
+def _traer_precios(cliente_bq, items: list, localidades: list) -> tuple[dict, dict]:
+    """Trae en UNA sola query el precio de la zona y el de sus provincias.
 
-    Devuelve {(categoria, gama, unidad): {precio_mediano_unidad, muestras}}.
+    Devuelve dos diccionarios {(categoria, gama, unidad): {precio_mediano_unidad,
+    muestras}}: el primero con las localidades elegidas y el segundo con todas
+    las localidades de sus provincias. Los dos promedian las medianas de cada
+    localidad ponderando por muestras, igual que ya se hacia al combinar zonas.
+    Es la misma tabla chica leida una vez, asi que el respaldo no agrega costo.
     """
     tabla = f"{PROYECTO}.dbt_precios.mart_precio_categoria_localidad"
 
     query = f"""
+        WITH base AS (
+            SELECT *
+            FROM `{tabla}`
+            WHERE fecha_datos = (SELECT MAX(fecha_datos) FROM `{tabla}`)
+                AND provincia IN UNNEST(@provincias)
+                AND categoria IN UNNEST(@categorias)
+        )
         SELECT
+            "zona" AS nivel,
             categoria,
             gama,
             unidad_normalizada,
             SUM(precio_mediano_unidad * muestras) / SUM(muestras) AS precio_mediano_unidad,
             SUM(muestras) AS muestras
-        FROM `{tabla}`
-        WHERE fecha_datos = (SELECT MAX(fecha_datos) FROM `{tabla}`)
-            AND (localidad, provincia) IN UNNEST(@zonas)
-            AND categoria IN UNNEST(@categorias)
+        FROM base
+        WHERE (localidad, provincia) IN UNNEST(@zonas)
+        GROUP BY categoria, gama, unidad_normalizada
+        UNION ALL
+        SELECT
+            "provincia" AS nivel,
+            categoria,
+            gama,
+            unidad_normalizada,
+            SUM(precio_mediano_unidad * muestras) / SUM(muestras) AS precio_mediano_unidad,
+            SUM(muestras) AS muestras
+        FROM base
         GROUP BY categoria, gama, unidad_normalizada
     """
 
     categorias = list({item["categoria"] for item in items})
+    provincias = list({z["provincia"] for z in localidades})
     tipo_zona = bigquery.StructQueryParameterType(
         bigquery.ScalarQueryParameterType("STRING", name="localidad"),
         bigquery.ScalarQueryParameterType("STRING", name="provincia"),
@@ -100,13 +147,13 @@ def _traer_precios(cliente_bq, items: list, localidades: list) -> dict:
     job_config = bigquery.QueryJobConfig(query_parameters=[
         bigquery.ArrayQueryParameter("zonas", tipo_zona, zonas),
         bigquery.ArrayQueryParameter("categorias", "STRING", categorias),
+        bigquery.ArrayQueryParameter("provincias", "STRING", provincias),
     ])
 
-    filas = cliente_bq.query(query, job_config=job_config).result()
-    return {
-        (f["categoria"], f["gama"], f["unidad_normalizada"]): {
+    niveles: dict = {"zona": {}, "provincia": {}}
+    for f in cliente_bq.query(query, job_config=job_config).result():
+        niveles[f["nivel"]][(f["categoria"], f["gama"], f["unidad_normalizada"])] = {
             "precio_mediano_unidad": f["precio_mediano_unidad"],
             "muestras": f["muestras"],
         }
-        for f in filas
-    }
+    return niveles["zona"], niveles["provincia"]

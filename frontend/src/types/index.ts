@@ -142,6 +142,10 @@ export type ItemCanastaCalculado = ItemCanastaIA & {
   precio_unitario: number;
   costo_categoria: number;
   muestras: number;
+  /** "provincia" cuando la zona elegida no junta datos de la categoria y se
+   *  uso el precio de su provincia. Opcional por compatibilidad con la API
+   *  anterior, que no lo mandaba. */
+  origen_precio?: "zona" | "provincia";
 };
 
 export type ResultadoCanastaPersonalizada = {
@@ -149,6 +153,7 @@ export type ResultadoCanastaPersonalizada = {
   costo_total: number;
   categorias_calculadas: number;
   categorias_pedidas: number;
+  categorias_provinciales?: number;
 };
 
 /** Que tiene la canasta basica, agrupado para mostrar. Cantidades por adulto

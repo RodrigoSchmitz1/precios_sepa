@@ -270,6 +270,8 @@ function CanastaPersonalizadaPage() {
   // suficientes muestras para esa combinacion de categoria, gama y unidad).
   // Solo tiene sentido mostrarlas mientras el resultado corresponda a la canasta
   // actual; si esta desactualizado, la comparacion no significa nada.
+  const provinciales = resultado?.categorias_provinciales ?? 0;
+
   const sinCotizar = resultadoVigente
     ? items.filter((i) => !resultado!.items.some((r) => r.categoria === i.categoria))
     : [];
@@ -496,7 +498,11 @@ function CanastaPersonalizadaPage() {
           <div className="mb-5">
             <FilaDeCifras
               cifras={[
-                { etiqueta: "Costo mensual", valor: formatearPesos(resultado.costo_total), detalle: "con precios de tu zona" },
+                {
+                  etiqueta: "Costo mensual",
+                  valor: formatearPesos(resultado.costo_total),
+                  detalle: provinciales > 0 ? "con precios de tu zona y tu provincia" : "con precios de tu zona",
+                },
                 {
                   etiqueta: "Por dia",
                   valor: formatearPesos(resultado.costo_total / 30),
@@ -505,7 +511,10 @@ function CanastaPersonalizadaPage() {
                 {
                   etiqueta: "Categorias",
                   valor: `${resultado.categorias_calculadas} de ${resultado.categorias_pedidas}`,
-                  detalle: "cotizadas con datos",
+                  detalle:
+                    provinciales > 0
+                      ? `${provinciales} con precio de la provincia`
+                      : "cotizadas con datos",
                 },
                 ...(localidadesElegidas.length > 0
                   ? [
@@ -540,6 +549,18 @@ function CanastaPersonalizadaPage() {
                           {" "}
                           {item.cantidad} {item.unidad} · {item.gama}
                         </span>
+                        {/* Marcado y no escondido: el total incluye un precio que
+                            no es de la zona elegida, y quien lo lee tiene que
+                            poder saberlo. */}
+                        {item.origen_precio === "provincia" && (
+                          <span
+                            className="text-aviso text-xs"
+                            title="Tu zona no tiene datos suficientes de esta categoria: se usa el precio de tu provincia."
+                          >
+                            {" "}
+                            · precio de la provincia
+                          </span>
+                        )}
                       </span>
                       <span className="shrink-0">
                         <span className="numero text-tinta font-medium">
@@ -566,7 +587,7 @@ function CanastaPersonalizadaPage() {
           {sinCotizar.length > 0 && (
             <div className="mt-5 pt-4 border-t border-linea">
               <p className="text-xs text-aviso mb-1.5">
-                Sin datos suficientes en tu zona, no entraron al total:
+                Sin datos suficientes en tu zona ni en tu provincia, no entraron al total:
               </p>
               <p className="text-xs text-tinta-media">
                 {sinCotizar.map((i) => `${i.categoria} (${i.gama})`).join(" · ")}
