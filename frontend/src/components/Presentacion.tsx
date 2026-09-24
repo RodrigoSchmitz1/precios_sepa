@@ -293,7 +293,7 @@ function Presentacion() {
                     {
                       etiqueta: "Canasta mas barata",
                       valor: formatearPesos(masBarata.costo_canasta_total),
-                      detalle: masBarata.localidad,
+                      detalle: `por adulto, en ${masBarata.localidad}`,
                     },
                     { etiqueta: "Brecha entre localidades", valor: `${brecha}%`, detalle: `hasta ${masCara.localidad}` },
                     {

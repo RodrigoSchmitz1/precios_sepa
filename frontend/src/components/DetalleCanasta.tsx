@@ -21,6 +21,23 @@ type Props = {
   total: number;
 };
 
+/*
+  "4,44 kg a $12.600/kg" y no "4.440 x $12,60/u": la cantidad viene en gramos
+  (o cc) y el precio por gramo, que nadie lee. Se pasa a kilo o litro, y las
+  piezas quedan como "11 a $315 c/u".
+*/
+function cantidadPorPrecio(f: CanastaDetalle): string {
+  const numero = (n: number, decimales = 2) => n.toLocaleString("es-AR", { maximumFractionDigits: decimales });
+  if (f.unidad === "g" || f.unidad === "cc") {
+    const [grande, chica] = f.unidad === "g" ? ["kg", "g"] : ["l", "ml"];
+    const cantidad =
+      f.cantidad_necesaria >= 1000 ? `${numero(f.cantidad_necesaria / 1000)} ${grande}` : `${numero(f.cantidad_necesaria)} ${chica}`;
+    return `${cantidad} a ${formatearPesos(f.precio_mediano_unidad * 1000)}/${grande}`;
+  }
+  if (f.unidad === "unidad") return `${numero(f.cantidad_necesaria, 0)} a ${formatearPesos(f.precio_mediano_unidad)} c/u`;
+  return `${formatearNumero(Math.round(f.cantidad_necesaria))} a ${formatearPesos(f.precio_mediano_unidad)} por unidad de medida`;
+}
+
 function DetalleCanasta({ localidad, provincia, total }: Props) {
   const clave = `${localidad}|${provincia}`;
   const [estado, setEstado] = useState<Estado | null>(null);
@@ -83,18 +100,7 @@ function DetalleCanasta({ localidad, provincia, total }: Props) {
                       provincia
                     </span>
                   )}
-                  <span className="text-tinta-suave">
-                    {" "}
-                    {formatearNumero(Math.round(f.cantidad_necesaria))} ×{" "}
-                    <span className="numero">
-                      {f.precio_mediano_unidad.toLocaleString("es-AR", {
-                        style: "currency",
-                        currency: "ARS",
-                        maximumFractionDigits: 2,
-                      })}
-                    </span>
-                    /u
-                  </span>
+                  <span className="text-tinta-suave"> {cantidadPorPrecio(f)}</span>
                 </span>
                 <span className="shrink-0">
                   <span className="numero font-medium text-tinta">

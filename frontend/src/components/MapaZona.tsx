@@ -1,6 +1,7 @@
 import { useEffect } from "react";
 import { Circle, CircleMarker, MapContainer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import MapaBase from "./MapaBase";
+import ZoomConRuedaAlTocar from "./ZoomConRuedaAlTocar";
 import "leaflet/dist/leaflet.css";
 import "../utils/leaflet";
 import type { SucursalOpcion } from "../types";
@@ -49,7 +50,8 @@ function MapaZona({ punto, radioKm, onElegirPunto, sucursales = [] }: Props) {
   const centro: [number, number] = punto ? [punto.latitud, punto.longitud] : [-34.6037, -58.3816];
 
   return (
-    <MapContainer center={centro} zoom={12} scrollWheelZoom={true} style={{ height: "360px", width: "100%" }}>
+    <MapContainer center={centro} zoom={12} scrollWheelZoom={false} style={{ height: "360px", width: "100%" }}>
+      <ZoomConRuedaAlTocar />
       <MapaBase />
       <DetectorDeClick onElegirPunto={onElegirPunto} />
       <Encuadrar punto={punto} radioKm={radioKm} />

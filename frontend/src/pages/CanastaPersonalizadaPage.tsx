@@ -398,7 +398,7 @@ function CanastaPersonalizadaPage() {
         <textarea
           value={descripcion}
           onChange={(e) => setDescripcion(e.target.value)}
-          placeholder="Ej: somos una familia de 4, dos adultos y dos chicos, comemos bastante carne y pollo, tomamos mate, presupuesto medio"
+          placeholder="Ej: somos una familia de 4, dos adultos y dos chicos, comemos bastante carne y pollo y tomamos mate"
           rows={3}
           className="w-full bg-papel border border-linea rounded-xl px-4 py-3 text-sm leading-relaxed resize-y focus:outline-none focus:border-ahorro"
         />
@@ -645,7 +645,9 @@ function CanastaPersonalizadaPage() {
                       ? `${provinciales} con precio de la provincia`
                       : "cotizadas con datos",
                 },
-                ...(localidadesElegidas.length > 0
+                // Con una sola zona ya la dice el titulo ("... por mes en Palermo"),
+                // y como cuarta cifra no entraba: el costo por dia salia cortado.
+                ...(localidadesElegidas.length > 1
                   ? [
                       {
                         etiqueta: localidadesElegidas.length === 1 ? "Zona" : "Zonas",

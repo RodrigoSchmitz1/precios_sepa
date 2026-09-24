@@ -176,6 +176,8 @@ export type CanastaDetalle = {
   /** "provincia" cuando la localidad no junta 6 observaciones de la categoria y
    *  se usa la mediana provincial; en ese caso muestras es la de la provincia. */
   origen_precio: "localidad" | "provincia";
+  /** Unidad de la cantidad: g, cc o piezas. Opcional por compatibilidad. */
+  unidad?: "g" | "cc" | "unidad" | null;
 };
 
 export type LocalidadOpcion = {

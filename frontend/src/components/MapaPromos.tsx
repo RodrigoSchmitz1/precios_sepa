@@ -4,6 +4,7 @@ import { memo, useEffect, useMemo, useRef } from "react";
 import "leaflet/dist/leaflet.css";
 import "../utils/leaflet";
 import MapaBase from "./MapaBase";
+import ZoomConRuedaAlTocar from "./ZoomConRuedaAlTocar";
 import "react-leaflet-cluster/dist/assets/MarkerCluster.css";
 import "react-leaflet-cluster/dist/assets/MarkerCluster.Default.css";
 import type { PromoMapa, SucursalMapa } from "../types";
@@ -158,11 +159,12 @@ function MapaPromos({ promos, sucursales, onMoverMapa, destino }: Props) {
     <MapContainer
       center={centroDefault}
       zoom={11}
-      scrollWheelZoom={true}
+      scrollWheelZoom={false}
       style={{ height: "500px", width: "100%", borderRadius: "16px" }}
     >
       <DetectorMovimiento onMoverMapa={onMoverMapa} />
       <Volar destino={destino} />
+      <ZoomConRuedaAlTocar />
       <MapaBase />
       <MarkerClusterGroup chunkedLoading>
         {grupos.map((grupo) => (

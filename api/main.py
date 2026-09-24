@@ -546,7 +546,14 @@ def obtener_canasta_detalle(
         bigquery.ScalarQueryParameter("localidad", "STRING", localidad),
         bigquery.ScalarQueryParameter("provincia", "STRING", provincia),
     ])
-    return [dict(fila) for fila in cliente_bq.query(query, job_config=job_config).result()]
+    # La unidad de cada categoria sale de la composicion (ya en memoria): sin
+    # ella la pagina mostraba "4.440 x $12,60/u" en vez de "4,44 kg a
+    # $12.600/kg", y "/u" no se entendia.
+    unidades = {i["categoria"]: i["unidad"] for g in _composicion_canasta() for i in g["items"]}
+    return [
+        {**dict(fila), "unidad": unidades.get(fila["categoria"])}
+        for fila in cliente_bq.query(query, job_config=job_config).result()
+    ]
 
 
 def _ctes_cadena_contigua(tabla: str) -> str:

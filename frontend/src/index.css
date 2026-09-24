@@ -101,6 +101,17 @@
   --font-sans: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
 }
 
+/*
+  La banda oscura del titular es full-bleed con calc(50% - 50vw), y 100vw
+  incluye la barra de desplazamiento vertical: en Windows sobraban 8 px y
+  aparecia una barra horizontal en todas las paginas. clip, y no hidden, porque
+  hidden crea un contenedor de scroll y rompe el header sticky.
+*/
+html,
+body {
+  overflow-x: clip;
+}
+
 body {
   margin: 0;
   background-color: var(--color-lienzo);

@@ -185,7 +185,7 @@ function PromosPage() {
           <MapaPromos promos={promos} sucursales={sucursales} onMoverMapa={setBbox} destino={destino} />
         </div>
         <p className="text-xs text-tinta-suave mt-2">
-          Movete o haces zoom en el mapa para ver las promos de otra zona.
+          Movete por el mapa para ver las promos de otra zona. Para hacer zoom con la ruedita, primero hace click en el mapa.
         </p>
       </div>
 
