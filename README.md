@@ -15,7 +15,7 @@ aplicación web.
 |---|---|
 | **Promos vigentes** | Qué descuentos hay hoy cerca mío, sobre un mapa, con cada promo calificada según la evidencia que la respalda y filtros por rubro |
 | **Canasta básica** | Cuánto cuesta la canasta alimentaria en cada localidad |
-| **Tu canasta** | Describís en lenguaje natural qué consumís (o elegís las categorías a mano), una IA arma tu canasta y se cotiza con precios reales |
+| **Tu canasta** | Describís en lenguaje natural qué consumís, una IA arma tu canasta y se cotiza con precios reales. También se puede partir de la canasta básica del INDEC para tu hogar o elegir las categorías a mano |
 | **Supermercado más barato** | Qué cadena tiene el precio más bajo, comparando productos idénticos, categoría por categoría |
 | **El mismo producto** | Cuánto cuesta el mismo código de barras en cada cadena, y cuánta diferencia hay, sin contar los precios que contradicen al resto del mercado |
 | **Inflación** | Ranking de todas las categorías por variación de precio, con apertura por cadena |

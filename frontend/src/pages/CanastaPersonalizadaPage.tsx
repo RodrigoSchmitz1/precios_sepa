@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import EmpezarConCanastaBasica from "../components/EmpezarConCanastaBasica";
 import {
   interpretarCanasta,
   calcularCanastaPersonalizada,
@@ -139,6 +140,14 @@ function CanastaPersonalizadaPage() {
         setErrorGenerar(err.message);
         setGenerando(false);
       });
+  }
+
+  function cargarCanastaBasica(basica: ItemCanastaIA[]) {
+    setItems(basica);
+    setQuitados([]);
+    setResultado(null);
+    setFirmaResultado(null);
+    setErrorGenerar(null);
   }
 
   function handleBuscarLocalidad(texto: string) {
@@ -327,6 +336,8 @@ function CanastaPersonalizadaPage() {
             No se pudo generar la canasta: {errorGenerar}
           </p>
         )}
+
+        {items.length === 0 && !generando && <EmpezarConCanastaBasica onCargar={cargarCanastaBasica} />}
 
         {/*
           Armarla a mano, sin la IA: con la primera categoria agregada aparecen

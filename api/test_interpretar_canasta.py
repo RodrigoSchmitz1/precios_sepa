@@ -13,6 +13,9 @@ from interpretar_canasta import CATEGORIAS, construir_prompt, normalizar_items
 RUTA_CATEGORIZAR = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..", "orquestacion", "scripts", "categorizar.py"
 )
+RUTA_COMPOSICION = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "..", "seeds", "composicion_canasta.csv"
+)
 
 
 def item(**campos):
@@ -81,6 +84,25 @@ class TestCatalogo(unittest.TestCase):
         exec(fuente[inicio:fin], espacio)
         taxonomia = set(espacio["CATEGORIA_A_RUBRO"]) - {"Otros"}
         self.assertEqual(set(CATEGORIAS), taxonomia)
+
+    def test_la_canasta_basica_se_puede_cotizar_en_tu_canasta(self):
+        """Cada categoria de la canasta basica existe aca y con la misma unidad.
+
+        "Empezar con la canasta basica" carga la seed tal cual en Tu canasta,
+        que cotiza por categoria x gama x unidad. Con una unidad distinta (la
+        seed tuvo Huevos en gramos y Aceite en gramos hasta el 2026-09-01) esa
+        categoria quedaria sin precio, y la canasta saldria mas barata sin que
+        nada lo avise.
+        """
+        import csv
+
+        with io.open(RUTA_COMPOSICION, encoding="utf-8-sig", newline="") as f:
+            filas = list(csv.DictReader(f))
+        self.assertTrue(filas)
+        for fila in filas:
+            with self.subTest(categoria=fila["categoria"]):
+                self.assertIn(fila["categoria"], CATEGORIAS)
+                self.assertEqual(fila["unidad"], CATEGORIAS[fila["categoria"]]["unidad"])
 
 
 if __name__ == "__main__":
