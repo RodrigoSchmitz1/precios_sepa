@@ -60,11 +60,24 @@ function InflacionPage() {
     // contradecir lo que el lector ve.
     const subieron = filas.filter((f) => f.variacion_pct >= 0.005).length;
     const bajaron = filas.filter((f) => f.variacion_pct <= -0.005).length;
+    /*
+      El movimiento general, que es lo primero que uno quiere saber. Cada
+      categoria es la media geometrica de sus series (cadena x unidad), asi que
+      la media geometrica de las categorias ponderada por series es exactamente
+      la de todas las series juntas: cada serie pesa lo mismo, como adentro de
+      cada categoria. Hasta el 2026-09-24 el titulo solo contaba categorias
+      ("42 de 49 subieron") y no decia cuanto.
+    */
+    const series = filas.reduce((n, f) => n + f.series, 0);
+    const logs = filas.reduce((suma, f) => suma + f.series * Math.log(1 + f.variacion_pct / 100), 0);
+    const general = series > 0 ? (Math.exp(logs / series) - 1) * 100 : 0;
     return {
       subieron,
       bajaron,
       quietas: filas.length - subieron - bajaron,
       dias: diasEntre(filas[0].fecha_inicio, filas[0].fecha_fin),
+      general,
+      series,
     };
   }, [filas]);
 
@@ -116,8 +129,11 @@ function InflacionPage() {
       >
         {resumen && masExtrema ? (
           <>
-            <Resaltado>{resumen.subieron}</Resaltado> de {filas.length} categorias subieron de precio y{" "}
-            <Resaltado tono="barato">{resumen.bajaron}</Resaltado> bajaron
+            Los precios {resumen.general >= 0 ? "subieron" : "bajaron"}{" "}
+            <Resaltado tono={resumen.general >= 0 ? undefined : "barato"}>
+              {formatearVariacion(Math.abs(resumen.general)).replace("+", "")}
+            </Resaltado>{" "}
+            en {resumen.dias} {resumen.dias === 1 ? "dia" : "dias"}
           </>
         ) : (
           "Que categorias subieron y cuales bajaron"
@@ -142,12 +158,20 @@ function InflacionPage() {
             <FilaDeCifras
               cifras={[
                 {
+                  etiqueta: "General",
+                  valor: formatearVariacion(resumen.general),
+                  detalle: `promedio de ${resumen.series} series de precios`,
+                },
+                {
+                  etiqueta: "Subieron",
+                  valor: `${resumen.subieron} de ${filas.length}`,
+                  detalle: `categorias; ${resumen.bajaron} bajaron`,
+                },
+                {
                   etiqueta: "Periodo",
                   valor: `${resumen.dias} ${resumen.dias === 1 ? "dia" : "dias"}`,
                   detalle: `hasta el ${fechaEnPalabras(filas[0].fecha_fin)}`,
                 },
-                { etiqueta: "Subieron", valor: resumen.subieron, detalle: `de ${filas.length} categorias` },
-                { etiqueta: "Bajaron", valor: resumen.bajaron, detalle: `${resumen.quietas} sin cambio` },
                 {
                   etiqueta: "Mayor movimiento",
                   valor: formatearVariacion(masExtrema.variacion_pct),
