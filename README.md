@@ -205,9 +205,17 @@ sobre los datos del 2026-09-09:
   de $238.866.**
 
 Se eligió la última, como hacen los índices oficiales con los precios
-faltantes, con un tope: con 4 categorías provinciales se llegaba a 136
-localidades, pero una canasta así deja de describir a su localidad. Cada
-categoría imputada va marcada en el desglose del sitio.
+faltantes, con un tope de 2: se temía que con más precios provinciales la
+canasta dejara de describir a su localidad. Cada categoría imputada va marcada
+en el desglose del sitio.
+
+Ese temor se midió el 2026-09-24, cuando las categorías nuevas bajaron la
+cobertura de 88 a 68 localidades. En las localidades que sí tienen precio
+local, se lo reemplazó por el provincial: imputar una categoría mueve la
+canasta 0,0% en la mediana y como mucho 1,9% (la papa fuera de CABA), y aceite,
+azúcar, pollo y leche juntos, 0,7%. Las mismas cadenas cobran lo mismo en toda
+la provincia. El tope pasó a 4: 87 localidades, con la mediana igual ($216.780
+con 2, $216.942 con 4).
 
 La misma escasez decidió qué hacer con las menudencias. El INDEC incluye 270 g
 de hígado, y al contrastar la composición contra su tabla por región (el

@@ -75,6 +75,10 @@ vars:
   # La referencia se calcula entre empresas y no entre banderas a proposito: con
   # banderas, Carrefour pesa cuatro veces y Cencosud tres, asi que la "mediana
   # del mercado" seria la mediana de dos empresas.
+  # Cuantas de las categorias de la canasta basica se pueden valuar con la
+  # mediana de la provincia cuando la localidad no junta datos. La medicion que
+  # lo justifica esta en mart_canasta_detalle.
+  canasta_maximo_imputadas: 4
   mismo_producto_piso_creible: 0.5
   mismo_producto_techo_creible: 2.0
   # Un precio fuera de ese rango igual cuenta si otro esta a menos de este

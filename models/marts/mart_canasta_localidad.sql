@@ -24,7 +24,8 @@
 -- harina $1.200/kg). Es una correccion, no un cambio de precios: comparar a
 -- traves de esa fecha mide el cambio de metodologia. La cobertura bajo de 88 a
 -- 68 localidades: con categorias mas acotadas, 25 dejaron de juntar precios
--- locales de aceite, azucar o papa y pasaron el tope de 2 imputadas.
+-- locales de aceite, azucar o papa y pasaron el tope de 2 imputadas. Ese
+-- mismo dia el tope subio a 4 (ver mart_canasta_detalle) y volvieron 19.
 --
 -- EXCLUSION: Menudencias (270 g de higado). Hay categoria (Achuras y
 -- menudencias), pero el higado economico se vende en pocas sucursales: medido
@@ -50,7 +51,8 @@
 -- variaciones de composicion.
 --
 -- categorias_imputadas cuenta cuantas de las 32 categorias se valuaron con la
--- mediana de la provincia por falta de observaciones locales (como mucho 2). Se
+-- mediana de la provincia por falta de observaciones locales (como mucho
+-- canasta_maximo_imputadas, en dbt_project.yml). Se
 -- expone para que el ranking pueda decir sobre que se compara cada localidad.
 
 SELECT

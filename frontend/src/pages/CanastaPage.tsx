@@ -130,7 +130,7 @@ function CanastaPage() {
                 Las mismas {categorias} categorias y las mismas cantidades en todas las localidades. Solo entran las
                 localidades donde se puede medir la canasta completa, porque sumar las categorias que cada una tenga
                 haria parecer mas baratas a las que tienen menos datos. Si a una le faltan observaciones de una
-                categoria se usa la mediana de su provincia, en hasta 2 de las {categorias}.
+                categoria se usa la mediana de su provincia, en hasta 4 de las {categorias}.
               </p>
               {/*
                 Por que la brecha es chica. Sin esto se leia como "el pais cuesta

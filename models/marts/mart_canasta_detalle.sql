@@ -122,7 +122,7 @@ con_localidad AS (
 
 {#- Umbrales de la canasta. Ver la documentacion de mediana_local y grilla. -#}
 {%- set muestras_minimas = 6 -%}
-{%- set maximo_imputadas = 2 -%}
+{%- set maximo_imputadas = var("canasta_maximo_imputadas") -%}
 
 mediana_local AS (
     -- UMBRAL: 6 observaciones por categoria y localidad para usar su mediana.
@@ -166,12 +166,22 @@ grilla AS (
     --
     -- Cuando una localidad no junta 6 observaciones de una categoria se usa la
     -- mediana de su provincia, tambien con 6 o mas, como hacen los indices
-    -- oficiales al imputar precios faltantes. Se admiten hasta 2 categorias
-    -- imputadas por localidad. Medido sobre el 2026-09-09: 96 localidades (51 de
-    -- CABA y 45 del interior) con mediana de $238.866, contra $230.810 del grupo
-    -- estrictamente local. Con 4 se llegaba a 136, pero una canasta con cuatro
-    -- precios provinciales deja de describir a su localidad. Cada fila dice de
-    -- donde salio su precio (origen_precio) y el desglose del sitio lo muestra.
+    -- oficiales al imputar precios faltantes. Cada fila dice de donde salio su
+    -- precio (origen_precio) y el desglose del sitio lo muestra.
+    --
+    -- CUANTAS IMPUTADAS (tope en dbt_project.yml, canasta_maximo_imputadas). El
+    -- 2026-09-10 se fijo en 2: con 4 se llegaba a 136 localidades, pero se temio
+    -- que una canasta con cuatro precios provinciales dejara de describir a su
+    -- localidad. El 2026-09-24 se midio ese temor: en las localidades que SI
+    -- tienen precio local, se lo reemplazo por el provincial. Imputar una
+    -- categoria mueve la canasta 0,0% en la mediana y como mucho 1,9% (papa,
+    -- p90, fuera de CABA); aceite, azucar y pollo juntos, hasta 0,2%, y con la
+    -- leche, hasta 0,7%. Las mismas cadenas cobran lo mismo en toda la
+    -- provincia. Con las categorias nuevas del 24-09 el tope en 2 habia bajado
+    -- la cobertura de 88 a 68 localidades; en 4 son 87 (50 de CABA, 21 del
+    -- resto de Buenos Aires, 16 del interior) y la mediana no se mueve
+    -- ($216.780 con 2, $216.942 con 4). No se sube a 5: la medicion es sobre
+    -- localidades con datos locales, que suelen ser las mas grandes.
     --
     -- Se descarto ampliar la gama a economico + medio: daba 92 localidades sin
     -- imputar, pero la canasta pasaba a ~$375.000 porque dejaba de ser la

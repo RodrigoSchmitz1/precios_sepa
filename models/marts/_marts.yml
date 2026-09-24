@@ -130,11 +130,12 @@ models:
       - dbt_utils.expression_is_true:
           expression: >
             categorias_en_canasta = (SELECT COUNT(*) FROM {{ ref("composicion_canasta") }})
-      # Una canasta con mas precios provinciales que locales deja de describir a
-      # su localidad. El tope esta en mart_canasta_detalle; si alguien lo afloja,
-      # esto falla.
+      # Una canasta con demasiados precios provinciales deja de describir a su
+      # localidad. El tope es la variable canasta_maximo_imputadas, la misma
+      # que usa mart_canasta_detalle: si el HAVING del mart se afloja sin
+      # cambiarla, esto falla.
       - dbt_utils.expression_is_true:
-          expression: "categorias_imputadas BETWEEN 0 AND 2"
+          expression: "categorias_imputadas BETWEEN 0 AND {{ var('canasta_maximo_imputadas') }}"
     columns:
       - name: localidad
         description: >

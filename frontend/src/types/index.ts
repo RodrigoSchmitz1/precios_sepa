@@ -86,7 +86,8 @@ export type Canasta = {
   provincia: string;
   categorias_en_canasta: number;
   /** Categorias valuadas con la mediana de la provincia porque la localidad no
-   *  junta suficientes observaciones. Como mucho 2 de las 32. */
+   *  junta suficientes observaciones. Como mucho canasta_maximo_imputadas
+   *  (dbt_project.yml), hoy 4. */
   categorias_imputadas: number;
   costo_canasta_total: number;
   /** Fecha real de los precios, para poder decir de cuando es el dato. */
