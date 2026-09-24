@@ -14,6 +14,8 @@ import { EVIDENCIA, NIVELES_EVIDENCIA } from "../utils/evidencia";
 
 const TANDA = 60;
 
+type Orden = "sucursales" | "descuento";
+
 /*
   Cuantas promos pide cada movida del mapa. Con 2000 (hasta el 2026-09-23) el
   corte dejaba solo los descuentos mas grandes, y esos son casi todos de
@@ -34,6 +36,7 @@ function PromosPage() {
   const [busqueda, setBusqueda] = useState("");
   const [provincia, setProvincia] = useState("");
   const [filtro, setFiltro] = useState<Seleccion>(null);
+  const [orden, setOrden] = useState<Orden>("sucursales");
   const [bbox, setBbox] = useState<BoundingBox | null>(null);
   const [lugares, setLugares] = useState<LugarMapa[]>([]);
   const [destino, setDestino] = useState<Destino | null>(null);
@@ -102,11 +105,17 @@ function PromosPage() {
   // El filtro es local: la respuesta ya trae rubro y categoria de cada promo,
   // asi que no hace falta volver a consultar ni gastar una query mas.
   const promosVisibles = useMemo(() => {
-    if (!filtro) return promos;
-    return filtro.tipo === "rubro"
-      ? promos.filter((p) => (p.rubro ?? "Otros") === filtro.valor)
-      : promos.filter((p) => p.categoria === filtro.valor);
-  }, [promos, filtro]);
+    const filtradas = !filtro
+      ? promos
+      : filtro.tipo === "rubro"
+        ? promos.filter((p) => (p.rubro ?? "Otros") === filtro.valor)
+        : promos.filter((p) => p.categoria === filtro.valor);
+    // La API las manda por descuento; "sucursales" las reordena aca, con el
+    // descuento como desempate. sort es estable y se copia para no tocar promos.
+    return orden === "descuento"
+      ? filtradas
+      : [...filtradas].sort((a, b) => b.total_sucursales - a.total_sucursales || b.descuento_pct - a.descuento_pct);
+  }, [promos, filtro, orden]);
 
   /*
     Se renderiza de a tandas. La consulta trae hasta PROMOS_POR_ZONA promos y
@@ -119,9 +128,9 @@ function PromosPage() {
     react-hooks/set-state-in-effect.
   */
   const [mostradas, setMostradas] = useState(TANDA);
-  const [entradaPrevia, setEntradaPrevia] = useState({ filtro, promos });
-  if (entradaPrevia.filtro !== filtro || entradaPrevia.promos !== promos) {
-    setEntradaPrevia({ filtro, promos });
+  const [entradaPrevia, setEntradaPrevia] = useState({ filtro, promos, orden });
+  if (entradaPrevia.filtro !== filtro || entradaPrevia.promos !== promos || entradaPrevia.orden !== orden) {
+    setEntradaPrevia({ filtro, promos, orden });
     setMostradas(TANDA);
   }
 
@@ -209,16 +218,42 @@ function PromosPage() {
         </aside>
 
         <div>
-          <div className="flex items-baseline justify-between gap-3 mb-3">
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 mb-3">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave">
               {filtro?.valor ?? "Todas las promos"}
+              {!cargando && !error && (
+                <span className="numero normal-case tracking-normal font-normal">
+                  {" · "}
+                  {formatearNumero(promosVisibles.length)}
+                  {promosVisibles.length === 1 ? " promo" : " promos"}
+                </span>
+              )}
             </h2>
-            {!cargando && !error && (
-              <span className="numero text-xs text-tinta-suave">
-                {formatearNumero(promosVisibles.length)}
-                {promosVisibles.length === 1 ? " promo" : " promos"}
-              </span>
-            )}
+            {/*
+              Por defecto, las que estan en mas sucursales: ordenada solo por
+              descuento, la lista arrancaba con una crema de manos al 70% en una
+              sucursal, que casi nadie puede aprovechar.
+            */}
+            <div role="group" aria-label="Ordenar promos" className="inline-flex rounded-lg border border-linea bg-papel-hundido p-0.5">
+              {(
+                [
+                  ["sucursales", "En mas sucursales"],
+                  ["descuento", "Mayor descuento"],
+                ] as const
+              ).map(([valor, texto]) => (
+                <button
+                  key={valor}
+                  type="button"
+                  aria-pressed={orden === valor}
+                  onClick={() => setOrden(valor)}
+                  className={`px-2.5 py-1 text-xs rounded-md transition-colors ${
+                    orden === valor ? "bg-papel text-tinta font-semibold shadow-sm" : "text-tinta-suave hover:text-tinta-media"
+                  }`}
+                >
+                  {texto}
+                </button>
+              ))}
+            </div>
           </div>
 
           {cargando && <p className="text-sm text-tinta-suave">Cargando promos…</p>}
