@@ -58,8 +58,14 @@ function Filtros({ lugares, onElegirLugar, provincia, onProvinciaChange }: Props
   function alTeclear(e: React.KeyboardEvent<HTMLInputElement>) {
     if (e.key === "ArrowDown" && sugerencias.length > 0) {
       e.preventDefault();
-      setAbierto(true);
-      setActivo((activo + 1) % sugerencias.length);
+      // Con la lista cerrada, la primera flecha solo la abre: avanzar ademas
+      // salteaba la primera sugerencia.
+      if (!abierto) {
+        setAbierto(true);
+        setActivo(0);
+      } else {
+        setActivo((activo + 1) % sugerencias.length);
+      }
     } else if (e.key === "ArrowUp" && sugerencias.length > 0) {
       e.preventDefault();
       setActivo((activo - 1 + sugerencias.length) % sugerencias.length);
