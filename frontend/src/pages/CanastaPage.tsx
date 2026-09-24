@@ -92,6 +92,7 @@ function CanastaPage() {
   // Constante por construccion: el mart solo emite localidades con la canasta
   // entera. Se muestra para que el lector pueda auditar sobre que se compara.
   const categorias = todas[0]?.categorias_en_canasta ?? 0;
+  const bonaerenses = todas.filter((c) => c.provincia === "AR-C" || c.provincia === "AR-B").length;
   const nombreDe = (c: Canasta) => `${c.localidad}, ${nombreProvincia(c.provincia)}`;
   const claveDe = (c: Canasta) => `${c.localidad}|${c.provincia}`;
 
@@ -126,11 +127,24 @@ function CanastaPage() {
                 .
               </p>
               <p className="mt-2">
-                Las mismas {categorias} categorias y las mismas cantidades en todas las localidades. Solo entran las localidades donde se puede medir la canasta
-                completa, porque sumar las categorias que cada una tenga haria parecer mas baratas a las que tienen
-                menos datos. Si a una le faltan observaciones de una categoria se usa la mediana de su provincia, en
-                hasta 2 de las {categorias}.
+                Las mismas {categorias} categorias y las mismas cantidades en todas las localidades. Solo entran las
+                localidades donde se puede medir la canasta completa, porque sumar las categorias que cada una tenga
+                haria parecer mas baratas a las que tienen menos datos. Si a una le faltan observaciones de una
+                categoria se usa la mediana de su provincia, en hasta 2 de las {categorias}.
               </p>
+              {/*
+                Por que la brecha es chica. Sin esto se leia como "el pais cuesta
+                lo mismo en todos lados", cuando lo que pasa es que casi todas las
+                localidades medidas son de Buenos Aires y que SEPA solo cubre
+                cadenas grandes, con precios parecidos en todo el pais.
+              */}
+              {bonaerenses > todas.length / 2 && (
+                <p className="mt-2">
+                  {bonaerenses} de las {todas.length} localidades son de CABA o de la provincia de Buenos Aires: en el
+                  resto del pais pocas juntan datos para la canasta completa. Y SEPA solo informa cadenas grandes,
+                  con precios parecidos en todas partes; los almacenes y las verdulerias de barrio no estan.
+                </p>
+              )}
             </>
           ) : null
         }
