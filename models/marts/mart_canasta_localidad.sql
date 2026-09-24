@@ -27,12 +27,11 @@
 -- locales de aceite, azucar o papa y pasaron el tope de 2 imputadas. Ese
 -- mismo dia el tope subio a 4 (ver mart_canasta_detalle) y volvieron 19.
 --
--- EXCLUSION: Menudencias (270 g de higado). Hay categoria (Achuras y
--- menudencias), pero el higado economico se vende en pocas sucursales: medido
--- el 2026-09-24, 23 de las 88 localidades no tienen precio local y unas 10
--- dejarian de tener la canasta completa, entre ellas Bahia Blanca, Tandil,
--- Cipolletti y Viedma (Mendoza y Rio Negro ni siquiera tienen precio
--- provincial). Perder un tercio del interior por el 0,2% del costo no compensa.
+-- EXCLUSION: Menudencias (270 g de higado). El higado se compra sobre todo en
+-- carnicerias, que SEPA no cubre: en supermercados es un producto puntual, y
+-- su precio ahi no representa lo que paga quien lo compra. Medido el
+-- 2026-09-24: 23 de las 88 localidades no tenian precio local de achuras y
+-- Mendoza y Rio Negro ni siquiera provincial. Es el 0,2% del costo.
 --
 -- Todo el calculo vive en mart_canasta_detalle, que deja una fila por localidad
 -- y categoria con el precio usado y su origen. Ahi estan documentados el umbral

@@ -221,9 +221,9 @@ La misma escasez decidió qué hacer con las menudencias. El INDEC incluye 270 g
 de hígado, y al contrastar la composición contra su tabla por región (el
 2026-09-24) apareció otro error: las carnes estaban repartidas en tercios
 iguales, 2.090 g de vacuna, pollo y pescado, cuando el INDEC da 4.440, 1.650 y
-180. Se corrigió el reparto, pero el hígado quedó afuera: sumarlo dejaba sin
-canasta completa a unas 10 de las 88 localidades, casi todas del interior, por
-el 0,2% del costo.
+180. Se corrigió el reparto, pero el hígado quedó afuera: se compra sobre todo
+en carnicerías, que SEPA no cubre, y en los supermercados es un producto
+puntual (23 de 88 localidades no tenían precio local). Es el 0,2% del costo.
 
 ### Ruido de la fuente
 
