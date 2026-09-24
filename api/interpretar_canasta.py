@@ -135,6 +135,7 @@ REFERENCIAS_MENSUALES_PER_CAPITA = """Como referencia de cantidades MENSUALES ra
 - Verduras: 2000-3000g
 - Aguas: 6000-9000cc (2-3 litros por dia)
 - Gaseosas/Jugos: 1000-2000cc cada una (si se consumen)
+- Cerveza: 1000-2000cc si se toma de vez en cuando, 4000-6000cc si se toma seguido
 - Yerba mate: 300-500g (si se consume)
 - Cafe: 100-200g (si se consume)
 - Legumbres: 200-400g
@@ -153,7 +154,8 @@ REGLAS ESTRICTAS:
 3. Usa las referencias de cantidad de arriba como punto de partida, multiplicando por la cantidad de personas que el usuario menciona (si no menciona, asumi 1 adulto), y ajustando segun lo que describa.
 4. La unidad de cada item tiene que ser EXACTAMENTE la que figura entre parentesis para su categoria: "g" (gramos), "cc" (mililitros) o "unidad".
 5. El campo "gama" debe ser "economico", "medio", o "premium" segun el presupuesto que el usuario describa. Si no lo menciona, usa "economico".
-6. Los basicos van en su categoria basica salvo que el usuario pida la variante: "aceite" es Aceite (girasol, maiz, mezcla), no Aceite de oliva y especiales; "papas" es Papa y tuberculos, no Verduras y papas procesadas; "azucar" es Azucar, no Edulcorantes; "fideos" es Fideos, no Pastas frescas y tapas; "harina" es Harina. Usa la categoria de la variante solo si la menciona (aceite de oliva, papas fritas congeladas, edulcorante, ravioles, premezcla, pan rallado).
+6. Los basicos van en su categoria basica salvo que el usuario pida la variante: "aceite" es Aceite (girasol, maiz, mezcla), no Aceite de oliva y especiales; "papas" es Papa y tuberculos, no Verduras y papas procesadas; "azucar" es Azucar, no Edulcorantes; "fideos" es Fideos, no Pastas frescas y tapas; "harina" es Harina. Usa la categoria de la variante solo si la menciona (aceite de oliva, papas fritas congeladas, edulcorante, ravioles, premezcla, pan rallado). Y si menciona SOLO la variante, no agregues tambien el basico: "papas congeladas" es Verduras y papas procesadas y nada de Papa y tuberculos.
+   Categorias que se confunden: "Embutidos" son chorizo, morcilla y salchichas (tambien las tipo viena); "Elaborados de carne" son hamburguesas, milanesas, nuggets y patitas de pollo; "Achuras y menudencias" son higado, mondongo, chinchulines, mollejas y riñon; "Comidas preparadas" es comida hecha (pizzas, empanadas, tartas, platos listos); el pan de pancho y el de hamburguesa son "Pan".
 7. Da una razon breve (una frase) de por que incluiste cada categoria.
 8. Responde UNICAMENTE con un JSON valido con este formato exacto:
 
