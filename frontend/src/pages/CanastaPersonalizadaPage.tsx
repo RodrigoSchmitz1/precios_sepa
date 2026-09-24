@@ -66,13 +66,11 @@ const EJEMPLOS = [
   },
   {
     titulo: "Hacemos asado los findes",
-    texto:
-      "Somos una pareja, cocinamos en casa, los fines de semana hacemos asado con chorizo, morcilla y achuras, y tomamos cerveza de vez en cuando",
+    texto: "Somos una pareja, cocinamos en casa y los fines de semana hacemos asado y tomamos cerveza de vez en cuando",
   },
   {
     titulo: "Cocino poco",
-    texto:
-      "Vivo solo y cocino poco: a veces compro comida hecha, y si no salchichas tipo viena con pan de pancho, hamburguesas con pan, patitas de pollo o papas congeladas",
+    texto: "Vivo solo y cocino poco: compro comida hecha, panchos, hamburguesas y papas congeladas",
   },
 ];
 
