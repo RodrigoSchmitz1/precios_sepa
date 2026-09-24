@@ -112,7 +112,11 @@ El error recurrente, en siete formas distintas:
   verduras y papas procesadas, edulcorantes, premezclas, rebozadores, pastas
   frescas y comidas preparadas) y se volvieron a clasificar 11.389 productos en
   dos pasadas. El aceite medio pasó a $4.914/L, la papa a $2.990/kg y la
-  harina a $2.028/kg.
+  harina a $2.028/kg. La canasta básica, que usa la gama económica, bajó 10,6%
+  sobre las mismas localidades (1,7 puntos por las carnes, ver más abajo; el
+  resto porque el tercio económico tampoco estaba limpio). La
+  serie histórica marca ese salto entre el 22 y el 23 de septiembre, y la
+  cobertura bajó de 88 a 68 localidades.
 
 ### El índice de precios
 

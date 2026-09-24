@@ -918,6 +918,7 @@ app.mount("/api", api)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 ESTATICOS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+CACHE_INMUTABLE = "public, max-age=31536000, immutable"
 
 
 @app.get("/{ruta:path}")
@@ -934,7 +935,20 @@ def servir_frontend(ruta: str):
     # Se verifica que el archivo resuelto siga dentro de la carpeta de estaticos:
     # sin esto, una ruta con ".." serviria cualquier archivo del contenedor.
     if ruta and archivo.startswith(ESTATICOS) and os.path.isfile(archivo):
+        # Lo de assets/ lleva el hash del contenido en el nombre (lo pone Vite):
+        # si cambia el archivo cambia el nombre, asi que se puede guardar para
+        # siempre. El resto (favicon, etc.) queda con la heuristica del navegador.
+        if ruta.startswith("assets/"):
+            return FileResponse(archivo, headers={"Cache-Control": CACHE_INMUTABLE})
         return FileResponse(archivo)
+
+    # Un asset que no existe es un 404, no la pagina. Antes caia en el fallback
+    # de abajo y devolvia index.html con 200: el navegador intentaba ejecutar
+    # HTML como JavaScript y el sitio quedaba en blanco, sin un error claro.
+    # Pasa con un index.html viejo (de antes de un deploy) que pide el bundle
+    # anterior, y paso el 2026-09-24 durante el traspaso entre revisiones.
+    if ruta.startswith("assets/"):
+        return JSONResponse(status_code=404, content={"detalle": "Ese archivo no existe."})
 
     indice = os.path.join(ESTATICOS, "index.html")
     if not os.path.isfile(indice):
@@ -948,4 +962,8 @@ def servir_frontend(ruta: str):
                 "sugerencia": "En desarrollo usa el dev server de Vite; la API vive bajo /api.",
             },
         )
-    return FileResponse(indice)
+    # no-cache no es "no guardar": obliga a revalidar con el ETag en cada visita,
+    # que cuesta un 304 sin cuerpo. Sin esto el navegador aplicaba su heuristica
+    # y podia seguir usando el index.html de antes de un deploy, que pide un
+    # bundle que ya no existe. Safari en iPhone es de los que mas lo guardan.
+    return FileResponse(indice, headers={"Cache-Control": "no-cache"})

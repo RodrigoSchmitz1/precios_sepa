@@ -11,10 +11,20 @@
 -- total y su detalle por corte da 4.440 g de vacuna (asado, carnaza, hueso con
 -- carne, paleta, picada, nalga), 1.650 de pollo y 180 de pescado. La seed los
 -- repartia en tercios iguales, 2.090 cada uno: 11 veces el pescado del INDEC y
--- la mitad de la carne vacuna. El total casi no cambio (-1,7%, porque el
--- pescado de mas y la vacuna de menos se compensaban), pero la serie historica
--- tiene ese salto entre los datos del 22 y del 23 de septiembre, la primera
--- fecha calculada con la composicion nueva.
+-- la mitad de la carne vacuna. Por si solo movia el total -1,7% (el pescado
+-- de mas y la vacuna de menos se compensaban).
+--
+-- SALTO EN LA SERIE ENTRE EL 22 Y EL 23 DE SEPTIEMBRE. Ese dia entraron juntos
+-- el reparto de carnes y las siete categorias nuevas (ver categorizar.py), que
+-- sacaron de los basicos productos de otro precio por kilo: papas congeladas
+-- de Papa, oliva de Aceite, edulcorantes de Azucar, premezclas de Harina,
+-- pastas frescas de Fideos. Sobre las 63 localidades medidas los dos dias, la
+-- canasta bajo 10,6% (mediana $243.291 -> $216.780): -1,7 de las carnes y el
+-- resto de los basicos limpios (papa economica $1.690/kg, aceite $3.830/L,
+-- harina $1.200/kg). Es una correccion, no un cambio de precios: comparar a
+-- traves de esa fecha mide el cambio de metodologia. La cobertura bajo de 88 a
+-- 68 localidades: con categorias mas acotadas, 25 dejaron de juntar precios
+-- locales de aceite, azucar o papa y pasaron el tope de 2 imputadas.
 --
 -- EXCLUSION: Menudencias (270 g de higado). Hay categoria (Achuras y
 -- menudencias), pero el higado economico se vende en pocas sucursales: medido
