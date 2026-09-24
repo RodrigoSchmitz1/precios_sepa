@@ -14,6 +14,7 @@
 */
 
 import type { ItemCanastaIA, LocalidadOpcion } from "../types";
+import { esLugarDeCompra, type LugarDeCompra } from "./fueraDelSuper";
 
 export const GAMAS = ["economico", "medio", "premium"] as const;
 export type Gama = (typeof GAMAS)[number];
@@ -22,6 +23,8 @@ export type CanastaGuardada = {
   descripcion: string;
   items: ItemCanastaIA[];
   localidades: LocalidadOpcion[];
+  /** Opcional: las canastas guardadas antes del 2026-09-24 no lo tienen. */
+  fueraDelSuper?: LugarDeCompra[];
 };
 
 const CLAVE_STORAGE = "precios_sepa.canasta.v1";
@@ -73,6 +76,8 @@ type CanastaCompacta = {
   d: string;
   i: [string, number, string, string][];
   l: [string, string][];
+  // Opcional y sin cambiar de version: un link viejo sin "f" sigue abriendo.
+  f?: string[];
 };
 
 export function canastaAUrl(canasta: CanastaGuardada, base: string): string {
@@ -81,6 +86,7 @@ export function canastaAUrl(canasta: CanastaGuardada, base: string): string {
     d: canasta.descripcion,
     i: canasta.items.map((it) => [it.categoria, it.cantidad, it.unidad, it.gama]),
     l: canasta.localidades.map((lo) => [lo.localidad, lo.provincia]),
+    ...(canasta.fueraDelSuper?.length ? { f: canasta.fueraDelSuper } : {}),
   };
   const url = new URL(base);
   url.searchParams.set(PARAMETRO_URL, aBase64Url(JSON.stringify(compacta)));
@@ -103,6 +109,7 @@ export function canastaDesdeUrl(busqueda: string): CanastaGuardada | null {
         razon: "",
       })),
       localidades: (datos.l ?? []).map(([localidad, provincia]) => ({ localidad, provincia })),
+      fueraDelSuper: datos.f,
     });
   } catch {
     return null;
@@ -142,6 +149,11 @@ function validarCanasta(datos: unknown): CanastaGuardada | null {
     items,
     // El backend acepta hasta 3 zonas; recortar aca evita un 422 por una URL editada a mano.
     localidades: localidades.slice(0, 3),
+    // Lo desconocido se ignora en vez de invalidar la canasta: es una preferencia,
+    // no un dato del que dependa el calculo.
+    fueraDelSuper: Array.isArray(posible.fueraDelSuper)
+      ? [...new Set(posible.fueraDelSuper.filter(esLugarDeCompra))]
+      : [],
   };
 }
 

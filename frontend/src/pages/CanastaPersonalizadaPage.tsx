@@ -1,6 +1,11 @@
 import { useEffect, useState } from "react";
 import EmpezarConCanastaBasica from "../components/EmpezarConCanastaBasica";
 import {
+  LUGARES_DE_COMPRA,
+  categoriasFueraDelSuper,
+  type LugarDeCompra,
+} from "../utils/fueraDelSuper";
+import {
   interpretarCanasta,
   calcularCanastaPersonalizada,
   buscarLocalidades,
@@ -106,6 +111,7 @@ function CanastaPersonalizadaPage() {
   const [inicial] = useState(estadoInicial);
   const [descripcion, setDescripcion] = useState(inicial.descripcion);
   const [items, setItems] = useState<ItemCanastaIA[]>(inicial.items);
+  const [fueraDelSuper, setFueraDelSuper] = useState<LugarDeCompra[]>(inicial.fueraDelSuper ?? []);
   const [quitados, setQuitados] = useState<ItemCanastaIA[]>([]);
   const [generando, setGenerando] = useState(false);
   const [errorGenerar, setErrorGenerar] = useState<string | null>(null);
@@ -156,8 +162,8 @@ function CanastaPersonalizadaPage() {
     // storage de alguien que solo pasa por la pagina, y hace que "empezar de
     // nuevo" realmente deje limpio el navegador.
     if (!descripcion.trim() && items.length === 0 && localidadesElegidas.length === 0) return;
-    guardarEnNavegador({ descripcion, items, localidades: localidadesElegidas });
-  }, [descripcion, items, localidadesElegidas]);
+    guardarEnNavegador({ descripcion, items, localidades: localidadesElegidas, fueraDelSuper });
+  }, [descripcion, items, localidadesElegidas, fueraDelSuper]);
 
   function handleGenerar() {
     if (!descripcion.trim()) return;
@@ -252,11 +258,11 @@ function CanastaPersonalizadaPage() {
   }
 
   function handleCalcular() {
-    if (items.length === 0 || localidadesElegidas.length === 0) return;
+    if (cotizables.length === 0 || localidadesElegidas.length === 0) return;
     setCalculando(true);
     setErrorCalcular(null);
-    const firma = firmaDe(items, localidadesElegidas);
-    calcularCanastaPersonalizada(items, localidadesElegidas)
+    const firma = firmaDe(cotizables, localidadesElegidas);
+    calcularCanastaPersonalizada(cotizables, localidadesElegidas)
       .then((r) => {
         setResultado(r);
         setFirmaResultado(firma);
@@ -270,7 +276,7 @@ function CanastaPersonalizadaPage() {
 
   async function copiarLink() {
     const url = canastaAUrl(
-      { descripcion, items, localidades: localidadesElegidas },
+      { descripcion, items, localidades: localidadesElegidas, fueraDelSuper },
       window.location.href
     );
     try {
@@ -288,6 +294,7 @@ function CanastaPersonalizadaPage() {
     setDescripcion("");
     setItems([]);
     setQuitados([]);
+    setFueraDelSuper([]);
     setLocalidadesElegidas([]);
     setResultado(null);
     setFirmaResultado(null);
@@ -298,8 +305,20 @@ function CanastaPersonalizadaPage() {
 
   const disponibles = catalogo.filter((c) => !items.some((i) => i.categoria === c.categoria));
 
+  // Lo que se compra fuera del super queda en la canasta pero no se cotiza: al
+  // desmarcar el lugar vuelve con la cantidad y la gama que tenia.
+  const fuera = categoriasFueraDelSuper(fueraDelSuper);
+  const cotizables = items.filter((i) => !fuera.has(i.categoria));
+  const apartados = items.filter((i) => fuera.has(i.categoria));
+
+  function alternarLugar(lugar: LugarDeCompra) {
+    setFueraDelSuper(
+      fueraDelSuper.includes(lugar) ? fueraDelSuper.filter((l) => l !== lugar) : [...fueraDelSuper, lugar]
+    );
+  }
+
   const resultadoVigente =
-    resultado !== null && firmaResultado === firmaDe(items, localidadesElegidas);
+    resultado !== null && firmaResultado === firmaDe(cotizables, localidadesElegidas);
 
   // Categorias que se pidieron pero el mart no pudo cotizar en esa zona (no hay
   // suficientes muestras para esa combinacion de categoria, gama y unidad).
@@ -308,7 +327,7 @@ function CanastaPersonalizadaPage() {
   const provinciales = resultado?.categorias_provinciales ?? 0;
 
   const sinCotizar = resultadoVigente
-    ? items.filter((i) => !resultado!.items.some((r) => r.categoria === i.categoria))
+    ? cotizables.filter((i) => !resultado!.items.some((r) => r.categoria === i.categoria))
     : [];
 
   return (
@@ -406,12 +425,58 @@ function CanastaPersonalizadaPage() {
                 2 · Ajustala a tu gusto
               </h2>
               <span className="text-xs text-tinta-suave">
-                {items.length} {items.length === 1 ? "categoria" : "categorias"}
+                {cotizables.length} {cotizables.length === 1 ? "categoria" : "categorias"}
+                {apartados.length > 0 && ` · ${apartados.length} aparte`}
               </span>
             </div>
 
+            {/*
+              Muy comun: la carne en la carniceria y la verdura en la verduleria,
+              y todo lo demas (yerba, galletitas, queso, limpieza) en el super.
+              SEPA solo tiene precios de supermercado, asi que eso se aparta.
+            */}
+            <div className="mb-3 flex flex-wrap items-center gap-2">
+              <span className="text-xs text-tinta-suave">Fuera del super compro:</span>
+              {(Object.keys(LUGARES_DE_COMPRA) as LugarDeCompra[]).map((lugar) => {
+                const marcado = fueraDelSuper.includes(lugar);
+                return (
+                  <button
+                    key={lugar}
+                    type="button"
+                    aria-pressed={marcado}
+                    onClick={() => alternarLugar(lugar)}
+                    className={`text-xs border rounded-full px-3 py-1 transition-colors ${
+                      marcado
+                        ? "text-ahorro bg-ahorro-tenue border-ahorro-borde"
+                        : "text-tinta-media bg-papel border-linea hover:border-linea-fuerte hover:text-tinta"
+                    }`}
+                  >
+                    {marcado ? "✓ " : ""}
+                    {LUGARES_DE_COMPRA[lugar].etiqueta}
+                  </button>
+                );
+              })}
+            </div>
+
+            {apartados.length > 0 && (
+              <p className="mb-3 text-xs text-tinta-media bg-papel-hundido rounded-lg px-3 py-2 leading-relaxed">
+                {fueraDelSuper
+                  .map((lugar) => {
+                    const cats = apartados.filter((i) =>
+                      (LUGARES_DE_COMPRA[lugar].categorias as readonly string[]).includes(i.categoria)
+                    );
+                    return cats.length
+                      ? `${cats.map((i) => i.categoria).join(", ")}: en ${LUGARES_DE_COMPRA[lugar].lugar}`
+                      : null;
+                  })
+                  .filter(Boolean)
+                  .join(". ")}
+                . No se cotizan ni se suman; siguen en la canasta y vuelven si lo desmarcas.
+              </p>
+            )}
+
             <div className="grid gap-2.5">
-              {items.map((item) => (
+              {cotizables.map((item) => (
                 <ItemCanastaEditable
                   key={item.categoria}
                   item={item}
@@ -500,7 +565,7 @@ function CanastaPersonalizadaPage() {
 
             <button
               onClick={handleCalcular}
-              disabled={calculando || localidadesElegidas.length === 0}
+              disabled={calculando || localidadesElegidas.length === 0 || cotizables.length === 0}
               className="mt-4 bg-ahorro text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-ahorro-hover disabled:bg-linea-fuerte disabled:cursor-not-allowed transition-colors"
             >
               {calculando ? "Calculando…" : resultado ? "Recalcular costo" : "Calcular costo"}
@@ -655,7 +720,7 @@ function CanastaPersonalizadaPage() {
       {/* Paso 4: donde comprarla. Aparece cuando hay canasta, sin esperar a que
           se calcule el costo: son dos preguntas distintas (cuanto sale y donde
           conviene comprarla) y la segunda se puede responder sola. */}
-      {items.length > 0 && <DondeComprarla items={items} />}
+      {cotizables.length > 0 && <DondeComprarla items={cotizables} />}
 
       {/*
         Barra de sesion: la canasta se guarda sola en el navegador y el link
