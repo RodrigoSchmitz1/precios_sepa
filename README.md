@@ -18,7 +18,7 @@ aplicación web.
 | **Tu canasta** | Describís en lenguaje natural qué consumís (o elegís las categorías a mano), una IA arma tu canasta y se cotiza con precios reales |
 | **Supermercado más barato** | Qué cadena tiene el precio más bajo, comparando productos idénticos, categoría por categoría |
 | **El mismo producto** | Cuánto cuesta el mismo código de barras en cada cadena, y cuánta diferencia hay, sin contar los precios que contradicen al resto del mercado |
-| **Qué se movió** | Ranking de todas las categorías por variación de precio, con apertura por cadena |
+| **Inflación** | Ranking de todas las categorías por variación de precio, con apertura por cadena |
 
 ---
 
@@ -51,7 +51,7 @@ si puede ser cierto. Estas son las principales y cómo se resolvieron.
 
 ### Comparar cosas que no son comparables
 
-El error recurrente, en seis formas distintas:
+El error recurrente, en siete formas distintas:
 
 - **La canasta básica** sumaba las categorías que cada localidad tuviera, entre
   20 y 32, y comparaba esos totales entre sí. Una localidad con menos datos
@@ -101,6 +101,18 @@ El error recurrente, en seis formas distintas:
   es carne picada; una "milanesa de nalga" sin rebozar es un corte crudo). La
   clasificación quedó versionada: se agregan filas en vez de pisar las
   anteriores. Hoy el pollo económico cuesta $3.979/kg y la carne $9.990.
+
+- **"Aceite medio" era aceite de oliva.** La gama corta en tercios, por precio
+  por kilo, todos los productos de la categoría. Si la categoría mezcla
+  productos distintos, "medio" no es una marca intermedia sino otro producto:
+  Tu canasta cotizaba el aceite a $31.194/L (todo el girasol quedaba en
+  "económico"), la papa a $10.493/kg (papas congeladas) y la harina con
+  rebozadores y premezclas. 21 categorías tenían el "medio" a 3 veces o más del
+  "económico". Se agregaron siete categorías (aceite de oliva y especiales,
+  verduras y papas procesadas, edulcorantes, premezclas, rebozadores, pastas
+  frescas y comidas preparadas) y se volvieron a clasificar 11.389 productos en
+  dos pasadas. El aceite medio pasó a $4.914/L, la papa a $2.990/kg y la
+  harina a $2.028/kg.
 
 ### El índice de precios
 

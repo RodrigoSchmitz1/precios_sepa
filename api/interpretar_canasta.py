@@ -33,8 +33,15 @@ MODELO = "gemini-flash-lite-latest"
 # usuario ajuste. En las categorias por unidad, la unidad es la pieza: un panal,
 # una toallita.
 CATEGORIAS = {
+    # Las siete categorias del 2026-09-24 (aceite de oliva, verduras procesadas,
+    # edulcorantes, premezclas, rebozadores, pastas frescas, comidas preparadas)
+    # separan de los basicos productos que tienen otro precio por kilo. Ver
+    # categorizar.py. La unidad sale de contar sus productos: el aceite de oliva
+    # va en cc como el comun, porque "1 unidad" no permite comparar precio por
+    # litro.
     "Accesorios mascotas": {"unidad": "unidad", "cantidad": 1},
     "Aceite": {"unidad": "cc", "cantidad": 500},
+    "Aceite de oliva y especiales": {"unidad": "cc", "cantidad": 250},
     "Achuras y menudencias": {"unidad": "g", "cantidad": 400},
     "Aguas": {"unidad": "cc", "cantidad": 7500},
     "Alimento para mascotas": {"unidad": "g", "cantidad": 3000},
@@ -47,10 +54,12 @@ CATEGORIAS = {
     "Carne vacuna": {"unidad": "g", "cantidad": 2000},
     "Cerdo": {"unidad": "g", "cantidad": 500},
     "Cerveza": {"unidad": "cc", "cantidad": 2000},
+    "Comidas preparadas": {"unidad": "g", "cantidad": 1000},
     "Conservas": {"unidad": "g", "cantidad": 500},
     "Descartables": {"unidad": "unidad", "cantidad": 50},
     "Dietetica suplementos y frutos secos": {"unidad": "g", "cantidad": 300},
     "Dulces y mermeladas": {"unidad": "g", "cantidad": 400},
+    "Edulcorantes": {"unidad": "g", "cantidad": 100},
     "Elaborados de carne": {"unidad": "g", "cantidad": 800},
     "Electro": {"unidad": "unidad", "cantidad": 1},
     "Embutidos": {"unidad": "g", "cantidad": 500},
@@ -82,15 +91,19 @@ CATEGORIAS = {
     "Pan": {"unidad": "g", "cantidad": 1800},
     "Panales": {"unidad": "unidad", "cantidad": 150},
     "Papa y tuberculos": {"unidad": "g", "cantidad": 2000},
+    "Pastas frescas y tapas": {"unidad": "g", "cantidad": 500},
     "Perfumeria": {"unidad": "cc", "cantidad": 250},
     "Pescado": {"unidad": "g", "cantidad": 600},
     "Pollo": {"unidad": "g", "cantidad": 1300},
+    "Premezclas e ingredientes para hornear": {"unidad": "g", "cantidad": 300},
     "Quesos": {"unidad": "g", "cantidad": 300},
+    "Rebozadores y pan rallado": {"unidad": "g", "cantidad": 300},
     "Sal": {"unidad": "g", "cantidad": 250},
     "Snacks": {"unidad": "g", "cantidad": 300},
     "Te": {"unidad": "g", "cantidad": 100},
     "Textil y calzado": {"unidad": "unidad", "cantidad": 1},
     "Verduras": {"unidad": "g", "cantidad": 2500},
+    "Verduras y papas procesadas": {"unidad": "g", "cantidad": 800},
     "Vinagre": {"unidad": "cc", "cantidad": 500},
     "Vinos y licores": {"unidad": "cc", "cantidad": 1500},
     "Yerba mate": {"unidad": "g", "cantidad": 400},
@@ -140,8 +153,9 @@ REGLAS ESTRICTAS:
 3. Usa las referencias de cantidad de arriba como punto de partida, multiplicando por la cantidad de personas que el usuario menciona (si no menciona, asumi 1 adulto), y ajustando segun lo que describa.
 4. La unidad de cada item tiene que ser EXACTAMENTE la que figura entre parentesis para su categoria: "g" (gramos), "cc" (mililitros) o "unidad".
 5. El campo "gama" debe ser "economico", "medio", o "premium" segun el presupuesto que el usuario describa. Si no lo menciona, usa "economico".
-6. Da una razon breve (una frase) de por que incluiste cada categoria.
-7. Responde UNICAMENTE con un JSON valido con este formato exacto:
+6. Los basicos van en su categoria basica salvo que el usuario pida la variante: "aceite" es Aceite (girasol, maiz, mezcla), no Aceite de oliva y especiales; "papas" es Papa y tuberculos, no Verduras y papas procesadas; "azucar" es Azucar, no Edulcorantes; "fideos" es Fideos, no Pastas frescas y tapas; "harina" es Harina. Usa la categoria de la variante solo si la menciona (aceite de oliva, papas fritas congeladas, edulcorante, ravioles, premezcla, pan rallado).
+7. Da una razon breve (una frase) de por que incluiste cada categoria.
+8. Responde UNICAMENTE con un JSON valido con este formato exacto:
 
 {{
   "items": [

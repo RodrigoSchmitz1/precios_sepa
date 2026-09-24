@@ -60,6 +60,24 @@ CATEGORIA_A_RUBRO = {
     "Electro": "No alimentario", "Textil y calzado": "No alimentario",
     "Jugueteria": "No alimentario", "Libreria": "No alimentario",
     "Bazar y hogar": "No alimentario", "Ferreteria": "No alimentario",
+    # Agregadas el 2026-09-24. La gama de Tu canasta (economico, medio,
+    # premium) corta en tercios, por precio por kilo, TODOS los productos de la
+    # categoria. Si la categoria mezcla productos distintos, "medio" no es una
+    # marca intermedia del mismo producto sino otro producto: el aceite "medio"
+    # era todo de oliva ($31.000/L contra $5.200 del girasol), la papa "medio"
+    # eran papas congeladas, el azucar "medio" edulcorante e impalpable, la
+    # harina "medio" rebozadores y premezclas, y los fideos premium ravioles y
+    # sorrentinos. Cada uno de esos productos tiene ahora su categoria.
+    "Aceite de oliva y especiales": "Aceites y grasas",
+    "Verduras y papas procesadas": "Verduleria y frutas",
+    "Edulcorantes": "Infusiones y azucares",
+    "Premezclas e ingredientes para hornear": "Almacen",
+    "Rebozadores y pan rallado": "Almacen",
+    "Pastas frescas y tapas": "Almacen",
+    # Pizzas, empanadas y tartas no tenian categoria: estaban en Facturas y
+    # reposteria, y la primera reclasificacion del 24-09 mando 60 a Verduras y
+    # papas procesadas por ser congeladas.
+    "Comidas preparadas": "Almacen",
     "Otros": "Otros",
 }
 
@@ -156,10 +174,26 @@ Reglas:
   - "Pescado": pescados y mariscos crudos, frescos o congelados, sin rebozar. Los enlatados van en Conservas.
   - "Otras carnes": cortes crudos de cordero, chivito, cabrito, conejo, pato, pavo y cualquier carne que no sea vaca, cerdo, pollo ni pescado.
   - "Achuras y menudencias": higado, lengua, riñon, mondongo, chinchulines, mollejas, corazon, sesos y menudos, de cualquier animal. Las "patitas de pollo" son un rebozado con forma, NO una achura: van en Elaborados de carne.
-  - "Elaborados de carne": productos preparados con carne o pescado que se cocinan antes de comer: milanesas y supremas rebozadas o empanadas, hamburguesas, medallones formados, nuggets, bocaditos, patitas y formitas de pollo, chicken fingers, albondigas, rebozados de pescado y comidas preparadas con carne.
+  - "Elaborados de carne": productos preparados con carne o pescado que se cocinan antes de comer: milanesas y supremas rebozadas o empanadas, hamburguesas, medallones formados, nuggets, bocaditos, patitas y formitas de pollo, chicken fingers, albondigas, rebozados de pescado. Una pizza, empanada, tarta o plato listo con carne NO: va en Comidas preparadas.
   - "Fiambres": lo que se come frio y feteado, curado, cocido o ahumado: jamon cocido y crudo, paleta cocida, salame, salamin, longaniza, mortadela, bondiola curada, lomo curado o ahumado, leberwurst, queso de cerdo, arrollados y matambres cocidos, pechuga de pavo o de pollo cocida, y las "picadas" (tablas de fiambres y quesos). Una "picada" NO es carne picada.
   - "Embutidos": los que se cocinan antes de comer: chorizo fresco, morcilla, salchichas.
-  - Los sandwiches (de miga, triples) no son fiambres ni elaborados de carne: van en Otros.
+  - Los sandwiches (de miga, triples) no son fiambres ni elaborados de carne: van en Comidas preparadas.
+- Productos basicos: la categoria del basico es SOLO para el basico. Las variantes que son otro producto van en su propia categoria.
+  - "Aceite": aceites comunes de cocina en botella: girasol, maiz, soja, canola, alto oleico y mezclas (aunque la mezcla lleve algo de oliva).
+  - "Aceite de oliva y especiales": aceite de oliva (puro, virgen, extra virgen), de coco, de palta, de sesamo, y todo aceite en aerosol o "rocio vegetal", sea del tipo que sea. Los aceites de motor o de maquina NO son alimento: van en Ferreteria.
+  - "Papa y tuberculos": papa, batata, mandioca, papines y zapallo, frescos y crudos.
+  - "Verduras": verduras y hortalizas frescas, enteras o fraccionadas.
+  - "Verduras y papas procesadas": papas y verduras congeladas o listas (bastones, noisettes, papas prefritas, croquetas y bocaditos de papa, vegetales y espinaca congelados), pure de papas instantaneo o listo, y ensaladas y verduras lavadas y cortadas en bolsa o bandeja. Una tarta, tortilla, pizza o empanada, aunque sea de verdura o congelada, NO: va en Comidas preparadas.
+  - "Azucar": azucar comun, rubia, mascabo, negra, organica y light.
+  - "Edulcorantes": edulcorantes y endulzantes en sobres, tabletas, liquidos o granulados (sucralosa, stevia, sacarina, ciclamato), aunque digan "endulzante de mesa".
+  - "Harina": harinas (de trigo 000 y 0000, leudante, integral, de maiz, de arroz, de legumbres), polenta y semola.
+  - "Premezclas e ingredientes para hornear": premezclas (bizcochuelo, torta, pizza, pan, chipa, cookies, brownies), polvos para postres, azucar impalpable, almidon y fecula de maiz, levadura, polvo de hornear, esencias y merengue en polvo.
+  - "Rebozadores y pan rallado": rebozadores, pan rallado y panko. Una milanesa ya rebozada NO: va en Elaborados de carne.
+  - "Fideos": pastas SECAS en paquete (tallarines, mostachol, spaghetti, tirabuzon, fideos de arroz o de legumbres).
+  - "Pastas frescas y tapas": pastas frescas o rellenas (ravioles, sorrentinos, capeletis, noquis, tallarines frescos, lasagna) y tapas de empanadas y de tarta.
+  - "Facturas y reposteria": productos de panaderia YA HECHOS (facturas, tortas, budines, alfajores de panaderia). Una premezcla para hacerlos en casa va en Premezclas e ingredientes para hornear.
+  - La avena, el salvado y la granola van en Dietetica suplementos y frutos secos.
+- "Comidas preparadas": comidas listas o para calentar: pizzas y prepizzas, empanadas, tartas, quiches, tortillas, canelones y lasagnas ya armados, sandwiches, y platos listos frescos o congelados. Una milanesa o hamburguesa sola sigue en Elaborados de carne.
 - Usa "Otros" SOLO si realmente no encaja en ninguna (debe ser muy poco).
 
 Devolve UNICAMENTE un JSON valido: una lista donde cada elemento tiene "n" (numero del producto) y "categoria" (una de las categorias exactas de la lista). Sin texto adicional, sin markdown.
@@ -229,11 +263,16 @@ def tiene_columna_de_version():
     return any(campo.name == "categorizado_en" for campo in tabla.schema)
 
 
-def traer_productos_para_recategorizar(categorias):
+def traer_productos_para_recategorizar(categorias, clasificados_antes_de=None):
     """Productos cuya clasificacion VIGENTE esta en alguna de las categorias dadas.
 
     Lee las descripciones de producto_categoria, que ya las guarda: no hace
     falta escanear el crudo.
+
+    Con clasificados_antes_de, solo los que no se clasificaron desde ese
+    momento. Sirve para reintentar los lotes que fallaron sin repetir los que
+    salieron bien: el 2026-09-24 Gemini devolvio 503 en 5 de 73 lotes, y volver
+    a mandar los 3.619 productos para recuperar 250 era gastar 70 llamadas.
     """
     orden = "categorizado_en DESC NULLS LAST" if tiene_columna_de_version() else "id_producto"
     query = f"""
@@ -245,9 +284,13 @@ def traer_productos_para_recategorizar(categorias):
             QUALIFY ROW_NUMBER() OVER (PARTITION BY id_producto ORDER BY {orden}) = 1
         )
         WHERE categoria IN UNNEST(@categorias)
+          AND (@antes IS NULL OR categorizado_en IS NULL OR categorizado_en < @antes)
     """
     config = bigquery.QueryJobConfig(
-        query_parameters=[bigquery.ArrayQueryParameter("categorias", "STRING", categorias)]
+        query_parameters=[
+            bigquery.ArrayQueryParameter("categorias", "STRING", categorias),
+            bigquery.ScalarQueryParameter("antes", "TIMESTAMP", clasificados_antes_de),
+        ]
     )
     return list(cliente_bq.query(query, job_config=config).result())
 
@@ -259,6 +302,12 @@ def parsear_argumentos():
         default=None,
         help="Categorias separadas por coma cuyos productos se vuelven a clasificar "
              "con la taxonomia actual (por ejemplo, despues de agregar categorias).",
+    )
+    parser.add_argument(
+        "--clasificados-antes-de",
+        default=None,
+        help="Con --recategorizar: solo los productos cuya clasificacion vigente es "
+             "anterior a este momento (ISO, UTC). Para reintentar lotes fallidos.",
     )
     parser.add_argument(
         "--hilos",
@@ -278,7 +327,7 @@ def main():
         if desconocidas:
             raise SystemExit(f"Categorias que no existen en la taxonomia: {desconocidas}")
         print(f"Trayendo productos a RECATEGORIZAR de {categorias}...")
-        productos = traer_productos_para_recategorizar(categorias)
+        productos = traer_productos_para_recategorizar(categorias, args.clasificados_antes_de)
     else:
         print("Trayendo productos a categorizar desde BigQuery...")
         productos = traer_productos_a_categorizar()
