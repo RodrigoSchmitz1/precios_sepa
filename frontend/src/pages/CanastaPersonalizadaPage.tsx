@@ -625,6 +625,17 @@ function CanastaPersonalizadaPage() {
               })}
           </div>
 
+          {/*
+            SEPA solo informa supermercados. Mucha gente compra la carne en la
+            carniceria y la verdura en la verduleria, y ahi los precios son
+            otros: se dice, y se ofrece la salida (sacarlas, o contarlo en la
+            descripcion, que la IA ya entiende).
+          */}
+          <p className="mt-5 text-xs text-tinta-suave leading-relaxed">
+            Son precios de supermercado. Si la carne o la verdura las compras en la carniceria o la verduleria,
+            sacalas de la lista o contalo en la descripcion y no se van a sumar.
+          </p>
+
           {sinCotizar.length > 0 && (
             <div className="mt-5 pt-4 border-t border-linea">
               <p className="text-xs text-aviso mb-1.5">
