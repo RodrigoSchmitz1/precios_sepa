@@ -234,7 +234,10 @@ def interpretar_descripcion(descripcion: str) -> dict:
         contents=construir_prompt(descripcion),
         # Modo JSON: el modelo devuelve JSON sin envolverlo en bloques de markdown,
         # que antes habia que limpiar a mano y era la parte fragil del parseo.
-        config=types.GenerateContentConfig(response_mime_type="application/json"),
+        # Temperatura baja: la misma descripcion tiene que dar la misma canasta.
+        # Con la del modelo por defecto, "familia de 4" salia con 15 categorias
+        # en una corrida y 29 en la siguiente, y el costo cambiaba al doble.
+        config=types.GenerateContentConfig(response_mime_type="application/json", temperature=0.2),
     )
     texto = (respuesta.text or "").strip()
     if texto.startswith("```"):
