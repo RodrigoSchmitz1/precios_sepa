@@ -35,10 +35,11 @@ import {
 import type { CanastaGuardada } from "../utils/canastaGuardada";
 
 /*
-  Perfiles de ejemplo: un titulo corto para el boton y la descripcion completa,
-  que es lo que se carga en el cuadro. Hasta el 2026-09-24 el boton mostraba la
-  descripcion cortada a 38 letras ("Somos una familia de 4, dos adultos y …") y
-  no habia forma de leer el resto antes de elegirla.
+  Perfiles de ejemplo, como tarjetas: un titulo dicho como lo diria una persona
+  y la descripcion completa a la vista, que es lo que se carga en el cuadro.
+  Hasta el 2026-09-24 eran botones con la descripcion cortada a 38 letras, y
+  despues con un rotulo ("Carne, huevos y mate") y la descripcion solo al pasar
+  el mouse, que en el celular no existe.
 
   Describen solo que come y toma cada hogar, sin hablar de presupuesto ni de
   quien es la persona: "jubilados, presupuesto ajustado" podia leerse como un
@@ -48,23 +49,23 @@ import type { CanastaGuardada } from "../utils/canastaGuardada";
 */
 const EJEMPLOS = [
   {
-    titulo: "Familia de 4",
+    titulo: "Somos cuatro, con dos chicos",
     texto: "Somos una familia de 4, dos adultos y dos chicos, comemos carne y pollo varias veces por semana y tomamos mate",
   },
   {
-    titulo: "Familia con bebé",
+    titulo: "Tenemos un bebé",
     texto: "Somos dos adultos y un bebé de un año, usamos pañales, tomamos mucha leche y cocinamos en casa",
   },
   {
-    titulo: "Vegetariano",
+    titulo: "Soy vegetariano",
     texto: "Soy vegetariano, como muchas verduras, frutas, legumbres, huevos y queso, y cocino en casa",
   },
   {
-    titulo: "Carne, huevos y mate",
+    titulo: "Como mucha carne y tomo mate",
     texto: "Vivo solo, como mucha carne y muchos huevos, y tomo mate todos los días",
   },
   {
-    titulo: "Asado y cerveza",
+    titulo: "Hacemos asado los findes",
     texto:
       "Somos una pareja, cocinamos en casa, los fines de semana hacemos asado con chorizo, morcilla y achuras, y tomamos cerveza de vez en cuando",
   },
@@ -105,6 +106,46 @@ function estadoInicial(): CanastaGuardada {
   const compartida = canastaDesdeUrl(window.location.search);
   const guardada = compartida ?? leerDelNavegador();
   return guardada ?? { descripcion: "", items: [], localidades: [] };
+}
+
+/*
+  "Fuera del super compro": en el paso 1 y no en el 2, que solo aparece con la
+  canasta ya armada y hacia que los botones no se vieran al entrar. Muy comun:
+  la carne en la carniceria y la verdura en la verduleria, y todo lo demas
+  (yerba, galletitas, queso, limpieza) en el super. SEPA solo tiene precios de
+  supermercado, asi que eso se aparta de la cotizacion.
+*/
+function LugaresDeCompra({
+  elegidos,
+  onAlternar,
+}: {
+  elegidos: LugarDeCompra[];
+  onAlternar: (lugar: LugarDeCompra) => void;
+}) {
+  return (
+    <div className="mt-4 flex flex-wrap items-center gap-2">
+      <span className="text-xs text-tinta-suave">Fuera del super compro:</span>
+      {(Object.keys(LUGARES_DE_COMPRA) as LugarDeCompra[]).map((lugar) => {
+        const marcado = elegidos.includes(lugar);
+        return (
+          <button
+            key={lugar}
+            type="button"
+            aria-pressed={marcado}
+            onClick={() => onAlternar(lugar)}
+            className={`text-xs border rounded-full px-3 py-1 transition-colors ${
+              marcado
+                ? "text-ahorro bg-ahorro-tenue border-ahorro-borde"
+                : "text-tinta-media bg-papel border-linea hover:border-linea-fuerte hover:text-tinta"
+            }`}
+          >
+            {marcado ? "✓ " : ""}
+            {LUGARES_DE_COMPRA[lugar].etiqueta}
+          </button>
+        );
+      })}
+    </div>
+  );
 }
 
 function CanastaPersonalizadaPage() {
@@ -365,25 +406,37 @@ function CanastaPersonalizadaPage() {
         />
 
         {items.length === 0 && !generando && (
-          <div className="flex flex-wrap gap-2 mt-3">
-            <span className="text-xs text-tinta-suave py-1">Probá con:</span>
-            {EJEMPLOS.map((ejemplo) => (
-              <button
-                key={ejemplo.titulo}
-                onClick={() => setDescripcion(ejemplo.texto)}
-                title={ejemplo.texto}
-                aria-label={`Usar el ejemplo: ${ejemplo.texto}`}
-                className={`text-xs border rounded-full px-3 py-1 transition-colors ${
-                  descripcion === ejemplo.texto
-                    ? "text-ahorro bg-ahorro-tenue border-ahorro-borde"
-                    : "text-tinta-media bg-papel border-linea hover:border-linea-fuerte hover:text-tinta"
-                }`}
-              >
-                {ejemplo.titulo}
-              </button>
-            ))}
+          <div className="mt-3">
+            <p className="text-xs text-tinta-suave mb-2">O elegi uno parecido a tu casa y ajustalo:</p>
+            {/* En el celular, una fila que se desliza: apiladas, las seis median
+                612 px y empujaban el boton de generar fuera de la pantalla. */}
+            <div className="flex gap-2 overflow-x-auto snap-x snap-mandatory pb-1 -mx-1 px-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:mx-0 sm:px-0">
+              {EJEMPLOS.map((ejemplo) => {
+                const elegido = descripcion === ejemplo.texto;
+                return (
+                  <button
+                    key={ejemplo.titulo}
+                    type="button"
+                    aria-pressed={elegido}
+                    onClick={() => setDescripcion(ejemplo.texto)}
+                    className={`text-left border rounded-xl px-3.5 py-2.5 transition-colors shrink-0 w-64 snap-start sm:w-auto ${
+                      elegido
+                        ? "bg-ahorro-tenue border-ahorro-borde"
+                        : "bg-papel border-linea hover:border-linea-fuerte"
+                    }`}
+                  >
+                    <span className={`block text-sm font-medium ${elegido ? "text-ahorro" : "text-tinta"}`}>
+                      {ejemplo.titulo}
+                    </span>
+                    <span className="block text-xs text-tinta-media mt-0.5 leading-relaxed">{ejemplo.texto}</span>
+                  </button>
+                );
+              })}
+            </div>
           </div>
         )}
+
+        <LugaresDeCompra elegidos={fueraDelSuper} onAlternar={alternarLugar} />
 
         <button
           onClick={handleGenerar}
@@ -428,34 +481,6 @@ function CanastaPersonalizadaPage() {
                 {cotizables.length} {cotizables.length === 1 ? "categoria" : "categorias"}
                 {apartados.length > 0 && ` · ${apartados.length} aparte`}
               </span>
-            </div>
-
-            {/*
-              Muy comun: la carne en la carniceria y la verdura en la verduleria,
-              y todo lo demas (yerba, galletitas, queso, limpieza) en el super.
-              SEPA solo tiene precios de supermercado, asi que eso se aparta.
-            */}
-            <div className="mb-3 flex flex-wrap items-center gap-2">
-              <span className="text-xs text-tinta-suave">Fuera del super compro:</span>
-              {(Object.keys(LUGARES_DE_COMPRA) as LugarDeCompra[]).map((lugar) => {
-                const marcado = fueraDelSuper.includes(lugar);
-                return (
-                  <button
-                    key={lugar}
-                    type="button"
-                    aria-pressed={marcado}
-                    onClick={() => alternarLugar(lugar)}
-                    className={`text-xs border rounded-full px-3 py-1 transition-colors ${
-                      marcado
-                        ? "text-ahorro bg-ahorro-tenue border-ahorro-borde"
-                        : "text-tinta-media bg-papel border-linea hover:border-linea-fuerte hover:text-tinta"
-                    }`}
-                  >
-                    {marcado ? "✓ " : ""}
-                    {LUGARES_DE_COMPRA[lugar].etiqueta}
-                  </button>
-                );
-              })}
             </div>
 
             {apartados.length > 0 && (
