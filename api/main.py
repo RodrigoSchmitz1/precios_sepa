@@ -57,6 +57,15 @@ def _crear_cliente_bq() -> bigquery.Client:
     if os.getenv("USAR_CREDENCIALES_DEL_ENTORNO") == "1":
         return bigquery.Client(project=PROYECTO)
 
+    # Para los tests en GitHub Actions, que no tienen credenciales y no las
+    # necesitan: ningun test consulta BigQuery. Con credenciales anonimas el
+    # cliente se crea sin red, y cualquier consulta que se escape falla en vez
+    # de gastar cuota.
+    if os.getenv("SIN_BIGQUERY") == "1":
+        from google.auth.credentials import AnonymousCredentials
+
+        return bigquery.Client(project=PROYECTO, credentials=AnonymousCredentials())
+
     clave = os.getenv("GCP_SA_KEY")
     if clave:
         return bigquery.Client(
