@@ -77,6 +77,13 @@ vars:
   # del mercado" seria la mediana de dos empresas.
   mismo_producto_piso_creible: 0.5
   mismo_producto_techo_creible: 2.0
+  # Un precio fuera de ese rango igual cuenta si otro esta a menos de este
+  # porcentaje (de otra empresa, o de la misma pero en rango). Medido el
+  # 2026-09-23 sobre los 79 descartes: con 5% no rescata ninguno, con 10% 7,
+  # con 15% 8 y con 20% 11. Los 7 del 10% se revisaron uno por uno y se ven
+  # reales (Changomas vs Carrefour a $1.590/$1.695, Vea vs Jumbo, La Anonima vs
+  # Maxi). Se queda en 10: lo mas estricto que alcanza para esos casos.
+  mismo_producto_tolerancia_coincidencia: 0.10
 
   # Minimo de productos para que una sucursal tenga precio en una combinacion
   # categoria x gama x unidad (mart_precio_categoria_sucursal). Es mas bajo que

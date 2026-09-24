@@ -1,0 +1,94 @@
+version: 2
+
+# Tests unitarios de cuando un precio cuenta en El mismo producto. Corren en
+# BigQuery con filas de prueba: no leen los datos del dia.
+#
+# Fijan la regla del 2026-09-23. Un precio a menos de la mitad (o a mas del
+# doble) de la mediana entre empresas se descarta, SALVO que otro precio a menos
+# de 10% lo confirme: de otra empresa, o de la misma pero dentro del rango. Los
+# tres casos salen de datos reales de ese dia.
+
+unit_tests:
+  - name: mismo_producto_dos_empresas_que_coinciden_cuentan
+    description: >
+      PARMESANA SALSA JALAPENO 180G. Changomas a $1.590 queda en 0,48 de la
+      mediana ($3.316) y antes se descartaba, aunque Carrefour, otra empresa,
+      lo vendia a $1.695. Dos empresas que coinciden no son un error de carga.
+    model: mart_mismo_producto
+    overrides:
+      macros:
+        ultima_fecha: "2026-09-22"
+    given:
+      - input: ref('int_precio_producto_cadena')
+        rows:
+          - {fecha_datos: "2026-09-22", id_producto: "1", cadena: Changomas, empresa: "9", precio_mediano: 1590, precio_minimo: 1590, precio_maximo: 1590, sucursales: 53, cantidad_normalizada: 180, unidad_normalizada: cc}
+          - {fecha_datos: "2026-09-22", id_producto: "1", cadena: Carrefour, empresa: "2", precio_mediano: 1695, precio_minimo: 1590, precio_maximo: 4739, sucursales: 67, cantidad_normalizada: 180, unidad_normalizada: cc}
+          - {fecha_datos: "2026-09-22", id_producto: "1", cadena: Coto, empresa: "12", precio_mediano: 3316, precio_minimo: 3316, precio_maximo: 3514, sucursales: 59, cantidad_normalizada: 180, unidad_normalizada: cc}
+          - {fecha_datos: "2026-09-22", id_producto: "1", cadena: Jumbo, empresa: "15", precio_mediano: 3400, precio_minimo: 3400, precio_maximo: 3650, sucursales: 20, cantidad_normalizada: 180, unidad_normalizada: cc}
+          - {fecha_datos: "2026-09-22", id_producto: "1", cadena: La Anonima, empresa: "11", precio_mediano: 3600, precio_minimo: 3200, precio_maximo: 3750, sucursales: 160, cantidad_normalizada: 180, unidad_normalizada: cc}
+      - input: ref('stg_categorias')
+        rows:
+          - {id_producto: "1", descripcion: PARME SSA JALAP 180G, marca: LA PARMESANA, categoria: Aderezos, rubro: Almacen}
+    expect:
+      rows:
+        - {cadena: Changomas, precio_en_rango: false, precio_creible: true}
+        - {cadena: Carrefour, precio_en_rango: true, precio_creible: true}
+        - {cadena: Coto, precio_en_rango: true, precio_creible: true}
+        - {cadena: Jumbo, precio_en_rango: true, precio_creible: true}
+        - {cadena: La Anonima, precio_en_rango: true, precio_creible: true}
+
+  - name: mismo_producto_el_mismo_error_en_dos_banderas_no_se_confirma
+    description: >
+      Como FANTA ZERO 1.75L del 21-09: el mismo error en dos banderas de una
+      empresa. Los precios reales eran $309 y $369; aca van a $340 y $360, a
+      menos de 10% entre si, que es el caso dificil: se parecen, pero ninguna
+      esta en rango y son de la misma empresa, asi que no se confirman.
+      SuperChangomas, de la misma empresa y en rango, cuenta.
+    model: mart_mismo_producto
+    overrides:
+      macros:
+        ultima_fecha: "2026-09-22"
+    given:
+      - input: ref('int_precio_producto_cadena')
+        rows:
+          - {fecha_datos: "2026-09-22", id_producto: "2", cadena: HiperChangomas, empresa: "9", precio_mediano: 340, precio_minimo: 340, precio_maximo: 340, sucursales: 31, cantidad_normalizada: 1750, unidad_normalizada: cc}
+          - {fecha_datos: "2026-09-22", id_producto: "2", cadena: Changomas, empresa: "9", precio_mediano: 360, precio_minimo: 360, precio_maximo: 360, sucursales: 53, cantidad_normalizada: 1750, unidad_normalizada: cc}
+          - {fecha_datos: "2026-09-22", id_producto: "2", cadena: SuperChangomas, empresa: "9", precio_mediano: 4939, precio_minimo: 309, precio_maximo: 4939, sucursales: 9, cantidad_normalizada: 1750, unidad_normalizada: cc}
+          - {fecha_datos: "2026-09-22", id_producto: "2", cadena: Coto, empresa: "12", precio_mediano: 5150, precio_minimo: 5150, precio_maximo: 5150, sucursales: 59, cantidad_normalizada: 1750, unidad_normalizada: cc}
+          - {fecha_datos: "2026-09-22", id_producto: "2", cadena: La Anonima, empresa: "11", precio_mediano: 5100, precio_minimo: 5100, precio_maximo: 5100, sucursales: 160, cantidad_normalizada: 1750, unidad_normalizada: cc}
+      - input: ref('stg_categorias')
+        rows:
+          - {id_producto: "2", descripcion: FANTA ZERO 1.75L, marca: FANTA, categoria: Gaseosas, rubro: Bebidas}
+    expect:
+      rows:
+        - {cadena: HiperChangomas, precio_creible: false}
+        - {cadena: Changomas, precio_creible: false}
+        - {cadena: SuperChangomas, precio_creible: true}
+        - {cadena: Coto, precio_creible: true}
+        - {cadena: La Anonima, precio_creible: true}
+
+  - name: mismo_producto_una_bandera_apenas_afuera_la_confirma_su_empresa
+    description: >
+      SEMILLA SESAMO FOR GOOD. Vea a $1.900 queda en 0,49 y Jumbo, de la misma
+      empresa, a $1.999 en 0,52. El corte en 0,5 separaba a dos banderas con el
+      mismo precio de lista; la que esta en rango confirma a la otra.
+    model: mart_mismo_producto
+    overrides:
+      macros:
+        ultima_fecha: "2026-09-22"
+    given:
+      - input: ref('int_precio_producto_cadena')
+        rows:
+          - {fecha_datos: "2026-09-22", id_producto: "3", cadena: Vea, empresa: "15", precio_mediano: 1900, precio_minimo: 1900, precio_maximo: 1900, sucursales: 10, cantidad_normalizada: 100, unidad_normalizada: g}
+          - {fecha_datos: "2026-09-22", id_producto: "3", cadena: Jumbo, empresa: "15", precio_mediano: 1999, precio_minimo: 1969, precio_maximo: 1999, sucursales: 20, cantidad_normalizada: 100, unidad_normalizada: g}
+          - {fecha_datos: "2026-09-22", id_producto: "3", cadena: Carrefour, empresa: "2", precio_mediano: 3849, precio_minimo: 3349, precio_maximo: 3849, sucursales: 60, cantidad_normalizada: 100, unidad_normalizada: g}
+          - {fecha_datos: "2026-09-22", id_producto: "3", cadena: Coto, empresa: "12", precio_mediano: 3900, precio_minimo: 3900, precio_maximo: 3900, sucursales: 50, cantidad_normalizada: 100, unidad_normalizada: g}
+      - input: ref('stg_categorias')
+        rows:
+          - {id_producto: "3", descripcion: Semilla Sesamo Tostado FOR GOOD, marca: FOR GOOD, categoria: Almacen, rubro: Almacen}
+    expect:
+      rows:
+        - {cadena: Vea, precio_en_rango: false, precio_creible: true}
+        - {cadena: Jumbo, precio_en_rango: true, precio_creible: true}
+        - {cadena: Carrefour, precio_en_rango: true, precio_creible: true}
+        - {cadena: Coto, precio_en_rango: true, precio_creible: true}

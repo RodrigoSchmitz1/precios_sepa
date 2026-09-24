@@ -204,13 +204,17 @@ export type PrecioEnCadena = {
   precio_minimo: number;
   precio_maximo: number;
   sucursales: number;
-  /** false cuando el precio contradice a la mediana entre empresas. Se muestra
+  /** false cuando el precio esta a menos de la mitad o a mas del doble de la
+   *  mediana entre empresas y ninguna otra cadena lo confirma. Se muestra
    *  igual, marcado, pero no cuenta para la brecha del producto. */
   precio_creible: boolean;
 };
 
 export type ProductoDetalle = ProductoComparado & {
   fecha_datos: string;
+  /** Mediana entre empresas contra la que se juzga cada precio. Null con menos
+   *  de 3 empresas, donde no se juzga a nadie. */
+  precio_referencia?: number | null;
   /** De menor a mayor precio. */
   precios: PrecioEnCadena[];
 };

@@ -80,7 +80,7 @@ referencia AS (
     GROUP BY id_producto
 ),
 
-evaluados AS (
+en_rango AS (
     SELECT
         p.*,
         r.precio_referencia,
@@ -89,9 +89,47 @@ evaluados AS (
         r.precio_referencia IS NULL
             OR p.precio_mediano BETWEEN r.precio_referencia * {{ var("mismo_producto_piso_creible") }}
                                     AND r.precio_referencia * {{ var("mismo_producto_techo_creible") }}
-            AS precio_creible
+            AS precio_en_rango
     FROM precios AS p
     JOIN referencia AS r USING (id_producto)
+),
+
+-- UN PRECIO FUERA DE RANGO QUE OTRO CONFIRMA (2026-09-23)
+--
+-- El rango contra la mediana trataba igual a un precio aislado que a uno que
+-- otra cadena repite, y cortaba en seco. PARMESANA SALSA JALAPENO 180G: las tres
+-- banderas de Changomas a $1.590 (0,48 de la mediana, 93 sucursales) quedaban
+-- "sin verificar", mientras Carrefour a $1.695 (0,51) contaba. Dos empresas que
+-- no comparten sistemas informando casi el mismo precio no son un error de
+-- carga: es un precio. Y SEMILLA SESAMO FOR GOOD: Vea a $1.900 (0,49) afuera y
+-- Jumbo a $1.999, la misma empresa, adentro.
+--
+-- Un precio fuera de rango se acepta si hay otro a menos de la tolerancia que
+-- sea de OTRA empresa, o de la misma pero dentro del rango. La condicion sobre
+-- la misma empresa es la que mantiene afuera a FANTA ZERO: $309 en
+-- HiperChangomas y $369 en Changomas son el mismo error en dos banderas, y
+-- ninguna de las dos lo confirma. El 23-09 esto rescata 7 de 79 descartes, y
+-- los 7 se ven reales (ver dbt_project.yml).
+coincidencias AS (
+    SELECT
+        a.id_producto,
+        a.cadena,
+        LOGICAL_OR(o.empresa != a.empresa OR o.precio_en_rango) AS confirmado
+    FROM en_rango AS a
+    JOIN en_rango AS o
+        ON o.id_producto = a.id_producto
+        AND o.cadena != a.cadena
+        AND ABS(o.precio_mediano - a.precio_mediano) <= a.precio_mediano * {{ var("mismo_producto_tolerancia_coincidencia") }}
+    WHERE NOT a.precio_en_rango
+    GROUP BY a.id_producto, a.cadena
+),
+
+evaluados AS (
+    SELECT
+        e.*,
+        e.precio_en_rango OR IFNULL(c.confirmado, FALSE) AS precio_creible
+    FROM en_rango AS e
+    LEFT JOIN coincidencias AS c USING (id_producto, cadena)
 ),
 
 -- UN tamano por producto, votado entre empresas.
@@ -171,6 +209,7 @@ SELECT
     tp.tamano.cantidad_normalizada AS cantidad_normalizada,
     tp.tamano.unidad_normalizada AS unidad_normalizada,
     ev.precio_creible,
+    ev.precio_en_rango,
     ev.precio_referencia,
     pp.cadenas,
     pp.empresas,

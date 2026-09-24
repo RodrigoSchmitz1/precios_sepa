@@ -59,6 +59,54 @@ function nombrarCadenas(lista: PrecioEnCadena[]): string {
   return lista.length === 1 ? lista[0].cadena : `${lista[0].cadena} y ${lista.length - 1} mas`;
 }
 
+function textoSucursales(n: number): string {
+  return `${formatearNumero(n)} ${n === 1 ? "sucursal" : "sucursales"}`;
+}
+
+/** "Coto", "Coto y Dia", "Coto, Dia y Vea". */
+function listar(nombres: string[]): string {
+  return nombres.length === 1 ? nombres[0] : `${nombres.slice(0, -1).join(", ")} y ${nombres[nombres.length - 1]}`;
+}
+
+/*
+  Por que un precio queda fuera de la comparacion, con los numeros.
+
+  Hasta el 2026-09-23 la fila decia "sin verificar" y el precio iba tachado.
+  Ninguna de las dos cosas se entendia: "sin verificar" no dice contra que, y el
+  tachado en este sitio es el precio de lista de una promo. Ademas no es un
+  juicio sobre la cadena: puede ser una oferta real que nadie mas tiene.
+*/
+function explicarDescartes(p: ProductoDetalle): string | null {
+  const fuera = p.precios.filter((x) => !x.precio_creible);
+  if (fuera.length === 0) return null;
+  const porPrecio = new Map<number, string[]>();
+  for (const x of fuera) porPrecio.set(x.precio_mediano, [...(porPrecio.get(x.precio_mediano) ?? []), x.cadena]);
+  const ref = p.precio_referencia;
+  const partes = [...porPrecio].map(([precio, cadenas]) => {
+    const quien = `${listar(cadenas)} ${cadenas.length > 1 ? "informan" : "informa"} ${formatearPesos(precio)}`;
+    if (!ref) return quien;
+    return `${quien}, ${precio < ref ? "menos de la mitad" : "mas del doble"} de lo que cobran las demas (${formatearPesos(ref)} en la mediana)`;
+  });
+  const varios = porPrecio.size > 1;
+  return (
+    `${partes.join("; ")}. Ninguna otra cadena ${varios ? "confirma esos precios" : "confirma ese precio"}: ` +
+    `puede ser una oferta o un error de carga, asi que ${varios ? "se muestran" : "se muestra"} pero no ${varios ? "entran" : "entra"} en la diferencia.`
+  );
+}
+
+/*
+  Los puntos de la tira: solo los precios que entran en la comparacion. Con
+  todos, la tira marcaba como extremo un precio que las cifras de al lado
+  ignoraban (Changomas a $1.590 junto a "mas barato: $1.695"), y un error como
+  Fanta a $309 contra $5.150 aplastaba a las demas cadenas contra un borde. Los
+  descartados siguen en la lista, con su explicacion.
+*/
+function puntosComparables(p: ProductoDetalle) {
+  return p.precios
+    .filter((x) => x.precio_creible)
+    .map((x) => ({ id: x.cadena, valor: x.precio_mediano, nombre: x.cadena }));
+}
+
 function Aviso({ children }: { children: React.ReactNode }) {
   return (
     <p className="text-sm text-alerta bg-alerta-tenue border border-alerta/20 rounded-lg px-3 py-2">{children}</p>
@@ -96,7 +144,7 @@ function EjemploComparacion({ p, onVer }: { p: ProductoDetalle; onVer: (id: stri
       {hayDiferencia && (
         <div className="mb-4">
           <TiraDePuntos
-            puntos={p.precios.map((x) => ({ id: x.cadena, valor: x.precio_mediano, nombre: x.cadena }))}
+            puntos={puntosComparables(p)}
             formatear={formatearPesos}
             descripcion={`Precio de ${nombre} en cada cadena, de ${formatearPesos(p.precio_mas_bajo)} a ${formatearPesos(p.precio_mas_alto)}`}
           />
@@ -111,41 +159,57 @@ function EjemploComparacion({ p, onVer }: { p: ProductoDetalle; onVer: (id: stri
 /** La lista de precios por cadena. Se extrae de VistaProducto para poder
  *  mostrarla tambien en los ejemplos de la portada, donde no va el titular. */
 function ListaDePrecios({ p }: { p: ProductoDetalle }) {
+  const descartes = explicarDescartes(p);
   return (
+    <>
       <ul className="bg-papel border border-linea rounded-2xl divide-y divide-linea">
       {p.precios.map((x) => (
         <li
           key={x.cadena}
-          className={`flex items-baseline gap-4 px-4 py-2.5 ${x.precio_creible ? "" : "bg-papel-hundido"}`}
+          className={`flex items-baseline gap-3 sm:gap-4 px-4 py-2.5 ${x.precio_creible ? "" : "bg-papel-hundido"}`}
         >
-          <span className="text-base text-tinta flex-1 min-w-0 truncate">
-            {x.cadena}
-            {/* Se dice por que esta atenuado. Un renglon en gris sin explicacion
-                parece un error del sitio; con el motivo, es informacion. */}
-            {!x.precio_creible && (
-              <span className="ml-2 text-xs text-aviso" title="Se aparta tanto de lo que informan las demas empresas que no se puede tomar como precio. No entra en el calculo de la diferencia.">
-                sin verificar
+          <span className="flex-1 min-w-0">
+            <span className="block text-base text-tinta truncate">{x.cadena}</span>
+            {/*
+              Segunda linea: por que esta atenuado y, en el celular, las
+              sucursales. Un renglon en gris sin explicacion parece un error del
+              sitio; con el motivo es informacion (el detalle con los numeros va
+              debajo de la lista). En 375 px, con las sucursales como columna,
+              "HiperChangomas" y "Market (Carrefour)" quedaban recortados.
+            */}
+            <span className="block text-xs">
+              <span className={`sm:hidden ${x.sucursales < SUCURSALES_MINIMAS ? "text-aviso" : "text-tinta-suave"}`}>
+                {textoSucursales(x.sucursales)}
               </span>
-            )}
+              {!x.precio_creible && (
+                <span className="text-aviso">
+                  <span className="sm:hidden"> · </span>fuera de la comparacion
+                </span>
+              )}
+            </span>
           </span>
           {x.precio_maximo > x.precio_minimo && (
             <span className="numero text-xs text-tinta-suave hidden sm:inline" title="Rango entre sucursales">
               {formatearPesos(x.precio_minimo)} a {formatearPesos(x.precio_maximo)}
             </span>
           )}
-          <span className={`text-xs shrink-0 ${x.sucursales < SUCURSALES_MINIMAS ? "text-aviso" : "text-tinta-suave"}`}>
-            {formatearNumero(x.sucursales)} {x.sucursales === 1 ? "sucursal" : "sucursales"}
+          <span
+            className={`text-xs shrink-0 hidden sm:inline ${x.sucursales < SUCURSALES_MINIMAS ? "text-aviso" : "text-tinta-suave"}`}
+          >
+            {textoSucursales(x.sucursales)}
           </span>
           <span
-            className={`numero text-sm w-24 text-right shrink-0 ${
-              x.precio_creible ? "font-semibold text-tinta" : "text-tinta-suave line-through"
+            className={`numero text-sm w-20 sm:w-24 text-right shrink-0 ${
+              x.precio_creible ? "font-semibold text-tinta" : "text-tinta-suave"
             }`}
           >
             {formatearPesos(x.precio_mediano)}
           </span>
         </li>
       ))}
-    </ul>
+      </ul>
+      {descartes && <p className="text-xs text-tinta-media mt-2 leading-relaxed">{descartes}</p>}
+    </>
   );
 }
 
@@ -214,7 +278,7 @@ function VistaProducto({ estado, onVolver }: { estado: Detalle | null; onVolver?
       {hayDiferencia && (
         <div className="mb-6">
           <TiraDePuntos
-            puntos={p.precios.map((x) => ({ id: x.cadena, valor: x.precio_mediano, nombre: x.cadena }))}
+            puntos={puntosComparables(p)}
             formatear={formatearPesos}
             descripcion={`Precio de ${nombre} en cada cadena, de ${formatearPesos(p.precio_mas_bajo)} a ${formatearPesos(p.precio_mas_alto)}`}
           />

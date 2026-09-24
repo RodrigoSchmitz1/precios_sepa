@@ -104,6 +104,10 @@ def armar_indice(filas) -> dict:
                 # las columnas nuevas. Sin descartes, el comportamiento es el de
                 # antes.
                 "cadenas_descartadas": fila.get("cadenas_descartadas", 0),
+                # La mediana entre empresas contra la que se juzga cada precio.
+                # La pagina la usa para explicar con numeros por que un precio
+                # queda fuera de la comparacion ("menos de la mitad de $3.316").
+                "precio_referencia": fila.get("precio_referencia"),
                 # .get por la misma razon que arriba: la columna llega al mart en
                 # la corrida siguiente al deploy, y hasta entonces no hay tamano.
                 "cantidad_normalizada": fila.get("cantidad_normalizada"),
@@ -153,7 +157,12 @@ def detalle(indice: dict, id_producto: str) -> dict | None:
     producto = indice.get(str(id_producto))
     if producto is None:
         return None
-    return {**_resumen(producto), "fecha_datos": producto["fecha_datos"], "precios": producto["precios"]}
+    return {
+        **_resumen(producto),
+        "fecha_datos": producto["fecha_datos"],
+        "precio_referencia": producto["precio_referencia"],
+        "precios": producto["precios"],
+    }
 
 
 def destacados(indice: dict, limite: int = 12) -> list[dict]:

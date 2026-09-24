@@ -46,6 +46,7 @@ def producto(
             "diferencia_pct": round((alto - bajo) / bajo * 100, 1),
             "cadenas_descartadas": len(no_creibles),
             "precio_creible": cadena not in no_creibles,
+            "precio_referencia": 5150 if no_creibles else None,
             "fecha_datos": "2026-09-10",
         }
         for cadena, (precio, sucursales) in precios.items()
@@ -167,6 +168,13 @@ class TestPreciosNoCreibles(unittest.TestCase):
         por_cadena = {p["cadena"]: p for p in self.producto["precios"]}
         self.assertFalse(por_cadena["HiperChangomas"]["precio_creible"])
         self.assertTrue(por_cadena["SuperChangomas"]["precio_creible"])
+
+    def test_viaja_la_referencia_para_explicar_el_descarte(self):
+        # Sin ella la pagina solo podria decir "sin verificar", que no explica
+        # nada; con ella dice "menos de la mitad de $5.150".
+        # Se prueba sobre lo que devuelve la API y no sobre el indice: la
+        # primera version la guardaba en el indice pero detalle() no la mandaba.
+        self.assertEqual(detalle(self.indice, "1")["precio_referencia"], 5150)
 
     def test_la_brecha_se_calcula_sin_los_descartados(self):
         # 4939 -> 5190 es 5,1%, no 1579,6%.
