@@ -4,6 +4,11 @@
 fastapi==0.141.1
 uvicorn[standard]==0.52.4
 google-cloud-bigquery==3.45.0
+# Storage Read API para cargar los marts enteros (leer_tabla en main.py): la
+# primera carga de El mismo producto pasa de ~55 s a ~4 s. pyarrow es el formato
+# en que llegan las filas.
+google-cloud-bigquery-storage==2.41.0
+pyarrow==25.0.1
 # Se declara explicitamente porque main.py importa google.oauth2.service_account
 # para leer las credenciales desde una variable de entorno. Llegaba igual como
 # dependencia de bigquery, pero lo que se importa se declara.

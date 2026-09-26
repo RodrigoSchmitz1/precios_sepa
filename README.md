@@ -394,6 +394,13 @@ Decisiones que salieron de ahí:
   por el pico al leerlos: `list_rows` sin `page_size` trae páginas enormes. Con
   páginas de 5.000 filas el pico al leer 200 mil baja de 508 a 57 MB, y el
   proceso completo queda en 347 MB.
+- **La primera visita no espera un minuto.** Cloud Run apaga la instancia sin
+  tráfico, y la siguiente visita a El mismo producto esperaba ~55 s mientras
+  se leían 200 mil filas por `list_rows`. Ahora los marts se leen con la
+  Storage Read API, en columnas (Arrow) y en paralelo: 3,6 s y menos memoria.
+  Tampoco usa la cuota de consultas: se factura aparte, con 300 TiB gratis
+  por mes, y cada carga lee unas decenas de MB. Si falla al arrancar, vuelve
+  a `list_rows`.
 
 ---
 

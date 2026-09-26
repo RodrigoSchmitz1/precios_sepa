@@ -287,7 +287,7 @@ def obtener_promos(
 _candado_mapa = threading.Lock()
 
 
-# Filas por pagina al leer un mart entero con list_rows.
+# Filas por pagina cuando leer_tabla (abajo) tiene que caer a list_rows.
 #
 # Sin este parametro list_rows trae paginas enormes, y la memoria salta mientras
 # se decodifican. Medido el 2026-09-23 sobre mart_mismo_producto (200 mil filas),
@@ -306,12 +306,51 @@ _candado_mapa = threading.Lock()
 FILAS_POR_PAGINA = 5_000
 
 
+def leer_tabla(tabla, campos=None):
+    """Recorre un mart entero, fila por fila como dict, sin consumir cuota.
+
+    Usa la Storage Read API: lee en columnas (Arrow) y en paralelo. Medido el
+    2026-09-26 sobre mart_mismo_producto (200 mil filas), desde la PC:
+
+      list_rows de a 5.000    55 s   pico 141 MB
+      Storage Read API        3,6 s  pico  92 MB
+
+    Era la espera de la primera visita a El mismo producto o al mapa despues de
+    que Cloud Run apagara la instancia. Tampoco consume la cuota de consultas:
+    se factura aparte, por bytes leidos, con 300 TiB gratis por mes, y cada
+    carga lee unas decenas de MB.
+
+    Si la Storage API falla antes de la primera fila (sin permiso, API
+    deshabilitada), se vuelve a list_rows, que anda igual pero lento. Una falla
+    a mitad de camino se propaga: reintentar desde cero duplicaria filas.
+    """
+    try:
+        lotes = cliente_bq.list_rows(tabla, selected_fields=campos).to_arrow_iterable(
+            bqstorage_client=_cliente_storage())
+        primer_lote = next(lotes, None)
+    except Exception as error:  # noqa: BLE001 - cualquier falla aca tiene el mismo remedio
+        print(f"Storage Read API no disponible para {tabla} ({error!r}); uso list_rows")
+        yield from (dict(f) for f in cliente_bq.list_rows(tabla, selected_fields=campos, page_size=FILAS_POR_PAGINA))
+        return
+    if primer_lote is not None:
+        yield from primer_lote.to_pylist()
+    for lote in lotes:
+        yield from lote.to_pylist()
+
+
+@functools.lru_cache(maxsize=1)
+def _cliente_storage():
+    from google.cloud import bigquery_storage
+
+    return bigquery_storage.BigQueryReadClient(credentials=cliente_bq._credentials)
+
+
 @cachear
 def _cargar_indice_mapa():
-    # list_rows lee con tabledata.list: no es una consulta y no consume la cuota.
-    sucursales = cliente_bq.list_rows(f"{PROYECTO}.dbt_precios.mart_mapa_sucursales", page_size=FILAS_POR_PAGINA)
-    promos = cliente_bq.list_rows(f"{PROYECTO}.dbt_precios.mart_mapa_promos", page_size=FILAS_POR_PAGINA)
-    return mapa_promos.armar_indice((dict(f) for f in sucursales), (dict(f) for f in promos))
+    # leer_tabla no es una consulta y no consume la cuota.
+    sucursales = leer_tabla(f"{PROYECTO}.dbt_precios.mart_mapa_sucursales")
+    promos = leer_tabla(f"{PROYECTO}.dbt_precios.mart_mapa_promos")
+    return mapa_promos.armar_indice(sucursales, promos)
 
 
 def _indice_mapa():
@@ -773,7 +812,7 @@ def obtener_categorias_canasta():
 # Optimizar la compra entre sucursales cercanas (Fase 4)
 #
 # Mismo patron que El mismo producto y que el mapa: la tabla se carga entera con
-# list_rows (que no consume cuota) y la busqueda pasa en memoria. Optimizar en
+# leer_tabla (que no consume cuota) y la busqueda pasa en memoria. Optimizar en
 # BigQuery seria una consulta por visitante y por cada cambio de radio.
 # ---------------------------------------------------------------------------
 _candado_sucursales = threading.Lock()
@@ -786,8 +825,7 @@ MAXIMO_ITEMS_OPTIMIZAR = 80
 
 @cachear
 def _cargar_indice_sucursales():
-    filas = cliente_bq.list_rows(f"{PROYECTO}.dbt_precios.mart_precio_categoria_sucursal", page_size=FILAS_POR_PAGINA)
-    return precios_por_sucursal.armar_indice(dict(fila) for fila in filas)
+    return precios_por_sucursal.armar_indice(leer_tabla(f"{PROYECTO}.dbt_precios.mart_precio_categoria_sucursal"))
 
 
 def _indice_sucursales():
@@ -836,7 +874,7 @@ def _localidades_canasta():
     (10 MB facturados como minimo, y una clave de cache nueva por cada letra):
     la unica parte de Tu canasta que gastaba cuota por visitante. Ademas
     comparaba con LIKE en minusculas, asi que "cordoba" no encontraba
-    "Cordoba" con tilde. Ahora el mart se lee con list_rows, que no consume
+    "Cordoba" con tilde. Ahora el mart se lee con leer_tabla, que no consume
     cuota, y se busca en memoria con la misma normalizacion que los demas
     buscadores. Sale del mart de precios por categoria, contra el que cotiza
     la canasta, y no del de canasta basica, que solo tiene las localidades con
@@ -844,7 +882,7 @@ def _localidades_canasta():
     """
     tabla = cliente_bq.get_table(f"{PROYECTO}.dbt_precios.mart_precio_categoria_localidad")
     campos = [c for c in tabla.schema if c.name in ("localidad", "provincia", "categoria", "fecha_datos")]
-    filas = [dict(f) for f in cliente_bq.list_rows(tabla, selected_fields=campos, page_size=FILAS_POR_PAGINA)]
+    filas = list(leer_tabla(tabla, campos))
     return armar_localidades(filas, CATEGORIAS_MINIMAS_LOCALIDAD)
 
 
@@ -885,7 +923,7 @@ def obtener_localidades_disponibles(
 #
 # La tabla se carga entera y se busca en memoria (ver mismo_producto.py). Los
 # tres endpoints comparten la misma carga cacheada, y ninguno consulta BigQuery:
-# la tabla se lee con list_rows.
+# la tabla se lee con leer_tabla.
 #
 # Las rutas fijas (/buscar, /destacados) van antes que /{id_producto}: FastAPI
 # resuelve en orden de declaracion y si no "buscar" se tomaria como un id.
@@ -895,10 +933,9 @@ _candado_mismo_producto = threading.Lock()
 
 @cachear
 def _cargar_indice_mismo_producto():
-    # list_rows lee con tabledata.list: no es una consulta y no consume la cuota.
-    # El mart tiene solo el ultimo dia, asi que no hace falta filtrar por fecha.
-    filas = cliente_bq.list_rows(f"{PROYECTO}.dbt_precios.mart_mismo_producto", page_size=FILAS_POR_PAGINA)
-    return mismo_producto.armar_indice(dict(fila) for fila in filas)
+    # leer_tabla no es una consulta y no consume la cuota. El mart tiene solo el
+    # ultimo dia, asi que no hace falta filtrar por fecha.
+    return mismo_producto.armar_indice(leer_tabla(f"{PROYECTO}.dbt_precios.mart_mismo_producto"))
 
 
 def _indice_mismo_producto():

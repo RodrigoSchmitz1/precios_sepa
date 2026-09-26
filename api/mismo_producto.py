@@ -1,6 +1,6 @@
 """El mismo producto: busqueda, detalle y destacados sobre mart_mismo_producto.
 
-La tabla se lee entera con list_rows, que no consume cuota, se refresca cada 6
+La tabla se lee entera con leer_tabla (main.py), que no consume cuota, se refresca cada 6
 horas (la cache de main.py) y se busca en memoria. Buscar con LIKE en BigQuery
 escanearia la tabla en cada busqueda, y esta pagina invita justamente a buscar
 muchas veces seguidas: un rato de uso podia comerse la cuota diaria.
