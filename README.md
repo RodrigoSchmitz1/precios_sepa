@@ -304,6 +304,21 @@ comparaciones. El índice de inflación ya recortaba los relativos fuera de
 sana. La sección vulnerable era la única que publica un extremo individual como
 titular.
 
+### La IA interpreta, el código cuenta
+
+Tu canasta le pasaba a Gemini las cantidades del INDEC y le pedía que armara la
+canasta ajustándolas. Armaba sólo lo que el usuario nombraba: "vivo solo, como
+mucha carne y muchos huevos, y tomo mate" salía con carne, huevos y yerba, y
+nada más. Reforzar la regla en el prompt lo arreglaba en una corrida y fallaba
+en la siguiente. Y cuando sí ajustaba, erraba la cuenta: "tomamos mucha leche"
+salía con menos leche que la base de ese hogar.
+
+Ahora el modelo devuelve sólo lo que depende del texto —cuántos adultos
+equivalentes son, qué no consumen y qué sube o baja, como un factor— y la
+canasta la arma el código: la base del INDEC multiplicada por el hogar, con un
+test que la compara contra la misma tabla que usa la canasta básica. Los seis
+ejemplos de la página dan la misma canasta en corridas sucesivas.
+
 ### Geografía
 
 Las cadenas reportan toda CABA como "Capital Federal". El barrio real se
@@ -315,7 +330,7 @@ respetando el barrio cuando la cadena sí lo informa bien.
 ## Calidad
 
 **27 modelos y 110 tests de dbt**, que corren en cada ejecución del pipeline,
-más 6 tests unitarios de dbt con filas de prueba y 114 tests unitarios en Python sobre la API y la ingesta que no necesitan
+más 6 tests unitarios de dbt con filas de prueba y 125 tests unitarios en Python sobre la API y la ingesta que no necesitan
 BigQuery.
 Además de los genéricos, hay tests singulares para las cosas que sólo se
 detectan mirando el resultado agregado: que Carne vacuna y Pollo no mezclen
