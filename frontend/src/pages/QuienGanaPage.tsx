@@ -22,6 +22,32 @@ import type { QuienGana } from "../types";
 
 type Estado = { filas?: QuienGana[]; error?: string };
 
+/*
+  Formatos mayoristas (2026-09-26). Maxi, el mayorista de Carrefour, gana 53 de
+  las 66 categorias: el titular es cierto, pero para quien hace la compra del mes
+  en un super comun la pregunta es quien gana sin ellos. Es una lista y no una
+  regla porque SEPA no marca el formato: sale de mapeo_cadenas.csv.
+*/
+const MAYORISTAS = new Map([["Maxi (Carrefour)", "Maxi es el mayorista de Carrefour"]]);
+
+/** La cadena mas barata en mas categorias, y en cuantas. */
+function liderEn(filas: QuienGana[], categorias: string[]): [string, number] {
+  const liderazgos = new Map<string, number>();
+  for (const categoria of categorias) {
+    const deLaCategoria = filas.filter((f) => f.categoria === categoria);
+    if (deLaCategoria.length === 0) continue;
+    const maximo = Math.max(...deLaCategoria.map((f) => f.pct_gana_cuando_compite));
+    // Un empate en el tope cuenta para las dos: forzar un desempate seria
+    // inventar una diferencia que los datos no tienen.
+    for (const fila of deLaCategoria) {
+      if (fila.pct_gana_cuando_compite === maximo) {
+        liderazgos.set(fila.cadena, (liderazgos.get(fila.cadena) ?? 0) + 1);
+      }
+    }
+  }
+  return [...liderazgos.entries()].sort((a, b) => b[1] - a[1])[0];
+}
+
 function QuienGanaPage() {
   const [estado, setEstado] = useState<Estado | null>(null);
   const [categoriaElegida, setCategoriaElegida] = useState("");
@@ -45,25 +71,21 @@ function QuienGanaPage() {
   const resumen = useMemo(() => {
     if (filas.length === 0) return null;
     const categorias = [...new Set(filas.map((f) => f.categoria))];
-    const liderazgos = new Map<string, number>();
     let comparables = 0;
     for (const categoria of categorias) {
-      const deLaCategoria = filas.filter((f) => f.categoria === categoria);
-      comparables += deLaCategoria[0].total_productos_categoria;
-      const maximo = Math.max(...deLaCategoria.map((f) => f.pct_gana_cuando_compite));
-      // Un empate en el tope cuenta para las dos: forzar un desempate seria
-      // inventar una diferencia que los datos no tienen.
-      for (const fila of deLaCategoria) {
-        if (fila.pct_gana_cuando_compite === maximo) {
-          liderazgos.set(fila.cadena, (liderazgos.get(fila.cadena) ?? 0) + 1);
-        }
-      }
+      comparables += filas.find((f) => f.categoria === categoria)!.total_productos_categoria;
     }
-    const [lider, categoriasLideradas] = [...liderazgos.entries()].sort((a, b) => b[1] - a[1])[0];
+    const [lider, categoriasLideradas] = liderEn(filas, categorias);
+    // Si gana un mayorista, tambien quien gana sin ellos: es la respuesta para
+    // quien no compra por bulto.
+    const sinMayoristas = MAYORISTAS.has(lider)
+      ? liderEn(filas.filter((f) => !MAYORISTAS.has(f.cadena)), categorias)
+      : null;
     return {
       categorias,
       lider,
       categoriasLideradas,
+      sinMayoristas,
       comparables,
       cadenas: new Set(filas.map((f) => f.cadena)).size,
     };
@@ -87,12 +109,21 @@ function QuienGanaPage() {
             : "Mas barato"
         }
         bajada={
+          <>
           <p>
             Solo se comparan productos identicos, con el mismo codigo de barras, presentes en dos o mas cadenas: asi
             la marca propia no le regala victorias a nadie. Y se mide sobre los productos que cada cadena
             efectivamente ofrece, no sobre el total de la categoria, para que tener un surtido mas amplio no se
             confunda con ser mas barato.
           </p>
+          {resumen?.sinMayoristas && (
+            <p className="mt-2">
+              {MAYORISTAS.get(resumen.lider)}. Sin contar mayoristas, la mas barata es{" "}
+              <strong className="font-medium text-papel">{resumen.sinMayoristas[0]}</strong>, en{" "}
+              {resumen.sinMayoristas[1]} de las {resumen.categorias.length} categorias.
+            </p>
+          )}
+          </>
         }
       >
         {resumen ? (
