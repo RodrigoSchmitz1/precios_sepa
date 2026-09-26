@@ -108,6 +108,32 @@ def fechas_en_tabla(cliente, tabla, desde):
     return {fila.fecha_datos for fila in cliente.query(query, job_config=config).result()}
 
 
+def fechas_con_particion(cliente, tabla, desde):
+    """Lo mismo que fechas_en_tabla, pero leyendo la lista de particiones.
+
+    Es metadata y no consume cuota; la consulta de fechas_en_tabla costaba
+    ~0,24 GiB por corrida (medido el 2026-09-26), sobre todo por el crudo. Que
+    sea gratis es lo que permite que la tarea programada reintente varias veces
+    por dia cuando el portal no responde. Las tablas estan particionadas por
+    fecha_datos, asi que cada particion es una fecha con filas.
+
+    La verificacion de despues de cargar sigue usando la consulta: ahi importa
+    ver las filas recien escritas, no la metadata.
+    """
+    try:
+        particiones = cliente.list_partitions(tabla)
+    except NotFound:
+        print(f"  (la tabla {tabla} no existe todavia)")
+        return set()
+    fechas = set()
+    for particion in particiones:
+        if particion.isdigit():  # afuera __NULL__ y __UNPARTITIONED__
+            fecha = date(int(particion[:4]), int(particion[4:6]), int(particion[6:]))
+            if fecha >= desde:
+                fechas.add(fecha)
+    return fechas
+
+
 def retencion_actual_dias(cliente):
     """Dias de retencion configurados hoy en el crudo. Sin limite -> un numero
     grande, para que quien lo use mire toda la tabla."""
@@ -137,13 +163,13 @@ def calcular_faltantes(cliente, dias, hoy):
     desde = hoy - timedelta(days=max(dias, retencion + MARGEN_DBT_DIAS))
     ventana = [hoy - timedelta(days=n) for n in range(dias + 1)]
 
-    en_crudo = fechas_en_tabla(cliente, TABLA_CRUDA, desde)
+    en_crudo = fechas_con_particion(cliente, TABLA_CRUDA, desde)
 
     # Union de los tres historicos: cada uno arranco en una fecha distinta, asi
     # que mirar uno solo marcaria como faltantes fechas que si fueron procesadas.
     en_historico = set()
     for tabla in TABLAS_HISTORICO:
-        en_historico |= fechas_en_tabla(cliente, tabla, desde)
+        en_historico |= fechas_con_particion(cliente, tabla, desde)
 
     capturadas = en_crudo | en_historico
 

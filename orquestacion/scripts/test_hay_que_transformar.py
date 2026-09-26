@@ -9,9 +9,9 @@ prueban que corra.
 """
 
 import unittest
-from datetime import datetime, timezone
+from datetime import date, datetime, timezone
 
-from hay_que_transformar import decidir
+from hay_que_transformar import ATRASO_MAXIMO_DIAS, decidir, dias_de_atraso
 
 
 def hora(h, m=0):
@@ -55,6 +55,22 @@ class TestDecidir(unittest.TestCase):
     def test_sin_modelos_armados_corre(self):
         correr, _ = decidir({"productos": hora(11, 52)}, {}, hay_commits=False, manual=False)
         self.assertTrue(correr)
+
+
+class TestAtraso(unittest.TestCase):
+    # Si la corrida se saltea, el test crudo_al_dia no corre: este chequeo es
+    # el que manda el aviso.
+    def test_un_dia_de_portal_caido_no_avisa(self):
+        # El 26-09: el crudo llegaba al 24.
+        atraso = dias_de_atraso(date(2026, 9, 24), date(2026, 9, 26))
+        self.assertLessEqual(atraso, ATRASO_MAXIMO_DIAS)
+
+    def test_tres_dias_sin_datos_avisa(self):
+        atraso = dias_de_atraso(date(2026, 9, 24), date(2026, 9, 27))
+        self.assertGreater(atraso, ATRASO_MAXIMO_DIAS)
+
+    def test_crudo_vacio_avisa(self):
+        self.assertGreater(dias_de_atraso(None, date(2026, 9, 27)), ATRASO_MAXIMO_DIAS)
 
 
 if __name__ == "__main__":

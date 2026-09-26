@@ -22,6 +22,12 @@ LA REGLA. Hay que transformar si pasa cualquiera de estas tres cosas:
 
 Todo sale de metadata de tablas (tables.get), que no consume cuota.
 
+EL AVISO DE ATRASO NO SE PIERDE. Antes, un dia sin datos hacia fallar el test
+crudo_al_dia y GitHub mandaba el mail. Si la corrida se saltea, ese test no
+corre; por eso este script repite el mismo chequeo (la ultima fecha del crudo
+contra hoy en Argentina, con el mismo umbral) y termina en error cuando saltea
+con el crudo atrasado.
+
     python hay_que_transformar.py            # imprime la decision
     GITHUB_OUTPUT=... python hay_que_transformar.py   # ademas la deja al workflow
 """
@@ -29,13 +35,20 @@ Todo sale de metadata de tablas (tables.get), que no consume cuota.
 import os
 import subprocess
 import sys
+from datetime import datetime
 from pathlib import Path
+from zoneinfo import ZoneInfo
 
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 
 PROYECTO = "proyecto-precios-504221"
 RAIZ = Path(__file__).resolve().parents[2]
+CRUDO = f"{PROYECTO}.sepa.productos"
+
+# El mismo umbral que tests/crudo_al_dia.sql: en regimen el atraso es 1 dia, 2
+# puede ser el portal demorado y con 3 el crudo ya esta por quedar vacio.
+ATRASO_MAXIMO_DIAS = 2
 
 # Lo que escribe la ingesta local. No va producto_categoria, que esta en el
 # mismo dataset pero la escribe este mismo workflow (categorizar.py).
@@ -64,6 +77,16 @@ def decidir(entradas_modificadas, modelos_modificados, hay_commits, manual):
         return True, "hay cambios de codigo de dbt sin aplicar"
     viejo = min(modelos_modificados, key=modelos_modificados.get)
     return False, f"nada nuevo desde {mas_viejo:%Y-%m-%d %H:%M} UTC ({viejo})"
+
+
+def dias_de_atraso(ultima_fecha, hoy):
+    """Dias entre la ultima fecha del crudo y hoy. Sin fechas, infinito."""
+    return float("inf") if ultima_fecha is None else (hoy - ultima_fecha).days
+
+
+def ultima_fecha_del_crudo(cliente):
+    particiones = [p for p in cliente.list_partitions(CRUDO) if p.isdigit()]
+    return datetime.strptime(max(particiones), "%Y%m%d").date() if particiones else None
 
 
 def nombres_de_modelos():
@@ -107,6 +130,17 @@ def main():
     if "GITHUB_OUTPUT" in os.environ:
         with open(os.environ["GITHUB_OUTPUT"], "a") as salida:
             salida.write(f"correr={'true' if correr else 'false'}\n")
+
+    # Si corre, el test crudo_al_dia se encarga del aviso.
+    if not correr:
+        hoy = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).date()
+        ultima = ultima_fecha_del_crudo(cliente)
+        atraso = dias_de_atraso(ultima, hoy)
+        if atraso > ATRASO_MAXIMO_DIAS:
+            print(f"ERROR: la ultima fecha del crudo es {ultima}, {atraso} dias atras. "
+                  "La ingesta local no esta cargando: revisar el log de la tarea programada.")
+            return 1
+        print(f"Crudo al dia: ultima fecha {ultima} ({atraso} dias).")
     return 0
 
 
