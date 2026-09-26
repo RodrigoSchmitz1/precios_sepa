@@ -81,7 +81,11 @@ function Layout() {
           >
             SEPA (Secretaria de Comercio)
           </a>
-          . Precios de referencia, pueden diferir de la gondola.
+          . Precios de referencia, pueden diferir de la gondola.{" "}
+          <NavLink to="/como-se-calcula" className="underline underline-offset-2 hover:text-tinta-media">
+            Como se calcula cada numero
+          </NavLink>
+          .
         </div>
       </footer>
     </div>

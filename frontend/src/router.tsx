@@ -6,6 +6,7 @@ import CanastaPage from "./pages/CanastaPage";
 import CanastaPersonalizadaPage from "./pages/CanastaPersonalizadaPage";
 import InflacionPage from "./pages/InflacionPage";
 import MismoProductoPage from "./pages/MismoProductoPage";
+import ComoSeCalculaPage from "./pages/ComoSeCalculaPage";
 
 const router = createBrowserRouter([
   {
@@ -18,6 +19,7 @@ const router = createBrowserRouter([
       { path: "quien-gana", element: <QuienGanaPage /> },
       { path: "mismo-producto", element: <MismoProductoPage /> },
       { path: "inflacion", element: <InflacionPage /> },
+      { path: "como-se-calcula", element: <ComoSeCalculaPage /> },
     ],
   },
 ]);
