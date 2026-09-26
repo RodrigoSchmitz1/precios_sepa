@@ -44,7 +44,7 @@ jobs:
           cache-dependency-path: orquestacion/requirements.txt
       - run: pip install -r ../requirements.txt
       - name: Tests de la ingesta
-        run: python -m unittest test_ingesta_backfill -v
+        run: python -m unittest test_ingesta_backfill test_hay_que_transformar -v
 
   frontend:
     runs-on: ubuntu-latest

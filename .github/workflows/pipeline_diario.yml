@@ -7,9 +7,11 @@
 # IP que el portal acepta. Todo lo demas habla solo con BigQuery y Gemini, que
 # desde Actions funcionan sin problema.
 #
-# Como la ingesta local es auto-reparable, este workflow no necesita saber si
-# hoy entraron datos nuevos: dbt recalcula las fechas que haya en el crudo y
-# insert_overwrite reemplaza solo esas particiones. Correrlo de mas es inocuo.
+# Como la ingesta local es auto-reparable, este workflow no necesita saber que
+# fechas entraron: dbt recalcula las que haya en el crudo y insert_overwrite
+# reemplaza solo esas particiones. Correrlo de mas no rompe nada, pero cuesta
+# ~12 GiB de cuota, asi que la corrida programada se saltea cuando no hay nada
+# nuevo (ver hay_que_transformar.py). La manual corre siempre.
 
 name: Transformacion diaria (dbt)
 
@@ -36,6 +38,10 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          # Historia completa: hay_que_transformar.py mira si hubo commits de
+          # modelos despues de la ultima corrida, no solo el ultimo.
+          fetch-depth: 0
 
       - name: Setup Python
         uses: actions/setup-python@v5
@@ -52,12 +58,20 @@ jobs:
         env:
           GCP_SA_KEY: ${{ secrets.GCP_SA_KEY }}
 
+      # De aca en adelante todo depende de este paso. Si saltea, el workflow
+      # termina en verde sin tocar BigQuery mas alla de leer metadata.
+      - name: Hay algo nuevo para transformar?
+        id: chequeo
+        run: python hay_que_transformar.py
+
       - name: Categorizar productos nuevos (Gemini)
+        if: steps.chequeo.outputs.correr == 'true'
         run: python categorizar.py
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
 
       - name: Escribir profiles.yml de dbt
+        if: steps.chequeo.outputs.correr == 'true'
         run: |
           mkdir -p ~/.dbt
           cat > ~/.dbt/profiles.yml <<EOF
@@ -77,6 +91,7 @@ jobs:
           EOF
 
       - name: Instalar paquetes de dbt
+        if: steps.chequeo.outputs.correr == 'true'
         working-directory: .
         run: dbt deps
 
@@ -87,6 +102,7 @@ jobs:
       # CSV chicos, cargarlos todos los dias no cuesta nada y hace que el
       # warehouse siempre refleje lo que dice el repo.
       - name: Cargar seeds
+        if: steps.chequeo.outputs.correr == 'true'
         working-directory: .
         run: dbt seed
 
@@ -94,6 +110,7 @@ jobs:
       # borraria toda la historia acumulada, que no se puede recuperar porque el
       # crudo retiene solo 3 dias.
       - name: dbt run
+        if: steps.chequeo.outputs.correr == 'true'
         working-directory: .
         run: dbt run
 
@@ -103,10 +120,12 @@ jobs:
       # fecha se volveria irrecuperable. Preferimos que el dato quede capturado
       # y que la falla avise (el workflow queda en rojo y GitHub manda el mail).
       - name: dbt test
+        if: steps.chequeo.outputs.correr == 'true'
         working-directory: .
         run: dbt test
 
       - name: Capturar log de cambios de dimensiones
+        if: steps.chequeo.outputs.correr == 'true'
         run: python capturar_log.py
 
       - name: Limpiar credenciales
