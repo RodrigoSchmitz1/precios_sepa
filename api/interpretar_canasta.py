@@ -114,55 +114,88 @@ GAMAS = ("economico", "medio", "premium")
 MASA_O_VOLUMEN = {"g", "cc"}
 
 # Referencias de cantidad: las de la Canasta Basica Alimentaria del INDEC para
-# Gran Buenos Aires, por adulto equivalente y por mes (las mismas de la seed
-# composicion_canasta). Hasta el 2026-09-24 eran rangos sin fuente ("basadas en
-# consumo promedio real") y muy por debajo: pan 1,5-2 kg contra 6,75 del INDEC,
-# leche 2-3 litros contra 9,27, carne 1,5-2,5 kg contra 4,44. Ademas se
-# multiplicaba por personas y no por adultos equivalentes. El resultado: la
-# misma familia de 4 en Palermo costaba $332.858 en Tu canasta y $669.923 en
-# Canasta basica, en el mismo sitio.
-REFERENCIAS_MENSUALES_PER_CAPITA = """Referencias de cantidad MENSUAL por ADULTO EQUIVALENTE, de la Canasta Basica Alimentaria del INDEC (Gran Buenos Aires). Son el punto de partida; despues se ajusta segun lo que describa el usuario:
-- Pan: 6750g
-- Galletitas saladas: 420g. Galletitas dulces: 210g
-- Arroz: 1200g. Fideos: 1740g. Harina: 1290g. Legumbres: 240g
-- Papa y tuberculos: 7020g
-- Verduras: 5730g. Frutas: 4950g
-- Carne vacuna: 4440g. Pollo: 1650g. Pescado: 180g. Fiambres: 60g
-- Huevos: 11 unidades
-- Leche fluida: 9270cc. Quesos: 330g. Yogur: 570g. Manteca y margarina: 60g
-- Aceite: 1200cc
-- Azucar: 1230g. Dulces y mermeladas: 330g
-- Gaseosas, Jugos y Aguas: 1150cc cada una (si se consumen)
-- Cerveza y Vinos y licores: 540cc cada una (si se consumen); 4000-6000cc de cerveza si se toma seguido
-- Yerba mate: 510g. Cafe: 30g
-- Sal: 120g. Otros condimentos: 120g. Vinagre: 60cc
-- Lo que no esta en la lista (cerdo, elaborados de carne, embutidos, limpieza, higiene, panales, etc.): una cantidad razonable si el usuario lo menciona.
+# Gran Buenos Aires, por adulto equivalente y por mes. Es la misma tabla que la
+# seed composicion_canasta.csv, y un test verifica que sigan iguales. Hasta el
+# 2026-09-24 eran rangos sin fuente y muy por debajo (pan 1,5-2 kg contra 6,75
+# del INDEC): la misma familia de 4 en Palermo costaba $332.858 en Tu canasta y
+# $669.923 en Canasta basica.
+#
+# LA BASE LA ARMA EL CODIGO, NO EL MODELO (2026-09-26). Se le pedia a Gemini que
+# partiera de estas cantidades y ajustara, y armaba solo lo que el usuario
+# nombraba: "vivo solo, como mucha carne y muchos huevos y tomo mate" salia con
+# carne, huevos y yerba, y ninguna otra cosa. Reforzar la regla en el prompt lo
+# arreglaba en una corrida y volvia a fallar en la siguiente. Ahora el modelo
+# devuelve solo lo que depende de la descripcion (adultos equivalentes, que
+# sacar, que ajustar o sumar) y armar_canasta pone la base.
+#
+# Las bebidas de la seed no van en la base: se suman si el usuario las menciona,
+# con la cantidad de BEBIDAS_INDEC como referencia.
+BASE_INDEC = {
+    "Pan": 6750, "Galletitas saladas": 420, "Galletitas dulces": 210,
+    "Arroz": 1200, "Harina": 1290, "Fideos": 1740, "Legumbres": 240,
+    "Papa y tuberculos": 7020, "Verduras": 5730, "Frutas": 4950,
+    "Carne vacuna": 4440, "Pollo": 1650, "Pescado": 180, "Fiambres": 60,
+    "Huevos": 11,
+    "Leche fluida": 9270, "Quesos": 330, "Yogur": 570, "Manteca y margarina": 60,
+    "Aceite": 1200, "Azucar": 1230, "Dulces y mermeladas": 330,
+    "Yerba mate": 510, "Cafe": 30,
+    "Sal": 120, "Otros condimentos": 120, "Vinagre": 60,
+}
+BEBIDAS_INDEC = {"Gaseosas": 1150, "Aguas": 1150, "Jugos": 1150, "Cerveza": 540, "Vinos y licores": 540}
 
-ADULTOS EQUIVALENTES (como el INDEC): cada adulto cuenta 0,9; cada chico en edad escolar 0,65; un bebe 0,35. Una familia de dos adultos y dos chicos son 3,1 adultos equivalentes: multiplica las referencias por ese numero, no por la cantidad de personas.
+UNIDAD_TEXTO = {"g": "g", "cc": "cc", "unidad": " unidades"}
 
-Ajusta hacia arriba o abajo segun lo que describa (ej. "comemos mucha carne" -> subir esa categoria; "casi no tomamos gaseosa" -> bajarla o no incluirla)."""
 
-PROMPT_BASE = """Sos un asistente que arma canastas de compra personalizadas para supermercados en Argentina.
+def _referencias():
+    lineas = [f"- {c}: {q}{UNIDAD_TEXTO[CATEGORIAS[c]['unidad']]}" for c, q in BASE_INDEC.items()]
+    bebidas = ", ".join(f"{c} {q}cc" for c, q in BEBIDAS_INDEC.items())
+    return (
+        "CANASTA BASE: por adulto equivalente y por mes, de la Canasta Basica Alimentaria del INDEC (Gran Buenos Aires). "
+        "El sistema la agrega sola, multiplicada por los adultos equivalentes que indiques:\n"
+        + "\n".join(lineas)
+        + "\n\nBebidas (NO estan en la base; sumalas solo si el usuario las menciona, con esta referencia "
+        f"por adulto equivalente): {bebidas}. Cerveza si se toma seguido: 4000-6000cc por adulto.\n\n"
+        "ADULTOS EQUIVALENTES (como el INDEC): cada adulto cuenta 0,9; cada chico en edad escolar 0,65; un bebe 0,35. "
+        "Una familia de dos adultos y dos chicos son 3,1. Si no dice cuantos son, 0,9 (una persona)."
+    )
 
-El usuario va a describir en lenguaje natural que consume o que necesita. Tu trabajo es traducir eso a una lista de categorias de productos, con una cantidad mensual estimada y un nivel de gama (economico, medio o premium).
+
+PROMPT_BASE = """Sos un asistente que arma canastas de compra mensuales para supermercados en Argentina.
+
+El usuario describe en lenguaje natural que consume. La canasta base del INDEC se agrega sola; vos decidis solo lo que depende de la descripcion.
 
 {referencias}
 
-REGLAS ESTRICTAS:
-1. SOLO podes usar categorias de esta lista exacta, tal cual estan escritas. Entre parentesis figura la unidad en la que se mide cada una: {categorias}
-2. NUNCA inventes una categoria que no este en la lista.
-3. Usa las referencias de cantidad de arriba como punto de partida, multiplicando por los ADULTOS EQUIVALENTES del hogar (si no menciona, asumi 1 adulto: 0,9), y ajustando segun lo que describa.
-4. La unidad de cada item tiene que ser EXACTAMENTE la que figura entre parentesis para su categoria: "g" (gramos), "cc" (mililitros) o "unidad".
-5. El campo "gama" debe ser "economico", "medio", o "premium" segun el presupuesto que el usuario describa. Si no lo menciona, usa "economico".
-6. Los basicos van en su categoria basica salvo que el usuario pida la variante: "aceite" es Aceite (girasol, maiz, mezcla), no Aceite de oliva y especiales; "papas" es Papa y tuberculos, no Verduras y papas procesadas; "azucar" es Azucar, no Edulcorantes; "fideos" es Fideos, no Pastas frescas y tapas; "harina" es Harina. Usa la categoria de la variante solo si la menciona (aceite de oliva, papas fritas congeladas, edulcorante, ravioles, premezcla, pan rallado). Y si menciona SOLO la variante, no agregues tambien el basico: "papas congeladas" es Verduras y papas procesadas y nada de Papa y tuberculos.
-   Categorias que se confunden: "Embutidos" son chorizo, morcilla y salchichas (tambien las tipo viena); "Elaborados de carne" son hamburguesas, milanesas, nuggets y patitas de pollo; "Achuras y menudencias" son higado, mondongo, chinchulines, mollejas y riñon; "Comidas preparadas" es comida hecha (pizzas, empanadas, tartas, platos listos); el pan de pancho y el de hamburguesa son "Pan". Un "asado" suma Carne vacuna y tambien Embutidos (el chorizo y la morcilla van siempre).
-7. La canasta se cotiza con precios de SUPERMERCADO. Si el usuario dice que algo lo compra en otro lado, NO incluyas esas categorias: carniceria -> Carne vacuna, Pollo, Cerdo, Achuras y menudencias; verduleria -> Frutas, Verduras, Papa y tuberculos; panaderia -> Pan, Facturas y reposteria. Si nombra solo una parte ("el pollo lo compro en la polleria"), saca solo esa.
-8. Da una razon breve (una frase) de por que incluiste cada categoria.
-9. Responde UNICAMENTE con un JSON valido con este formato exacto:
+Categorias validas, con la unidad en que se miden entre parentesis: {categorias}
+
+QUE TENES QUE DEVOLVER:
+1. "adultos_equivalentes": cuantos adultos equivalentes son en el hogar (numero).
+2. "gama": "economico", "medio" o "premium" segun el presupuesto que describa. Si no lo menciona, "economico".
+3. "quitar": categorias de la CANASTA BASE que NO van, solo si el usuario dice que no las consume o que las compra fuera del supermercado. Un vegetariano no lleva Carne vacuna, Pollo, Pescado ni Fiambres (si lleva todo lo demas). Si compra en carniceria: Carne vacuna y Pollo; en verduleria: Frutas, Verduras y Papa y tuberculos; en panaderia: Pan. Si nombra solo una parte ("el pollo lo compro en la polleria"), saca solo esa. Si no hay nada que sacar, lista vacia.
+4. "items": SOLO las categorias que cambian respecto de la base por lo que describe, o que hay que sumar porque no estan en la base. No repitas las de la base que quedan igual.
+   - Si la categoria ESTA en la base, da un "factor" sobre la cantidad de la base y NO una cantidad: 1.5 es 50% mas, 2 el doble, 0.5 la mitad. El sistema hace la cuenta.
+   - Si NO esta en la base, da la "cantidad" mensual TOTAL del hogar.
+   Ejemplos: "como mucha carne" -> Carne vacuna con factor 1.5; "tomamos mucha leche" -> Leche fluida con factor 1.5; "cocino poco" -> Harina, Arroz, Fideos, Legumbres, Papa y tuberculos, Verduras y Aceite con factor 0.5, y Comidas preparadas con su cantidad; "tomamos cerveza" -> Cerveza con su cantidad; "tenemos un bebe" -> Panales y Higiene bebe con su cantidad.
+5. "solo_lo_mencionado": true SOLO si el usuario pide explicitamente una lista con nada mas que ciertas cosas ("solo quiero cotizar yerba y cafe"). Describir lo que come no es eso: false.
+
+REGLAS:
+- SOLO categorias de la lista, escritas exactamente igual. NUNCA inventes una.
+- La unidad de cada item es EXACTAMENTE la de la lista: "g" (gramos), "cc" (mililitros) o "unidad".
+- En las categorias por unidad, la unidad es la PIEZA, no el paquete: un huevo, un panal, una toallita. Un bebe usa unos 150 panales y 200 toallitas (Higiene bebe) por mes.
+- Los basicos van en su categoria basica salvo que el usuario pida la variante: "aceite" es Aceite (girasol, maiz, mezcla), no Aceite de oliva y especiales; "papas" es Papa y tuberculos, no Verduras y papas procesadas; "azucar" es Azucar, no Edulcorantes; "fideos" es Fideos, no Pastas frescas y tapas. Usa la categoria de la variante solo si la menciona (aceite de oliva, papas fritas congeladas, edulcorante, ravioles, premezcla, pan rallado).
+- Categorias que se confunden: "Embutidos" son chorizo, morcilla y salchichas (tambien las tipo viena); "Elaborados de carne" son hamburguesas, milanesas, nuggets y patitas de pollo; "Achuras y menudencias" son higado, mondongo, chinchulines, mollejas y rinon; "Comidas preparadas" es comida hecha (pizzas, empanadas, tartas, platos listos); el pan de pancho y el de hamburguesa son "Pan" y se suman al de la base (factor mayor a 1, nunca menor). Un "asado" suma Carne vacuna y tambien Embutidos (el chorizo y la morcilla van siempre).
+- Cada item lleva una razon breve (una frase).
+
+Responde UNICAMENTE con un JSON valido con este formato exacto:
 
 {{
+  "adultos_equivalentes": 0.9,
+  "gama": "economico",
+  "quitar": [],
+  "solo_lo_mencionado": false,
   "items": [
-    {{"categoria": "...", "cantidad": 1000, "unidad": "g", "gama": "economico", "razon": "..."}}
+    {{"categoria": "Carne vacuna", "factor": 1.5, "unidad": "g", "gama": "economico", "razon": "..."}},
+    {{"categoria": "Cerveza", "cantidad": 4000, "unidad": "cc", "gama": "economico", "razon": "..."}}
   ]
 }}
 
@@ -184,7 +217,7 @@ def _cliente_gemini():
 def construir_prompt(descripcion: str) -> str:
     categorias = ", ".join(f"{nombre} ({datos['unidad']})" for nombre, datos in sorted(CATEGORIAS.items()))
     return PROMPT_BASE.format(
-        referencias=REFERENCIAS_MENSUALES_PER_CAPITA,
+        referencias=_referencias(),
         categorias=categorias,
         descripcion=descripcion,
     )
@@ -228,6 +261,78 @@ def normalizar_items(datos: dict) -> dict:
     return {"items": items}
 
 
+# Rango de adultos equivalentes que se acepta del modelo: un bebe solo y un
+# hogar grande. Fuera de eso es un error de lectura, y se usa una persona.
+ADULTOS_MINIMO, ADULTOS_MAXIMO, ADULTOS_POR_DEFECTO = 0.35, 15, 0.9
+# Mas que eso sobre la base ya no es un ajuste de habitos sino un error.
+FACTOR_MAXIMO = 5
+
+
+def _redondear(cantidad, unidad):
+    return round(cantidad) if unidad == "unidad" else int(round(cantidad / 10) * 10)
+
+
+def armar_canasta(datos: dict) -> dict:
+    """Arma la canasta: la base del INDEC por los adultos equivalentes, menos lo
+    que el usuario no consume, con lo que cambia o se suma encima.
+
+    Lo que devolvio el modelo se valida igual que antes (normalizar_items). Un
+    item del modelo pisa al de la base de su misma categoria, aunque este en
+    "quitar": que lo nombre con cantidad es mas explicito que la lista.
+    """
+    datos = datos if isinstance(datos, dict) else {}
+    adultos = datos.get("adultos_equivalentes")
+    if (isinstance(adultos, bool) or not isinstance(adultos, (int, float))
+            or not ADULTOS_MINIMO <= adultos <= ADULTOS_MAXIMO):
+        adultos = ADULTOS_POR_DEFECTO
+
+    # En las categorias de la base el modelo da un factor y la cuenta se hace
+    # aca: pedirle la cantidad total fallaba en la multiplicacion ("tomamos
+    # mucha leche" salia con menos leche que la base de ese hogar).
+    crudos = datos.get("items") if isinstance(datos.get("items"), list) else []
+    items = []
+    for item in crudos:
+        if isinstance(item, dict) and item.get("categoria") in BASE_INDEC and "factor" in item:
+            factor = item.get("factor")
+            if isinstance(factor, bool) or not isinstance(factor, (int, float)) or not 0 < factor <= FACTOR_MAXIMO:
+                continue
+            categoria = item["categoria"]
+            item = {**item, "cantidad": _redondear(BASE_INDEC[categoria] * adultos * factor,
+                                                   CATEGORIAS[categoria]["unidad"]),
+                    "unidad": CATEGORIAS[categoria]["unidad"]}
+        items.append(item)
+    propios = normalizar_items({"items": items})["items"]
+
+    # Una cantidad diez veces menor a la sugerida en una categoria fuera de la
+    # base es una lectura equivocada, no un consumo: el modelo contaba paquetes
+    # en vez de piezas y ponia 5 toallitas por mes para un bebe.
+    for item in propios:
+        sugerida = CATEGORIAS[item["categoria"]]["cantidad"]
+        if item["categoria"] not in BASE_INDEC and item["cantidad"] < sugerida / 10:
+            item["cantidad"] = sugerida
+
+    if datos.get("solo_lo_mencionado") is True:
+        return {"items": propios}
+    gama = datos.get("gama") if datos.get("gama") in GAMAS else "economico"
+    quitar = datos.get("quitar") if isinstance(datos.get("quitar"), list) else []
+    quitar = {c for c in quitar if isinstance(c, str)}
+    nombrados = {i["categoria"] for i in propios}
+
+    adultos_texto = f"{adultos:.2f}".rstrip("0").rstrip(".").replace(".", ",")
+    base = [
+        {
+            "categoria": categoria,
+            "cantidad": _redondear(cantidad * adultos, CATEGORIAS[categoria]["unidad"]),
+            "unidad": CATEGORIAS[categoria]["unidad"],
+            "gama": gama,
+            "razon": f"Canasta del INDEC para {adultos_texto} adultos equivalentes.",
+        }
+        for categoria, cantidad in BASE_INDEC.items()
+        if categoria not in quitar and categoria not in nombrados
+    ]
+    return {"items": base + propios}
+
+
 def interpretar_descripcion(descripcion: str) -> dict:
     respuesta = _cliente_gemini().models.generate_content(
         model=MODELO,
@@ -242,4 +347,4 @@ def interpretar_descripcion(descripcion: str) -> dict:
     texto = (respuesta.text or "").strip()
     if texto.startswith("```"):
         texto = texto.strip("`").removeprefix("json").strip()
-    return normalizar_items(json.loads(texto))
+    return armar_canasta(json.loads(texto))

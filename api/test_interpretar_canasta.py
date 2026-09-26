@@ -8,7 +8,7 @@ import io
 import os
 import unittest
 
-from interpretar_canasta import CATEGORIAS, construir_prompt, normalizar_items
+from interpretar_canasta import BASE_INDEC, BEBIDAS_INDEC, CATEGORIAS, armar_canasta, construir_prompt, normalizar_items
 
 RUTA_CATEGORIZAR = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "..", "orquestacion", "scripts", "categorizar.py"
@@ -106,6 +106,82 @@ class TestCatalogo(unittest.TestCase):
             with self.subTest(categoria=fila["categoria"]):
                 self.assertIn(fila["categoria"], CATEGORIAS)
                 self.assertEqual(fila["unidad"], CATEGORIAS[fila["categoria"]]["unidad"])
+
+
+class TestArmarCanasta(unittest.TestCase):
+    """La base la pone el codigo: el modelo armaba solo lo que el usuario
+    nombraba ("como mucha carne y tomo mate" -> carne, huevos y yerba)."""
+
+    def categorias(self, canasta):
+        return {i["categoria"]: i for i in canasta["items"]}
+
+    def test_la_base_es_la_canasta_del_indec_sin_bebidas(self):
+        import csv
+
+        with io.open(RUTA_COMPOSICION, encoding="utf-8-sig", newline="") as f:
+            seed = {fila["categoria"]: int(fila["cantidad"]) for fila in csv.DictReader(f)}
+        self.assertEqual({**BASE_INDEC, **BEBIDAS_INDEC}, seed)
+
+    def test_lo_que_nombra_el_usuario_se_suma_a_la_base(self):
+        canasta = self.categorias(armar_canasta({
+            "adultos_equivalentes": 0.9, "quitar": [],
+            "items": [item(categoria="Carne vacuna", cantidad=6000, razon="come mucha carne")],
+        }))
+        self.assertEqual(set(canasta), set(BASE_INDEC))
+        self.assertEqual(canasta["Carne vacuna"]["cantidad"], 6000)
+        self.assertEqual(canasta["Pan"]["cantidad"], 6080)  # 6750 x 0,9, redondeado a 10 g
+        self.assertEqual(canasta["Huevos"]["cantidad"], 10)  # 11 x 0,9, piezas enteras
+
+    def test_quitar_saca_de_la_base(self):
+        canasta = self.categorias(armar_canasta({
+            "adultos_equivalentes": 0.9, "quitar": ["Carne vacuna", "Pollo", "Pescado", "Fiambres"], "items": [],
+        }))
+        self.assertNotIn("Carne vacuna", canasta)
+        self.assertIn("Leche fluida", canasta)
+
+    def test_solo_lo_mencionado_no_agrega_la_base(self):
+        canasta = armar_canasta({"solo_lo_mencionado": True, "items": [item(categoria="Yerba mate", cantidad=1000)]})
+        self.assertEqual([i["categoria"] for i in canasta["items"]], ["Yerba mate"])
+
+    def test_adultos_y_gama_invalidos_usan_una_persona_economica(self):
+        for adultos in (None, "3", 0, 40, True):
+            with self.subTest(adultos=adultos):
+                canasta = self.categorias(armar_canasta({"adultos_equivalentes": adultos, "gama": "lujo"}))
+                self.assertEqual(canasta["Pan"]["cantidad"], 6080)
+                self.assertEqual(canasta["Pan"]["gama"], "economico")
+
+    def test_el_factor_se_aplica_sobre_la_base_del_hogar(self):
+        # "Tomamos mucha leche" con dos adultos y un bebe (2,15): el modelo daba
+        # 15.000 cc, menos que la base. Con factor la cuenta la hace el codigo.
+        canasta = self.categorias(armar_canasta({
+            "adultos_equivalentes": 2.15,
+            "items": [{"categoria": "Leche fluida", "factor": 1.5, "unidad": "cc", "gama": "economico", "razon": "x"}],
+        }))
+        self.assertEqual(canasta["Leche fluida"]["cantidad"], 29900)  # 9270 x 2,15 x 1,5
+
+    def test_factor_invalido_deja_la_base(self):
+        for factor in (0, -1, 50, "2", True):
+            with self.subTest(factor=factor):
+                canasta = self.categorias(armar_canasta({
+                    "adultos_equivalentes": 0.9,
+                    "items": [{"categoria": "Pan", "factor": factor, "unidad": "g", "gama": "economico"}],
+                }))
+                self.assertEqual(canasta["Pan"]["cantidad"], 6080)
+
+    def test_una_cantidad_absurdamente_baja_fuera_de_la_base_usa_la_sugerida(self):
+        # El modelo contaba paquetes: 5 toallitas por mes para un bebe.
+        canasta = self.categorias(armar_canasta({
+            "adultos_equivalentes": 2.15,
+            "items": [item(categoria="Higiene bebe", cantidad=5, unidad="unidad"),
+                      item(categoria="Panales", cantidad=150, unidad="unidad")],
+        }))
+        self.assertEqual(canasta["Higiene bebe"]["cantidad"], CATEGORIAS["Higiene bebe"]["cantidad"])
+        self.assertEqual(canasta["Panales"]["cantidad"], 150)
+
+    def test_respuesta_malformada_da_la_base(self):
+        for datos in (None, [], {"quitar": "Pan", "items": None}):
+            with self.subTest(datos=datos):
+                self.assertEqual(set(self.categorias(armar_canasta(datos))), set(BASE_INDEC))
 
 
 if __name__ == "__main__":

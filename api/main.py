@@ -12,6 +12,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from google.api_core.exceptions import GoogleAPICallError
 from google.cloud import bigquery
+from google.genai import errors as genai_errors
 from google.oauth2 import service_account
 from pydantic import BaseModel
 from typing import Optional
@@ -786,7 +787,16 @@ class CalcularCanastaRequest(BaseModel):
 
 @api.post("/canasta-personalizada/interpretar")
 def interpretar_canasta_personalizada(datos: DescripcionCanasta):
-    return interpretar_descripcion(datos.descripcion)
+    # El plan gratuito de Gemini admite 15 pedidos por minuto. Pasado eso
+    # responde 429, que sin esto llegaba al usuario como un error 500 generico.
+    try:
+        return interpretar_descripcion(datos.descripcion)
+    except genai_errors.APIError as error:
+        if error.code == 429:
+            return JSONResponse(status_code=503, content={
+                "detail": "Hay muchas canastas armandose al mismo tiempo. Proba de nuevo en un minuto, "
+                          "o arma la tuya con la canasta basica o eligiendo las categorias a mano."})
+        raise
 
 
 @api.post("/canasta-personalizada/calcular")
