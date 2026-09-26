@@ -21,7 +21,8 @@ WITH productos_canasta AS (
         p.id_comercio,
         p.id_sucursal,
         p.precio,
-        p.cantidad_normalizada,
+        -- Piezas reales del envase en las categorias por pieza (piezas_por_envase).
+        {{ cantidad_efectiva("p", "gama") }} AS cantidad_normalizada,
         p.unidad_normalizada,
         p.fecha_datos,
         cat.categoria
@@ -42,10 +43,9 @@ WITH productos_canasta AS (
         -- las que ya estan da identico y se paga todos los dias. Ver el macro.
         AND p.fecha_datos IN ({{ fechas_a_calcular(ref("stg_productos"), "historico_canasta_localidad") }})
         AND p.cantidad_normalizada IS NOT NULL
-        AND (
-            (p.unidad_normalizada IN ("g", "cc") AND p.cantidad_normalizada BETWEEN 5 AND 10000)
-            OR (p.unidad_normalizada = "unidad" AND p.cantidad_normalizada BETWEEN 1 AND 60)
-        )
+        -- Rango de sanidad y paquetes cargados como "1 unidad": ver el macro
+        -- piezas_por_envase.
+        AND {{ cantidad_razonable("p", "gama") }}
 ),
 
 con_precio_unitario AS (

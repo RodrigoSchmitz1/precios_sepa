@@ -33,7 +33,7 @@ WITH productos_filtrados AS (
         s.localidad,
         s.provincia,
         p.fecha_datos,
-        p.precio / p.cantidad_normalizada AS precio_por_unidad
+        p.precio / {{ cantidad_efectiva("p", "gama") }} AS precio_por_unidad
     FROM {{ ref("stg_productos") }} AS p
     JOIN {{ ref("stg_categorias") }} AS cat ON p.id_producto = cat.id_producto
     -- La gama se une por producto Y unidad: un mismo producto puede venir en
@@ -48,10 +48,9 @@ WITH productos_filtrados AS (
     WHERE p.fecha_datos = DATE('{{ fecha }}')
         AND s.localidad IS NOT NULL
         AND p.cantidad_normalizada IS NOT NULL
-        AND (
-            (p.unidad_normalizada IN ("g", "cc") AND p.cantidad_normalizada BETWEEN 5 AND 10000)
-            OR (p.unidad_normalizada = "unidad" AND p.cantidad_normalizada BETWEEN 1 AND 60)
-        )
+        -- Rango de sanidad y paquetes cargados como "1 unidad": ver el macro
+        -- piezas_por_envase.
+        AND {{ cantidad_razonable("p", "gama") }}
 ),
 
 limites AS (

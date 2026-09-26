@@ -42,29 +42,43 @@
 -- los modelos que consumen esta tabla la unen por producto y unidad.
 --
 -- Se restringe a productos con cantidad medible, con el mismo rango de sanidad
--- que aplican los tres modelos que consumen esta tabla. No cuesta cobertura:
+-- que aplican los modelos que consumen esta tabla (macro cantidad_razonable,
+-- que ademas corrige los paquetes cargados como "1 unidad": ver
+-- piezas_por_envase). No cuesta cobertura:
 -- esos modelos ya descartaban por su cuenta los productos sin cantidad.
 
-WITH precio_por_producto AS (
+WITH envase AS (
+    -- Cuantas piezas trae cada producto de las categorias que se cotizan por
+    -- pieza, leido de la descripcion. Ver el macro piezas_por_envase.
+    SELECT
+        id_producto,
+        categoria IN UNNEST({{ var("categorias_por_pieza") }}) AS por_pieza,
+        IF(categoria IN UNNEST({{ var("categorias_por_pieza") }}),
+           {{ piezas_en_descripcion("descripcion") }},
+           NULL) AS piezas_descripcion
+    FROM {{ ref('stg_categorias') }}
+),
+
+precio_por_producto AS (
     -- Precio representativo de cada producto EN CADA UNIDAD en que se vende: la
     -- mediana entre todas las cadenas, sucursales y dias disponibles.
     SELECT
-        id_producto,
-        unidad_normalizada,
-        APPROX_QUANTILES(precio, 2)[OFFSET(1)] AS precio_mediano,
+        p.id_producto,
+        p.unidad_normalizada,
+        ANY_VALUE(e.por_pieza) AS por_pieza,
+        ANY_VALUE(e.piezas_descripcion) AS piezas_descripcion,
+        APPROX_QUANTILES(p.precio, 2)[OFFSET(1)] AS precio_mediano,
         -- La mediana del precio por unidad de cada fila, y no el cociente entre
         -- la mediana de precios y la de cantidades: si dos cadenas informan el
         -- envase distinto, el cociente de medianas combina el precio de una con
         -- la cantidad de otra. Es la misma cuenta que hacen, fila por fila, los
         -- modelos que consumen esta tabla.
-        APPROX_QUANTILES(precio / cantidad_normalizada, 2)[OFFSET(1)] AS precio_por_unidad
-    FROM {{ ref('stg_productos') }}
-    WHERE cantidad_normalizada IS NOT NULL
-        AND (
-            (unidad_normalizada IN ('g', 'cc') AND cantidad_normalizada BETWEEN 5 AND 10000)
-            OR (unidad_normalizada = 'unidad' AND cantidad_normalizada BETWEEN 1 AND 60)
-        )
-    GROUP BY id_producto, unidad_normalizada
+        APPROX_QUANTILES(p.precio / {{ cantidad_efectiva("p", "e") }}, 2)[OFFSET(1)] AS precio_por_unidad
+    FROM {{ ref('stg_productos') }} AS p
+    JOIN envase AS e ON p.id_producto = e.id_producto
+    WHERE p.cantidad_normalizada IS NOT NULL
+        AND {{ cantidad_razonable("p", "e") }}
+    GROUP BY p.id_producto, p.unidad_normalizada
 ),
 
 producto_con_categoria AS (
@@ -74,6 +88,8 @@ producto_con_categoria AS (
         p.precio_mediano,
         p.unidad_normalizada,
         p.precio_por_unidad,
+        p.por_pieza,
+        p.piezas_descripcion,
         c.categoria,
         c.rubro
     FROM precio_por_producto AS p
@@ -95,6 +111,8 @@ con_gama AS (
         precio_mediano,
         precio_por_unidad,
         unidad_normalizada,
+        por_pieza,
+        piezas_descripcion,
         NTILE(3) OVER (
             PARTITION BY categoria, unidad_normalizada
             ORDER BY precio_por_unidad
@@ -109,6 +127,10 @@ SELECT
     precio_mediano,
     precio_por_unidad,
     unidad_normalizada,
+    -- Los modelos que usan esta tabla las necesitan para dividir el precio por
+    -- la cantidad de piezas correcta (macro cantidad_efectiva).
+    por_pieza,
+    piezas_descripcion,
     CASE tercil
         WHEN 1 THEN 'economico'
         WHEN 2 THEN 'medio'

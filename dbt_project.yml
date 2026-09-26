@@ -79,6 +79,9 @@ vars:
   # mediana de la provincia cuando la localidad no junta datos. La medicion que
   # lo justifica esta en mart_canasta_detalle.
   canasta_maximo_imputadas: 4
+  # Categorias que se cotizan por pieza y donde las cadenas suelen cargar el
+  # paquete entero como "1 unidad". Ver el macro piezas_por_envase.
+  categorias_por_pieza: ["Huevos", "Panales", "Higiene bebe", "Descartables"]
   mismo_producto_piso_creible: 0.5
   mismo_producto_techo_creible: 2.0
   # Un precio fuera de ese rango igual cuenta si otro esta a menos de este

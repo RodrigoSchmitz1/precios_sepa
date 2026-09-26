@@ -1,0 +1,51 @@
+version: 2
+
+# Paquetes cargados como "1 unidad" (macro piezas_por_envase). Las descripciones
+# son reales, del 2026-09-24; los precios estan redondeados para que las
+# divisiones den exactas.
+
+unit_tests:
+  - name: gama_lee_las_piezas_del_envase_en_las_categorias_por_pieza
+    description: >
+      En las categorias por pieza, si la fuente dice 1 y la descripcion dice
+      cuantas trae, se divide por la descripcion. Lo que no dice cuantas trae
+      (PAMPERS PANTS), lo que se vende suelto o de a dos (chupetes) y las medidas
+      que parecen conteos (45 X 55, 7.5 MTS) quedan fuera del precio por pieza.
+      Fuera de esas categorias no cambia nada.
+    model: mart_gama_productos
+    given:
+      - input: ref('stg_productos')
+        rows:
+          - {id_producto: "maple", precio: 7200, cantidad_normalizada: 1, unidad_normalizada: unidad}
+          - {id_producto: "maple_corto", precio: 6000, cantidad_normalizada: 1, unidad_normalizada: unidad}
+          - {id_producto: "docena_declarada", precio: 2400, cantidad_normalizada: 12, unidad_normalizada: unidad}
+          - {id_producto: "media_docena", precio: 1800, cantidad_normalizada: 1, unidad_normalizada: unidad}
+          - {id_producto: "toallitas", precio: 4800, cantidad_normalizada: 1, unidad_normalizada: unidad}
+          - {id_producto: "chupetes", precio: 16000, cantidad_normalizada: 1, unidad_normalizada: unidad}
+          - {id_producto: "panal_sin_cantidad", precio: 35000, cantidad_normalizada: 1, unidad_normalizada: unidad}
+          - {id_producto: "servilletas", precio: 3000, cantidad_normalizada: 1, unidad_normalizada: unidad}
+          - {id_producto: "bolsa_medida", precio: 110, cantidad_normalizada: 1, unidad_normalizada: unidad}
+          - {id_producto: "aluminio", precio: 3400, cantidad_normalizada: 1, unidad_normalizada: unidad}
+          - {id_producto: "taza", precio: 5000, cantidad_normalizada: 1, unidad_normalizada: unidad}
+      - input: ref('stg_categorias')
+        rows:
+          - {id_producto: "maple", descripcion: HUEVO BLANCO CARREFOUR CARTON X 30 UNI, categoria: Huevos, rubro: Almacen}
+          - {id_producto: "maple_corto", descripcion: HUEVOS BL MAPLE X30, categoria: Huevos, rubro: Almacen}
+          - {id_producto: "docena_declarada", descripcion: HUEVO BLANCO X 12, categoria: Huevos, rubro: Almacen}
+          - {id_producto: "media_docena", descripcion: HUEVOS COLOR MEDIA DOCENA, categoria: Huevos, rubro: Almacen}
+          - {id_producto: "toallitas", descripcion: KIMBIES TOA HUM 48UN, categoria: Higiene bebe, rubro: Bebes}
+          - {id_producto: "chupetes", descripcion: NUK NUK CHUPET SIGNAT X2 T3 AZUL, categoria: Higiene bebe, rubro: Bebes}
+          - {id_producto: "panal_sin_cantidad", descripcion: PAMPERS PANTS, categoria: Panales, rubro: Bebes}
+          - {id_producto: "servilletas", descripcion: SERVILLETA FESTA 25X25 CM ORO X 20 UNI, categoria: Descartables, rubro: Limpieza}
+          - {id_producto: "bolsa_medida", descripcion: BOLSA CAMISETA VERDE 45 X 55 OXO BIODEGRADABLE, categoria: Descartables, rubro: Limpieza}
+          - {id_producto: "aluminio", descripcion: PAPEL DE ALUMINIO PURITY X 7.5 MTS, categoria: Descartables, rubro: Limpieza}
+          - {id_producto: "taza", descripcion: TAZA CERAMICA X 6, categoria: Bazar y hogar, rubro: Hogar}
+    expect:
+      rows:
+        - {id_producto: "maple", precio_por_unidad: 240, piezas_descripcion: 30}
+        - {id_producto: "maple_corto", precio_por_unidad: 200, piezas_descripcion: 30}
+        - {id_producto: "docena_declarada", precio_por_unidad: 200, piezas_descripcion: 12}
+        - {id_producto: "media_docena", precio_por_unidad: 300, piezas_descripcion: 6}
+        - {id_producto: "toallitas", precio_por_unidad: 100, piezas_descripcion: 48}
+        - {id_producto: "servilletas", precio_por_unidad: 150, piezas_descripcion: 20}
+        - {id_producto: "taza", precio_por_unidad: 5000, piezas_descripcion: null}

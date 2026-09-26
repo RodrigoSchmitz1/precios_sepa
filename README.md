@@ -64,7 +64,7 @@ si puede ser cierto. Estas son las principales y cómo se resolvieron.
 
 ### Comparar cosas que no son comparables
 
-El error recurrente, en siete formas distintas:
+El error recurrente, en ocho formas distintas:
 
 - **La canasta básica** sumaba las categorías que cada localidad tuviera, entre
   20 y 32, y comparaba esos totales entre sí. Una localidad con menos datos
@@ -131,6 +131,19 @@ El error recurrente, en siete formas distintas:
   marca ese salto entre el 22 y el 23 de septiembre. La cobertura bajó de 88 a
   68 localidades, y volvió a 87 al subir el tope de categorías con precio
   provincial (ver "Cuando falta el dato").
+
+- **Un maple de huevos contaba como un huevo.** En las categorías que se
+  cotizan por pieza, muchas cadenas informan el paquete entero como "1 UN":
+  "HUEVO BLANCO CARREFOUR CARTON X 30 UNI" llega con cantidad 1. Pasaba en 65
+  de 221 huevos y 150 de 354 pañales, y el huevo premium costaba $2.250. Peor
+  en Higiene bebé: Tu canasta pide 100 unidades pensando en toallitas, pero la
+  mediana mezclaba chupetes y mamaderas, así que la toallita económica salía
+  $2.520 y esa línea sumaba unos $250.000. Hoy, en esas categorías, la
+  cantidad se lee de la descripción ("X 30 UNI", "48U", "MAPLE") y sólo
+  cuentan envases de 3 a 200 piezas: lo que no dice cuántas trae no tiene
+  precio por pieza, y no se inventa. La lectura se revisó sobre los 1.519
+  productos de las cuatro categorías para que no tome medidas como "25X25 CM"
+  o "45 X 55". La toallita económica pasó a $62 y el huevo premium a $450.
 
 ### El índice de precios
 
