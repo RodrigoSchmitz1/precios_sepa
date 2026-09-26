@@ -6,8 +6,9 @@
   el queso o la limpieza: esas categorias se apartan de la canasta (no se
   cotizan ni se suman) sin borrarse, y vuelven al desmarcar.
 
-  Las mismas categorias que la regla 7 del prompt de api/interpretar_canasta.py,
-  que las saca cuando la persona lo cuenta en la descripcion.
+  Las mismas categorias que el prompt de api/interpretar_canasta.py manda a
+  "quitar" cuando la persona lo cuenta en la descripcion (Cerdo y Achuras no
+  estan en la base del INDEC, pero salen igual si el modelo las sumo).
 */
 export const LUGARES_DE_COMPRA = {
   carniceria: {
