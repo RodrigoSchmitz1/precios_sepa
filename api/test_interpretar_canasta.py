@@ -132,6 +132,16 @@ class TestArmarCanasta(unittest.TestCase):
         self.assertEqual(canasta["Pan"]["cantidad"], 6080)  # 6750 x 0,9, redondeado a 10 g
         self.assertEqual(canasta["Huevos"]["cantidad"], 10)  # 11 x 0,9, piezas enteras
 
+    def test_lo_ajustado_queda_en_su_lugar_y_lo_sumado_al_final(self):
+        canasta = armar_canasta({
+            "adultos_equivalentes": 0.9,
+            "items": [item(categoria="Cerveza", cantidad=4000, unidad="cc"),
+                      item(categoria="Carne vacuna", cantidad=6000)],
+        })
+        orden = [i["categoria"] for i in canasta["items"]]
+        self.assertEqual(orden[:-1], list(BASE_INDEC))
+        self.assertEqual(orden[-1], "Cerveza")
+
     def test_quitar_saca_de_la_base(self):
         canasta = self.categorias(armar_canasta({
             "adultos_equivalentes": 0.9, "quitar": ["Carne vacuna", "Pollo", "Pescado", "Fiambres"], "items": [],

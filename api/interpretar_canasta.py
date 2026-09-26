@@ -316,21 +316,25 @@ def armar_canasta(datos: dict) -> dict:
     gama = datos.get("gama") if datos.get("gama") in GAMAS else "economico"
     quitar = datos.get("quitar") if isinstance(datos.get("quitar"), list) else []
     quitar = {c for c in quitar if isinstance(c, str)}
-    nombrados = {i["categoria"] for i in propios}
+    propios_por_categoria = {i["categoria"]: i for i in propios}
 
+    # Cada categoria de la base queda en su lugar, ajustada si el modelo la
+    # nombro; lo que el modelo suma va al final. Asi la lista se lee en el mismo
+    # orden para cualquier descripcion.
     adultos_texto = f"{adultos:.2f}".rstrip("0").rstrip(".").replace(".", ",")
-    base = [
-        {
-            "categoria": categoria,
-            "cantidad": _redondear(cantidad * adultos, CATEGORIAS[categoria]["unidad"]),
-            "unidad": CATEGORIAS[categoria]["unidad"],
-            "gama": gama,
-            "razon": f"Canasta del INDEC para {adultos_texto} adultos equivalentes.",
-        }
-        for categoria, cantidad in BASE_INDEC.items()
-        if categoria not in quitar and categoria not in nombrados
-    ]
-    return {"items": base + propios}
+    canasta = []
+    for categoria, cantidad in BASE_INDEC.items():
+        if categoria in propios_por_categoria:
+            canasta.append(propios_por_categoria.pop(categoria))
+        elif categoria not in quitar:
+            canasta.append({
+                "categoria": categoria,
+                "cantidad": _redondear(cantidad * adultos, CATEGORIAS[categoria]["unidad"]),
+                "unidad": CATEGORIAS[categoria]["unidad"],
+                "gama": gama,
+                "razon": f"Canasta del INDEC para {adultos_texto} adultos equivalentes.",
+            })
+    return {"items": canasta + list(propios_por_categoria.values())}
 
 
 def interpretar_descripcion(descripcion: str) -> dict:
