@@ -217,6 +217,15 @@ avisar:
   perdieron tres días de historia **con el pipeline en verde y reportando
   éxito**.
 
+- El portal de SEPA estuvo caído del 26 al 27 de septiembre y esos dos días
+  nunca se publicaron. El 25 llegó tarde y la ingesta abrió la retención del
+  crudo para que no se perdiera, pero no la de `stg_productos`, su copia en
+  dbt, donde el 24 ya había vencido. El índice compara cada día contra el
+  anterior disponible, así que el 25 y el 28 quedaron sin factor y la página de
+  inflación cortó su período en el 24, sin ningún error. Ahora la ingesta abre
+  y cierra la retención del crudo y de sus copias juntas; las dos fechas se
+  recalcularon con la misma variable de dbt que las correcciones de método.
+
 Los tres casos tienen ahora un test que falla si vuelven a aparecer. El último,
 además, cambió la ingesta: ahora abre la retención de particiones antes de un
 backfill, la vuelve a cerrar cuando ya no hace falta, y verifica que lo que

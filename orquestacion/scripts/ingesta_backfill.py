@@ -52,6 +52,17 @@ TABLAS_HISTORICO = [
     f"{PROYECTO}.dbt_precios.historico_precios_cadena_categoria",
 ]
 
+# Las copias del crudo que arma dbt, con su propia retencion (3 dias en su
+# config). Tienen que retener lo mismo que el crudo mientras haya fechas en
+# vuelo. El 2026-09-28 el 25/09 llego tarde (el portal estuvo caido del 26 al
+# 27): el crudo lo retuvo, pero en stg_productos el 24/09 ya habia vencido, y el
+# indice de inflacion necesita la fecha anterior para comparar. El 25 y el 28
+# quedaron sin factor y la cadena de la pagina de inflacion se corto en el 24.
+TABLAS_DERIVADAS = [
+    f"{PROYECTO}.dbt_precios.stg_productos",
+    f"{PROYECTO}.dbt_precios.int_precio_producto_cadena",
+]
+
 # Se revisan los 7 dias que publica SEPA, no los 3 que retiene el crudo. Antes
 # el default era 3 porque una fecha mas vieja no sobrevivia al barrido de
 # particiones; con la retencion dinamica de ajustar_retencion si sobrevive, asi
@@ -241,23 +252,26 @@ def ajustar_retencion(cliente, en_riesgo, hoy):
     restaurarla a mano, que es justo el tipo de paso que nadie se acuerda.
     """
     objetivo = dias_de_retencion(en_riesgo, hoy)
-
-    tabla = cliente.get_table(TABLA_CRUDA)
-    actual_ms = tabla.time_partitioning.expiration_ms
-    objetivo_ms = objetivo * 24 * 60 * 60 * 1000
-    if actual_ms == objetivo_ms:
-        print(f"  Retencion del crudo: {objetivo} dias (sin cambios)")
-        return
-
-    actual = "sin limite" if actual_ms is None else f"{actual_ms // (24 * 60 * 60 * 1000)} dias"
-    tabla.time_partitioning.expiration_ms = objetivo_ms
-    # update_table con el campo entero: expiration_ms vive dentro de
-    # time_partitioning, no es un campo propio de la tabla.
-    cliente.update_table(tabla, ["time_partitioning"])
-
     motivo = (f"la mas vieja sin capturar es {min(en_riesgo)}" if en_riesgo
               else "no queda nada sin capturar")
-    print(f"  Retencion del crudo: {actual} -> {objetivo} dias ({motivo})")
+
+    # El crudo y sus copias en dbt (ver TABLAS_DERIVADAS) con la misma ventana.
+    for nombre, tabla_id in [("crudo", TABLA_CRUDA)] + [(t.rsplit(".", 1)[1], t) for t in TABLAS_DERIVADAS]:
+        try:
+            tabla = cliente.get_table(tabla_id)
+        except NotFound:
+            continue
+        actual_ms = tabla.time_partitioning.expiration_ms
+        objetivo_ms = objetivo * 24 * 60 * 60 * 1000
+        if actual_ms == objetivo_ms:
+            print(f"  Retencion de {nombre}: {objetivo} dias (sin cambios)")
+            continue
+        actual = "sin limite" if actual_ms is None else f"{actual_ms // (24 * 60 * 60 * 1000)} dias"
+        tabla.time_partitioning.expiration_ms = objetivo_ms
+        # update_table con el campo entero: expiration_ms vive dentro de
+        # time_partitioning, no es un campo propio de la tabla.
+        cliente.update_table(tabla, ["time_partitioning"])
+        print(f"  Retencion de {nombre}: {actual} -> {objetivo} dias ({motivo})")
 
 
 def verificar_cargadas(cliente, fechas):
