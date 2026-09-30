@@ -47,3 +47,43 @@ export function nombreGama(gama: string): string {
 export function nombreRubro(rubro: string): string {
   return RUBROS[rubro] ?? rubro;
 }
+
+/*
+  Las cadenas, como las escribe cada marca. SEPA las informa sin tilde ("La
+  Anonima", "Changomas", "Dia") y asi quedan en los datos, donde el nombre es
+  parte de la clave de cada serie historica.
+*/
+const CADENAS: Record<string, string> = {
+  "La Anonima": "La Anónima",
+  "Topsy (La Anonima)": "Topsy (La Anónima)",
+  "Bomba (La Anonima)": "Bomba (La Anónima)",
+  Changomas: "Changomás",
+  SuperChangomas: "SuperChangomás",
+  HiperChangomas: "HiperChangomás",
+  Dia: "Día",
+};
+
+export function nombreCadena(cadena: string): string {
+  return CADENAS[cadena] ?? cadena;
+}
+
+/**
+ * Devuelve la respuesta de la API con los nombres de cadena ya escritos como
+ * se muestran. Va en un solo lugar (api/client.ts) y no en cada pantalla: las
+ * cadenas se dibujan en mas de veinte puntos y en frases armadas con listas,
+ * y el frontend nunca le devuelve un nombre de cadena a la API, asi que no hay
+ * clave que cuidar de este lado.
+ */
+export function conNombresDeCadena<T>(datos: T): T {
+  if (Array.isArray(datos)) {
+    for (const elemento of datos) conNombresDeCadena(elemento);
+  } else if (datos !== null && typeof datos === "object") {
+    const objeto = datos as Record<string, unknown>;
+    for (const clave of Object.keys(objeto)) {
+      const valor = objeto[clave];
+      if (clave === "cadena" && typeof valor === "string") objeto[clave] = nombreCadena(valor);
+      else if (valor !== null && typeof valor === "object") conNombresDeCadena(valor);
+    }
+  }
+  return datos;
+}

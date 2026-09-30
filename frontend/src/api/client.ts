@@ -17,6 +17,7 @@ import type {
   ProductoDetalle,
   ResultadoOptimizacion,
 } from "../types";
+import { conNombresDeCadena } from "../utils/nombres";
 
 /*
   En desarrollo apunta al uvicorn local; en produccion se define VITE_API_URL al
@@ -35,6 +36,11 @@ const API_BASE = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000/api";
   parecer que el sitio esta roto, cuando en realidad es un limite puesto a
   proposito para que el proyecto no genere costos.
 */
+/** El cuerpo de una respuesta, con los nombres de cadena como se muestran. */
+async function leerJson(respuesta: Response) {
+  return conNombresDeCadena(await respuesta.json());
+}
+
 async function fallar(respuesta: Response, contexto: string): Promise<never> {
   let detalle: string | undefined;
   try {
@@ -82,7 +88,7 @@ export async function obtenerPromos(filtros: FiltrosPromos): Promise<Promo[]> {
   const query = armarQuery(filtros);
   const respuesta = await fetch(`${API_BASE}/promos?${query}`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer promos");
-  return respuesta.json();
+  return leerJson(respuesta);
 }
 
 export async function obtenerPromosMapa(filtros: FiltrosMapa): Promise<RespuestaMapa> {
@@ -95,7 +101,7 @@ export async function obtenerPromosMapa(filtros: FiltrosMapa): Promise<Respuesta
   }
   const respuesta = await fetch(`${API_BASE}/promos/mapa?${params.toString()}`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer promos del mapa");
-  return respuesta.json();
+  return leerJson(respuesta);
 }
 
 /*
@@ -105,7 +111,7 @@ export async function obtenerPromosMapa(filtros: FiltrosMapa): Promise<Respuesta
 export async function obtenerLugares(): Promise<LugarMapa[]> {
   const respuesta = await fetch(`${API_BASE}/promos/lugares`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer las localidades");
-  return respuesta.json();
+  return leerJson(respuesta);
 }
 
 export async function obtenerQuienGana(categoria: string): Promise<QuienGana[]> {
@@ -113,7 +119,7 @@ export async function obtenerQuienGana(categoria: string): Promise<QuienGana[]> 
   if (categoria) params.set("categoria", categoria);
   const respuesta = await fetch(`${API_BASE}/quien-gana?${params.toString()}`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer quién gana");
-  return respuesta.json();
+  return leerJson(respuesta);
 }
 
 // obtenerCategoriasDisponibles se elimino el 2026-09-11: la pagina trae el mart
@@ -124,13 +130,13 @@ export async function obtenerCanasta(filtros: FiltrosPromos): Promise<Canasta[]>
   const query = armarQuery(filtros);
   const respuesta = await fetch(`${API_BASE}/canasta?${query}`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer canasta");
-  return respuesta.json();
+  return leerJson(respuesta);
 }
 
 export async function obtenerComposicionCanasta(): Promise<GrupoComposicion[]> {
   const respuesta = await fetch(`${API_BASE}/canasta/composicion`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer la composición");
-  return respuesta.json();
+  return leerJson(respuesta);
 }
 
 export async function obtenerCanastaDetalle(
@@ -140,13 +146,13 @@ export async function obtenerCanastaDetalle(
   const params = new URLSearchParams({ localidad, provincia });
   const respuesta = await fetch(`${API_BASE}/canasta/detalle?${params.toString()}`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer el detalle");
-  return respuesta.json();
+  return leerJson(respuesta);
 }
 
 export async function obtenerInflacionResumen(): Promise<InflacionResumen[]> {
   const respuesta = await fetch(`${API_BASE}/inflacion/resumen`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer el resumen");
-  return respuesta.json();
+  return leerJson(respuesta);
 }
 
 export async function obtenerInflacion(categoria: string): Promise<Inflacion[]> {
@@ -154,7 +160,7 @@ export async function obtenerInflacion(categoria: string): Promise<Inflacion[]> 
   if (categoria) params.set("categoria", categoria);
   const respuesta = await fetch(`${API_BASE}/inflacion?${params.toString()}`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer inflación");
-  return respuesta.json();
+  return leerJson(respuesta);
 }
 
 export async function interpretarCanasta(descripcion: string): Promise<{ items: ItemCanastaIA[] }> {
@@ -164,7 +170,7 @@ export async function interpretarCanasta(descripcion: string): Promise<{ items: 
     body: JSON.stringify({ descripcion }),
   });
   if (!respuesta.ok) await fallar(respuesta, "Error al interpretar");
-  return respuesta.json();
+  return leerJson(respuesta);
 }
 
 export async function calcularCanastaPersonalizada(
@@ -177,7 +183,7 @@ export async function calcularCanastaPersonalizada(
     body: JSON.stringify({ items, localidades }),
   });
   if (!respuesta.ok) await fallar(respuesta, "Error al calcular");
-  return respuesta.json();
+  return leerJson(respuesta);
 }
 
 export async function buscarLocalidades(busqueda: string): Promise<LocalidadOpcion[]> {
@@ -185,32 +191,32 @@ export async function buscarLocalidades(busqueda: string): Promise<LocalidadOpci
   if (busqueda.trim()) params.set("busqueda", busqueda.trim());
   const respuesta = await fetch(`${API_BASE}/canasta-personalizada/localidades?${params.toString()}`);
   if (!respuesta.ok) await fallar(respuesta, "Error al buscar localidades");
-  return respuesta.json();
+  return leerJson(respuesta);
 }
 
 export async function obtenerCategoriasCanasta(): Promise<CategoriaCanasta[]> {
   const respuesta = await fetch(`${API_BASE}/canasta-personalizada/categorias`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer las categorías");
-  return respuesta.json();
+  return leerJson(respuesta);
 }
 
 export async function buscarProductos(consulta: string): Promise<ProductoComparado[]> {
   const params = new URLSearchParams({ q: consulta.trim() });
   const respuesta = await fetch(`${API_BASE}/mismo-producto/buscar?${params.toString()}`);
   if (!respuesta.ok) await fallar(respuesta, "Error al buscar productos");
-  return respuesta.json();
+  return leerJson(respuesta);
 }
 
 export async function obtenerProductosDestacados(): Promise<ProductoComparado[]> {
   const respuesta = await fetch(`${API_BASE}/mismo-producto/destacados`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer los destacados");
-  return respuesta.json();
+  return leerJson(respuesta);
 }
 
 export async function obtenerProducto(idProducto: string): Promise<ProductoDetalle> {
   const respuesta = await fetch(`${API_BASE}/mismo-producto/${encodeURIComponent(idProducto)}`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer el producto");
-  return respuesta.json();
+  return leerJson(respuesta);
 }
 
 export async function optimizarCompra(
@@ -225,5 +231,5 @@ export async function optimizarCompra(
     body: JSON.stringify({ items, latitud, longitud, radio_km: radioKm }),
   });
   if (!respuesta.ok) await fallar(respuesta, "Error al optimizar la compra");
-  return respuesta.json();
+  return leerJson(respuesta);
 }
