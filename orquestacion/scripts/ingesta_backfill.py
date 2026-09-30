@@ -362,6 +362,14 @@ def main():
     if desaparecidas:
         ok = [f for f in ok if f not in desaparecidas]
 
+    # La ventana se abrio contando TODAS las faltantes, porque antes de bajarlas
+    # no se sabe cuales existen. Ahora si: se recalcula con las que entraron de
+    # verdad. Sin esto, una fecha que SEPA nunca publico (el 26 y el 27/09 de
+    # 2026, con el portal caido) dejaba la retencion abierta hasta que salia de
+    # la ventana de 7 dias: el 30/09 el crudo y sus copias sumaban 9,85 GiB,
+    # contra los 10 GiB de almacenamiento gratuito.
+    ajustar_retencion(cliente, fechas_en_riesgo(en_crudo, en_historico, ok), hoy)
+
     print("\n=== Resumen ===")
     print(f"  Cargadas:      {[str(f) for f in ok] or 'ninguna'}")
     print(f"  Sin datos:     {[str(f) for f in sin_datos] or 'ninguna'}")
