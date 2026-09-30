@@ -51,7 +51,7 @@ que queda prendida, a las 07:00, y una notebook de respaldo a las 10:00. Correr
 dos veces es inocuo, porque la ingesta calcula qué fechas faltan en BigQuery y
 si no falta ninguna no hace nada; y como SEPA publica los últimos 7 días, las
 dos tendrían que estar apagadas una semana para perder datos. Cada PC
-reintenta cada 2 horas: saber qué falta se lee de la lista de particiones,
+reintenta cada 2 horas hasta el mediodía (SEPA publica a la tarde, y un reintento posterior haría la carga pesada en horario de uso): saber qué falta se lee de la lista de particiones,
 que no consume cuota, así que un reintento sin nada que hacer cuesta cero y
 termina en segundos. Si el dato no llega en 3 días, el pipeline falla y
 GitHub avisa por mail. `orquestacion/scripts/instalar_ingesta.ps1` deja una

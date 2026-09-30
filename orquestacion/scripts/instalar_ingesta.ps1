@@ -52,22 +52,31 @@ Write-Host "3/4 Prueba: que fechas faltan (no descarga ni carga nada)"
 & (Join-Path $raiz "venv\Scripts\python.exe") (Join-Path $raiz "ingesta_backfill.py") --simular
 if ($LASTEXITCODE -ne 0) { throw "La prueba contra BigQuery fallo: revisa credenciales.json y la conexion." }
 
-Write-Host "4/4 Tarea programada '$NombreTarea' todos los dias a las $Hora (con reintentos cada 2 horas)"
+Write-Host "4/4 Tarea programada '$NombreTarea' todos los dias a las $Hora (con reintentos cada 2 horas hasta las 12:30)"
 $script = Join-Path $raiz "ingesta_local.ps1"
 $accion = New-ScheduledTaskAction -Execute "powershell.exe" `
     -Argument "-NoProfile -NonInteractive -WindowStyle Hidden -ExecutionPolicy Bypass -File `"$script`""
 $disparador = New-ScheduledTaskTrigger -Daily -At $Hora
-# REINTENTOS: cada 2 horas durante 10 horas despues de la hora elegida. El
-# 2026-09-26 el portal de SEPA no respondio a la hora de la ingesta y, con una
-# sola corrida por dia, ese dia se perdia hasta el siguiente. Reintentar es
-# gratis: si no falta ninguna fecha, ingesta_backfill.py lo sabe leyendo la
-# lista de particiones (metadata, sin cuota) y termina en segundos. Tambien
-# levanta el dia que SEPA publica tarde. Si una corrida sigue en curso cuando
-# toca la siguiente, el Programador de tareas no arranca otra.
+# REINTENTOS: cada 2 horas, solo hasta las 12:30. El 2026-09-26 el portal de
+# SEPA no respondio a la hora de la ingesta y, con una sola corrida por dia,
+# ese dia se perdia hasta el siguiente. Reintentar es gratis: si no falta
+# ninguna fecha, ingesta_backfill.py lo sabe leyendo la lista de particiones
+# (metadata, sin cuota) y termina en segundos. Si una corrida sigue en curso
+# cuando toca la siguiente, el Programador de tareas no arranca otra.
+#
+# POR QUE SE CORTAN A LAS 12:30. SEPA publica cada dia a la tarde (los recursos
+# figuran modificados a las 16:20 todos los dias). Un reintento posterior
+# encontraria el dia recien publicado y haria la carga pesada -bajar ~300 MB y
+# subir ~360 MB- en horario de uso de la PC, todos los dias, sin ganar nada: el
+# pipeline de GitHub ya corrio al mediodia y ese dato se procesaria recien al
+# dia siguiente igual. A la manana, en cambio, la carga es la del dia anterior.
 # (PowerShell 5.1 no deja pedir repeticion en un disparador diario: se copia la
 # de uno de una sola vez, que es la forma documentada de hacerlo.)
-$disparador.Repetition = (New-ScheduledTaskTrigger -Once -At $Hora `
-    -RepetitionInterval (New-TimeSpan -Hours 2) -RepetitionDuration (New-TimeSpan -Hours 10)).Repetition
+$hastaElCorte = [datetime]::ParseExact("12:30", "HH:mm", $null) - [datetime]::ParseExact($Hora, "HH:mm", $null)
+if ($hastaElCorte -ge (New-TimeSpan -Hours 2)) {
+    $disparador.Repetition = (New-ScheduledTaskTrigger -Once -At $Hora `
+        -RepetitionInterval (New-TimeSpan -Hours 2) -RepetitionDuration $hastaElCorte).Repetition
+}
 # StartWhenAvailable: si a esa hora estaba apagada, corre apenas se prenda.
 # WakeToRun: si estaba suspendida, la despierta (con los temporizadores de
 # reactivacion permitidos en el plan de energia, que en Windows vienen
