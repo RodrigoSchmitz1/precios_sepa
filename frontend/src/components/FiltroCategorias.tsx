@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import { nombreCategoria, nombreRubro } from "../utils/nombres";
 
 /*
   Filtro de dos niveles: rubro y, desplegado, sus categorias.
@@ -87,7 +88,7 @@ function FiltroCategorias<T extends ConRubro>({ promos, elegido, onElegir }: Pro
           return (
             <li key={rubro.nombre}>
               <Boton
-                nombre={rubro.nombre}
+                nombre={nombreRubro(rubro.nombre)}
                 cantidad={rubro.total}
                 activo={elegido?.tipo === "rubro" && elegido.valor === rubro.nombre}
                 expandido={rubro.categorias.length > 1 ? desplegado : undefined}
@@ -105,7 +106,7 @@ function FiltroCategorias<T extends ConRubro>({ promos, elegido, onElegir }: Pro
                   {rubro.categorias.map(([categoria, cantidad]) => (
                     <li key={categoria}>
                       <Boton
-                        nombre={categoria}
+                        nombre={nombreCategoria(categoria)}
                         cantidad={cantidad}
                         chico
                         activo={elegido?.tipo === "categoria" && elegido.valor === categoria}

@@ -56,7 +56,7 @@ function porcentaje(valor: number): string {
 
 /** "Coto" o "Coto y 2 mas" cuando varias cadenas empatan en el extremo. */
 function nombrarCadenas(lista: PrecioEnCadena[]): string {
-  return lista.length === 1 ? lista[0].cadena : `${lista[0].cadena} y ${lista.length - 1} mas`;
+  return lista.length === 1 ? lista[0].cadena : `${lista[0].cadena} y ${lista.length - 1} más`;
 }
 
 function textoSucursales(n: number): string {
@@ -85,12 +85,12 @@ function explicarDescartes(p: ProductoDetalle): string | null {
   const partes = [...porPrecio].map(([precio, cadenas]) => {
     const quien = `${listar(cadenas)} ${cadenas.length > 1 ? "informan" : "informa"} ${formatearPesos(precio)}`;
     if (!ref) return quien;
-    return `${quien}, ${precio < ref ? "menos de la mitad" : "mas del doble"} de lo que cobran las demas (${formatearPesos(ref)} en la mediana)`;
+    return `${quien}, ${precio < ref ? "menos de la mitad" : "más del doble"} de lo que cobran las demás (${formatearPesos(ref)} en la mediana)`;
   });
   const varios = porPrecio.size > 1;
   return (
     `${partes.join("; ")}. Ninguna otra cadena ${varios ? "confirma esos precios" : "confirma ese precio"}: ` +
-    `puede ser una oferta o un error de carga, asi que ${varios ? "se muestran" : "se muestra"} pero no ${varios ? "entran" : "entra"} en la diferencia.`
+    `puede ser una oferta o un error de carga, así que ${varios ? "se muestran" : "se muestra"} pero no ${varios ? "entran" : "entra"} en la diferencia.`
   );
 }
 
@@ -133,7 +133,7 @@ function EjemploComparacion({ p, onVer }: { p: ProductoDetalle; onVer: (id: stri
       <p className="text-sm text-tinta-media mb-4">
         {hayDiferencia ? (
           <>
-            <span className="text-alerta font-medium">{porcentaje(p.diferencia_pct)} mas caro</span> en{" "}
+            <span className="text-alerta font-medium">{porcentaje(p.diferencia_pct)} más caro</span> en{" "}
             {nombrarCadenas(caros)} que en {nombrarCadenas(baratos)} · {p.cadenas} cadenas
           </>
         ) : (
@@ -183,7 +183,7 @@ function ListaDePrecios({ p }: { p: ProductoDetalle }) {
               </span>
               {!x.precio_creible && (
                 <span className="text-aviso">
-                  <span className="sm:hidden"> · </span>fuera de la comparacion
+                  <span className="sm:hidden"> · </span>fuera de la comparación
                 </span>
               )}
             </span>
@@ -228,7 +228,7 @@ function VistaProducto({ estado, onVolver }: { estado: Detalle | null; onVolver?
     return (
       <div className="mb-10">
         {volver}
-        <Aviso>{estado.error ?? "No se encontro el producto."}</Aviso>
+        <Aviso>{estado.error ?? "No se encontró el producto."}</Aviso>
       </div>
     );
   }
@@ -247,12 +247,12 @@ function VistaProducto({ estado, onVolver }: { estado: Detalle | null; onVolver?
         bajada={
           <>
             <p>
-              Mismo codigo de barras ({p.id_producto}) en {p.cadenas} cadenas, con precios del{" "}
+              Mismo código de barras ({p.id_producto}) en {p.cadenas} cadenas, con precios del{" "}
               {fechaEnPalabras(p.fecha_datos)}. El precio de cada cadena es la mediana entre sus sucursales.
             </p>
             {hayDiferencia && !p.extremos_respaldados && (
               <p className="mt-2 text-sm text-sobre-oscuro-aviso">
-                El precio mas bajo o el mas alto sale de menos de {SUCURSALES_MINIMAS} sucursales: la diferencia
+                El precio más bajo o el más alto sale de menos de {SUCURSALES_MINIMAS} sucursales: la diferencia
                 puede deberse a un precio mal cargado.
               </p>
             )}
@@ -265,12 +265,12 @@ function VistaProducto({ estado, onVolver }: { estado: Detalle | null; onVolver?
           </>
         ) : p.extremos_respaldados ? (
           <>
-            {nombre}: <Resaltado>{porcentaje(p.diferencia_pct)} mas caro</Resaltado> en {nombrarCadenas(caros)} que
+            {nombre}: <Resaltado>{porcentaje(p.diferencia_pct)} más caro</Resaltado> en {nombrarCadenas(caros)} que
             en {nombrarCadenas(baratos)}
           </>
         ) : (
           <>
-            {nombre}: de {formatearPesos(p.precio_mas_bajo)} a {formatearPesos(p.precio_mas_alto)} segun la cadena
+            {nombre}: de {formatearPesos(p.precio_mas_bajo)} a {formatearPesos(p.precio_mas_alto)} según la cadena
           </>
         )}
       </Titular>
@@ -288,14 +288,14 @@ function VistaProducto({ estado, onVolver }: { estado: Detalle | null; onVolver?
       <div className="mb-6">
         <FilaDeCifras
           cifras={[
-            { etiqueta: "Mas barato", valor: formatearPesos(p.precio_mas_bajo), detalle: nombrarCadenas(baratos) },
-            { etiqueta: "Mas caro", valor: formatearPesos(p.precio_mas_alto), detalle: nombrarCadenas(caros) },
+            { etiqueta: "Más barato", valor: formatearPesos(p.precio_mas_bajo), detalle: nombrarCadenas(baratos) },
+            { etiqueta: "Más caro", valor: formatearPesos(p.precio_mas_alto), detalle: nombrarCadenas(caros) },
             {
               etiqueta: "Diferencia",
               valor: formatearPesos(p.precio_mas_alto - p.precio_mas_bajo),
               detalle: "por el mismo producto",
             },
-            { etiqueta: "Cadenas", valor: formatearNumero(p.cadenas), detalle: "con este codigo de barras" },
+            { etiqueta: "Cadenas", valor: formatearNumero(p.cadenas), detalle: "con este código de barras" },
           ]}
         />
       </div>
@@ -442,11 +442,11 @@ function MismoProductoPage() {
       ) : (
         <Titular
           antetitulo="El mismo producto"
-          bajada="Mismo codigo de barras, misma presentacion: la unica diferencia es donde lo compras. Busca un producto y mira cuanto cuesta en cada cadena."
+          bajada="Mismo código de barras, misma presentación: la única diferencia es dónde lo comprás. Buscá un producto y mirá cuánto cuesta en cada cadena."
         >
           {mayor ? (
             <>
-              El mismo producto puede costar <Resaltado>{porcentaje(mayor.diferencia_pct)} mas</Resaltado> segun la
+              El mismo producto puede costar <Resaltado>{porcentaje(mayor.diferencia_pct)} más</Resaltado> según la
               cadena
             </>
           ) : (
@@ -476,7 +476,7 @@ function MismoProductoPage() {
         )}
         {busquedaVigente?.productos && busquedaVigente.productos.length === 0 && (
           <p className="mt-3 text-sm text-tinta-suave">
-            Ningun producto con esas palabras tiene precio en dos o mas cadenas.
+            Ningún producto con esas palabras tiene precio en dos o más cadenas.
           </p>
         )}
         {busquedaVigente?.productos && busquedaVigente.productos.length > 0 && (
@@ -491,7 +491,7 @@ function MismoProductoPage() {
       {!id && consulta.length < 2 && ejemplos.length > 0 && (
         <section aria-labelledby="titulo-ejemplos" className="mb-12">
           <h2 id="titulo-ejemplos" className="text-xs font-semibold uppercase tracking-wider text-tinta-suave mb-4">
-            Asi se ve la comparacion
+            Así se ve la comparación
           </h2>
           {ejemplos.map((producto) => (
             <EjemploComparacion key={producto.id_producto} p={producto} onVer={elegir} />
@@ -514,10 +514,10 @@ function MismoProductoPage() {
                 ))}
               </ul>
               <p className="mt-3 text-xs text-tinta-suave leading-relaxed">
-                Solo productos que venden {EMPRESAS_MINIMAS} o mas empresas distintas -no banderas de la misma,
-                como las cuatro de Carrefour-, con el precio mas bajo y el mas alto informados por{" "}
-                {SUCURSALES_MINIMAS} o mas sucursales cada uno: asi una sucursal con un precio mal cargado no puede
-                aparecer como la mayor diferencia del dia.
+                Solo productos que venden {EMPRESAS_MINIMAS} o más empresas distintas -no banderas de la misma,
+                como las cuatro de Carrefour-, con el precio más bajo y el más alto informados por{" "}
+                {SUCURSALES_MINIMAS} o más sucursales cada uno: así una sucursal con un precio mal cargado no puede
+                aparecer como la mayor diferencia del día.
               </p>
             </>
           )}

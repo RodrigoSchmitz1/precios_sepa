@@ -112,7 +112,7 @@ export async function obtenerQuienGana(categoria: string): Promise<QuienGana[]> 
   const params = new URLSearchParams();
   if (categoria) params.set("categoria", categoria);
   const respuesta = await fetch(`${API_BASE}/quien-gana?${params.toString()}`);
-  if (!respuesta.ok) await fallar(respuesta, "Error al traer quien gana");
+  if (!respuesta.ok) await fallar(respuesta, "Error al traer quién gana");
   return respuesta.json();
 }
 
@@ -129,7 +129,7 @@ export async function obtenerCanasta(filtros: FiltrosPromos): Promise<Canasta[]>
 
 export async function obtenerComposicionCanasta(): Promise<GrupoComposicion[]> {
   const respuesta = await fetch(`${API_BASE}/canasta/composicion`);
-  if (!respuesta.ok) await fallar(respuesta, "Error al traer la composicion");
+  if (!respuesta.ok) await fallar(respuesta, "Error al traer la composición");
   return respuesta.json();
 }
 
@@ -153,7 +153,7 @@ export async function obtenerInflacion(categoria: string): Promise<Inflacion[]> 
   const params = new URLSearchParams();
   if (categoria) params.set("categoria", categoria);
   const respuesta = await fetch(`${API_BASE}/inflacion?${params.toString()}`);
-  if (!respuesta.ok) await fallar(respuesta, "Error al traer inflacion");
+  if (!respuesta.ok) await fallar(respuesta, "Error al traer inflación");
   return respuesta.json();
 }
 
@@ -190,7 +190,7 @@ export async function buscarLocalidades(busqueda: string): Promise<LocalidadOpci
 
 export async function obtenerCategoriasCanasta(): Promise<CategoriaCanasta[]> {
   const respuesta = await fetch(`${API_BASE}/canasta-personalizada/categorias`);
-  if (!respuesta.ok) await fallar(respuesta, "Error al traer las categorias");
+  if (!respuesta.ok) await fallar(respuesta, "Error al traer las categorías");
   return respuesta.json();
 }
 

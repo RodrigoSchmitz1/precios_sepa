@@ -1,8 +1,9 @@
 import type { ItemCanastaIA } from "../types";
 import { GAMAS } from "../utils/canastaGuardada";
+import { nombreCategoria } from "../utils/nombres";
 
 const ETIQUETA_GAMA: Record<string, string> = {
-  economico: "Economico",
+  economico: "Económico",
   medio: "Medio",
   premium: "Premium",
 };
@@ -45,7 +46,7 @@ function ItemCanastaEditable({ item, onCambiarCantidad, onCambiarGama, onQuitar 
   return (
     <div className="bg-papel rounded-xl border border-linea px-3.5 py-2 grid grid-cols-[minmax(0,1fr)_auto] sm:grid-cols-[minmax(0,1fr)_auto_auto_auto] items-center gap-x-4 gap-y-2">
       <p className="min-w-0 font-medium text-sm text-tinta truncate" title={item.razon || undefined}>
-        {item.categoria}
+        {nombreCategoria(item.categoria)}
       </p>
 
       <div className="flex items-center gap-1.5 row-start-2 sm:row-start-auto">
@@ -64,7 +65,7 @@ function ItemCanastaEditable({ item, onCambiarCantidad, onCambiarGama, onQuitar 
             min={0}
             step={paso}
             onChange={(e) => cambiar(Number(e.target.value))}
-            aria-label={`Cantidad de ${item.categoria} en ${etiqueta} por mes`}
+            aria-label={`Cantidad de ${nombreCategoria(item.categoria)} en ${etiqueta} por mes`}
             className="numero w-14 text-center text-sm py-1 border-x border-linea focus:outline-none [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
           />
           <button
@@ -80,7 +81,7 @@ function ItemCanastaEditable({ item, onCambiarCantidad, onCambiarGama, onQuitar 
 
       <div
         role="group"
-        aria-label={`Gama de ${item.categoria}`}
+        aria-label={`Gama de ${nombreCategoria(item.categoria)}`}
         className="inline-flex rounded-lg border border-linea bg-papel-hundido p-0.5 row-start-2 sm:row-start-auto justify-self-end sm:justify-self-auto"
       >
         {GAMAS.map((gama) => (
@@ -100,7 +101,7 @@ function ItemCanastaEditable({ item, onCambiarCantidad, onCambiarGama, onQuitar 
 
       <button
         onClick={() => onQuitar(item.categoria)}
-        aria-label={`Quitar ${item.categoria}`}
+        aria-label={`Quitar ${nombreCategoria(item.categoria)}`}
         title="Quitar"
         className="col-start-2 row-start-1 sm:col-start-auto sm:row-start-auto justify-self-end text-tinta-suave hover:text-alerta text-lg leading-none px-2 py-1 rounded-md hover:bg-alerta-tenue transition-colors"
       >

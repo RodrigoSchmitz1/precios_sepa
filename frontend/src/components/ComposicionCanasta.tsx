@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { obtenerComposicionCanasta } from "../api/client";
 import type { GrupoComposicion } from "../types";
+import { nombreCategoria } from "../utils/nombres";
 
 /** 6750 g -> "6,75 kg"; 420 g -> "420 g"; 9270 cc -> "9,27 l"; 11 -> "11 u." */
 function formatearCantidad(cantidad: number, unidad: GrupoComposicion["items"][number]["unidad"]): string {
@@ -41,10 +42,10 @@ function ComposicionCanasta() {
     <details className="group mb-8 rounded-2xl bg-papel border border-linea">
       <summary className="cursor-pointer list-none px-5 py-4 sm:px-7 flex items-baseline justify-between gap-4">
         <span>
-          <span className="font-medium text-tinta">Que incluye la canasta</span>
+          <span className="font-medium text-tinta">Qué incluye la canasta</span>
           <span className="block text-sm text-tinta-media mt-0.5">
             {total} alimentos para un adulto durante un mes: pan, carne, leche, frutas, verduras y el resto de la
-            dieta basica que define el INDEC.
+            dieta básica que define el INDEC.
           </span>
         </span>
         <span className="text-sm text-tinta-suave shrink-0 group-open:hidden">Ver lista</span>
@@ -57,7 +58,7 @@ function ComposicionCanasta() {
             <ul className="space-y-1">
               {g.items.map((item) => (
                 <li key={item.categoria} className="flex items-baseline justify-between gap-3 text-sm">
-                  <span className="text-tinta">{item.categoria}</span>
+                  <span className="text-tinta">{nombreCategoria(item.categoria)}</span>
                   <span className="numero text-tinta-media shrink-0">{formatearCantidad(item.cantidad, item.unidad)}</span>
                 </li>
               ))}

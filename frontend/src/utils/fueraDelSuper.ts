@@ -12,13 +12,13 @@
 */
 export const LUGARES_DE_COMPRA = {
   carniceria: {
-    etiqueta: "La carne, en la carniceria",
-    lugar: "la carniceria",
+    etiqueta: "La carne, en la carnicería",
+    lugar: "la carnicería",
     categorias: ["Carne vacuna", "Pollo", "Cerdo", "Achuras y menudencias"],
   },
   verduleria: {
-    etiqueta: "La fruta y la verdura, en la verduleria",
-    lugar: "la verduleria",
+    etiqueta: "La fruta y la verdura, en la verdulería",
+    lugar: "la verdulería",
     categorias: ["Frutas", "Verduras", "Papa y tuberculos"],
   },
 } as const;

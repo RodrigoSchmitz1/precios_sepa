@@ -49,7 +49,7 @@ function DetalleInflacionCadenas({ categoria }: { categoria: string }) {
   if (filas.length === 0) {
     return (
       <p className="text-xs text-tinta-suave py-2">
-        Ninguna cadena de esta categoria tiene la cadena de factores completa en el periodo.
+        Ninguna cadena de esta categoría tiene la cadena de factores completa en el periodo.
       </p>
     );
   }
@@ -63,7 +63,7 @@ function DetalleInflacionCadenas({ categoria }: { categoria: string }) {
           Cadena por cadena
         </h3>
         <span className="text-xs text-tinta-suave">
-          {filas.length} series · la barra se escala al mayor movimiento de esta categoria
+          {filas.length} series · la barra se escala al mayor movimiento de esta categoría
         </span>
       </div>
 
@@ -75,7 +75,7 @@ function DetalleInflacionCadenas({ categoria }: { categoria: string }) {
           return (
             <div
               key={`${r.cadena}-${r.unidad_normalizada}`}
-              title={`${r.cadena}: nivel actual ${nivel.texto} por ${nivel.unidad}, variacion encadenada ${formatearVariacion(r.variacion_pct)} entre ${r.fecha_inicio} y ${r.fecha_fin}`}
+              title={`${r.cadena}: nivel actual ${nivel.texto} por ${nivel.unidad}, variación encadenada ${formatearVariacion(r.variacion_pct)} entre ${r.fecha_inicio} y ${r.fecha_fin}`}
             >
               <div className="flex items-baseline justify-between gap-3 mb-1">
                 <span className="text-xs text-tinta-media truncate">

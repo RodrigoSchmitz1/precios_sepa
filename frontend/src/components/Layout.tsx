@@ -2,11 +2,11 @@ import { Outlet, NavLink } from "react-router";
 
 const SECCIONES = [
   { ruta: "/", nombre: "Promos" },
-  { ruta: "/canasta", nombre: "Canasta basica" },
+  { ruta: "/canasta", nombre: "Canasta básica" },
   { ruta: "/canasta-personalizada", nombre: "Tu canasta" },
-  { ruta: "/quien-gana", nombre: "Mas barato" },
+  { ruta: "/quien-gana", nombre: "Más barato" },
   { ruta: "/mismo-producto", nombre: "Mismo producto" },
-  { ruta: "/inflacion", nombre: "Inflacion" },
+  { ruta: "/inflacion", nombre: "Inflación" },
 ];
 
 function Layout() {
@@ -79,11 +79,11 @@ function Layout() {
             rel="noreferrer"
             className="underline underline-offset-2 hover:text-tinta-media"
           >
-            SEPA (Secretaria de Comercio)
+            SEPA (Secretaría de Comercio)
           </a>
-          . Precios de referencia, pueden diferir de la gondola.{" "}
+          . Precios de referencia, pueden diferir de la góndola.{" "}
           <NavLink to="/como-se-calcula" className="underline underline-offset-2 hover:text-tinta-media">
-            Como se calcula cada numero
+            Cómo se calcula cada número
           </NavLink>
           .
         </div>

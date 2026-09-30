@@ -33,6 +33,7 @@ import {
   PARAMETRO_URL,
 } from "../utils/canastaGuardada";
 import type { CanastaGuardada } from "../utils/canastaGuardada";
+import { nombreCategoria, nombreGama } from "../utils/nombres";
 
 /*
   Perfiles de ejemplo, como tarjetas: un titulo dicho como lo diria una persona
@@ -122,7 +123,7 @@ function LugaresDeCompra({
 }) {
   return (
     <div className="mt-4 flex flex-wrap items-center gap-2">
-      <span className="text-xs text-tinta-suave">Fuera del super compro:</span>
+      <span className="text-xs text-tinta-suave">Fuera del súper compro:</span>
       {(Object.keys(LUGARES_DE_COMPRA) as LugarDeCompra[]).map((lugar) => {
         const marcado = elegidos.includes(lugar);
         return (
@@ -325,7 +326,7 @@ function CanastaPersonalizadaPage() {
     } catch {
       // Algunos navegadores niegan el portapapeles sin gesto directo o fuera de
       // https. Mostrar la URL deja al usuario copiarla a mano.
-      window.prompt("Copia este link para volver a tu canasta:", url);
+      window.prompt("Copiá este link para volver a tu canasta:", url);
     }
   }
 
@@ -374,10 +375,10 @@ function CanastaPersonalizadaPage() {
       <Titular
         antetitulo={
           resultadoVigente && resultado
-            ? `Tu canasta · ${resultado.categorias_calculadas} categorias cotizadas`
+            ? `Tu canasta · ${resultado.categorias_calculadas} categorías cotizadas`
             : "Tu canasta"
         }
-        bajada="Describi que consumis y una inteligencia artificial arma tu canasta. Ajustala a mano, elegi tu zona y calculamos el costo con precios reales de supermercado."
+        bajada="Describí qué consumís y una inteligencia artificial arma tu canasta. Ajustala a mano, elegí tu zona y calculamos el costo con precios reales de supermercado."
       >
         {resultadoVigente && resultado ? (
           <>
@@ -386,14 +387,14 @@ function CanastaPersonalizadaPage() {
             {localidadesElegidas.length === 1 && ` en ${localidadesElegidas[0].localidad}`}
           </>
         ) : (
-          "Conta que consumis y te decimos cuanto te cuesta"
+          "Contá qué consumís y te decimos cuánto te cuesta"
         )}
       </Titular>
 
       {/* Paso 1 */}
       <section className="mb-8">
         <h2 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave mb-3">
-          1 · Conta que consumis
+          1 · Contá qué consumís
         </h2>
         <textarea
           value={descripcion}
@@ -405,7 +406,7 @@ function CanastaPersonalizadaPage() {
 
         {items.length === 0 && !generando && (
           <div className="mt-3">
-            <p className="text-xs text-tinta-suave mb-2">O elegi uno parecido a tu casa y ajustalo:</p>
+            <p className="text-xs text-tinta-suave mb-2">O elegí uno parecido a tu casa y ajustalo:</p>
             {/* En el celular, una fila que se desliza: apiladas, las seis median
                 612 px y empujaban el boton de generar fuera de la pantalla. */}
             <div className="flex gap-2 overflow-x-auto snap-x snap-mandatory pb-1 -mx-1 px-1 sm:grid sm:grid-cols-2 sm:overflow-visible sm:mx-0 sm:px-0">
@@ -461,7 +462,7 @@ function CanastaPersonalizadaPage() {
             <AgregarCategoria
               categorias={disponibles}
               onAgregar={agregarCategoria}
-              etiqueta="¿Preferis armarla vos? Agrega las categorias que compras"
+              etiqueta="¿Preferís armarla vos? Agregá las categorías que comprás"
             />
           </div>
         )}
@@ -476,7 +477,7 @@ function CanastaPersonalizadaPage() {
                 2 · Ajustala a tu gusto
               </h2>
               <span className="text-xs text-tinta-suave">
-                {cotizables.length} {cotizables.length === 1 ? "categoria" : "categorias"}
+                {cotizables.length} {cotizables.length === 1 ? "categoría" : "categorías"}
                 {apartados.length > 0 && ` · ${apartados.length} aparte`}
               </span>
             </div>
@@ -489,12 +490,12 @@ function CanastaPersonalizadaPage() {
                       (LUGARES_DE_COMPRA[lugar].categorias as readonly string[]).includes(i.categoria)
                     );
                     return cats.length
-                      ? `${cats.map((i) => i.categoria).join(", ")}: en ${LUGARES_DE_COMPRA[lugar].lugar}`
+                      ? `${cats.map((i) => nombreCategoria(i.categoria)).join(", ")}: en ${LUGARES_DE_COMPRA[lugar].lugar}`
                       : null;
                   })
                   .filter(Boolean)
                   .join(". ")}
-                . No se cotizan ni se suman; siguen en la canasta y vuelven si lo desmarcas.
+                . No se cotizan ni se suman; siguen en la canasta y vuelven si lo desmarcás.
               </p>
             )}
 
@@ -519,7 +520,7 @@ function CanastaPersonalizadaPage() {
                     onClick={() => restaurarItem(item.categoria)}
                     className="text-xs text-tinta-media bg-papel border border-linea border-dashed rounded-full px-3 py-1 hover:border-ahorro hover:text-ahorro transition-colors"
                   >
-                    + {item.categoria}
+                    + {nombreCategoria(item.categoria)}
                   </button>
                 ))}
               </div>
@@ -530,7 +531,7 @@ function CanastaPersonalizadaPage() {
                 <AgregarCategoria
                   categorias={disponibles}
                   onAgregar={agregarCategoria}
-                  etiqueta="¿Falta algo? Agrega una categoria"
+                  etiqueta="¿Falta algo? Agregá una categoría"
                 />
               </div>
             )}
@@ -539,7 +540,7 @@ function CanastaPersonalizadaPage() {
           {/* Paso 3 */}
           <section className="mb-8">
             <h2 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave mb-3">
-              3 · Elegi tu zona <span className="normal-case font-normal">(hasta 3)</span>
+              3 · Elegí tu zona <span className="normal-case font-normal">(hasta 3)</span>
             </h2>
 
             <input
@@ -596,7 +597,7 @@ function CanastaPersonalizadaPage() {
 
             {localidadesElegidas.length === 0 && (
               <p className="mt-2 text-xs text-tinta-suave">
-                Elegi al menos una localidad para poder calcular.
+                Elegí al menos una localidad para poder calcular.
               </p>
             )}
 
@@ -618,7 +619,7 @@ function CanastaPersonalizadaPage() {
         >
           {!resultadoVigente && (
             <p className="text-xs text-aviso bg-aviso-tenue border border-aviso/20 rounded-lg px-3 py-2 mb-4">
-              Cambiaste la canasta despues de calcular. Volve a calcular para ver el costo real.
+              Cambiaste la canasta después de calcular. Volvé a calcular para ver el costo real.
             </p>
           )}
 
@@ -633,12 +634,12 @@ function CanastaPersonalizadaPage() {
                   detalle: provinciales > 0 ? "con precios de tu zona y tu provincia" : "con precios de tu zona",
                 },
                 {
-                  etiqueta: "Por dia",
+                  etiqueta: "Por día",
                   valor: formatearPesos(resultado.costo_total / 30),
                   detalle: "promedio del mes",
                 },
                 {
-                  etiqueta: "Categorias",
+                  etiqueta: "Categorías",
                   valor: `${resultado.categorias_calculadas} de ${resultado.categorias_pedidas}`,
                   detalle:
                     provinciales > 0
@@ -675,10 +676,10 @@ function CanastaPersonalizadaPage() {
                   <div key={item.categoria}>
                     <div className="flex justify-between items-baseline gap-4 text-sm mb-1">
                       <span className="text-tinta-media">
-                        {item.categoria}
+                        {nombreCategoria(item.categoria)}
                         <span className="text-tinta-suave text-xs">
                           {" "}
-                          {item.cantidad} {item.unidad} · {item.gama}
+                          {item.cantidad} {item.unidad} · {nombreGama(item.gama)}
                         </span>
                         {/* Marcado y no escondido: el total incluye un precio que
                             no es de la zona elegida, y quien lo lee tiene que
@@ -686,7 +687,7 @@ function CanastaPersonalizadaPage() {
                         {item.origen_precio === "provincia" && (
                           <span
                             className="text-aviso text-xs"
-                            title="Tu zona no tiene datos suficientes de esta categoria: se usa el precio de tu provincia."
+                            title="Tu zona no tiene datos suficientes de esta categoría: se usa el precio de tu provincia."
                           >
                             {" "}
                             · precio de la provincia
@@ -722,8 +723,8 @@ function CanastaPersonalizadaPage() {
             descripcion, que la IA ya entiende).
           */}
           <p className="mt-5 text-xs text-tinta-suave leading-relaxed">
-            Son precios de supermercado. Si la carne o la verdura las compras en la carniceria o la verduleria,
-            sacalas de la lista o contalo en la descripcion y no se van a sumar.
+            Son precios de supermercado. Si la carne o la verdura las comprás en la carnicería o la verdulería,
+            sacalas de la lista o contalo en la descripción y no se van a sumar.
           </p>
 
           {sinCotizar.length > 0 && (
@@ -732,7 +733,7 @@ function CanastaPersonalizadaPage() {
                 Sin datos suficientes en tu zona ni en tu provincia, no entraron al total:
               </p>
               <p className="text-xs text-tinta-media">
-                {sinCotizar.map((i) => `${i.categoria} (${i.gama})`).join(" · ")}
+                {sinCotizar.map((i) => `${nombreCategoria(i.categoria)} (${nombreGama(i.gama)})`).join(" · ")}
               </p>
               <p className="text-xs text-tinta-suave mt-1.5">
                 Probá cambiando la gama: puede haber precios de otra gama en esa localidad.

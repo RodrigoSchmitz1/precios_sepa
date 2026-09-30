@@ -4,6 +4,7 @@ import { formatearNumero, formatearPesos } from "../utils/formato";
 import { nombreLegible } from "../utils/texto";
 import type { SucursalMapa } from "../types";
 import { EVIDENCIA } from "../utils/evidencia";
+import { nombreCategoria } from "../utils/nombres";
 
 /*
   Una promo del listado.
@@ -75,8 +76,8 @@ function PromoCard({
   const zona =
     total > 1
       ? `en ${formatearNumero(total)} sucursales`
-      : direccion ?? nombreProvincia(promo.provincia) + (otras > 0 ? ` y ${otras} provincia${otras > 1 ? "s" : ""} mas` : "");
-  const donde = [promo.cadena, promo.categoria, zona].filter(Boolean).join(" · ");
+      : direccion ?? nombreProvincia(promo.provincia) + (otras > 0 ? ` y ${otras} provincia${otras > 1 ? "s" : ""} más` : "");
+  const donde = [promo.cadena, promo.categoria && nombreCategoria(promo.categoria), zona].filter(Boolean).join(" · ");
 
   return (
     <article className="py-4">
@@ -108,7 +109,7 @@ function PromoCard({
 
       <div
         className="text-right shrink-0"
-        title={ahorro > 0 ? `Ahorras ${formatearPesos(ahorro)} sobre el precio de lista` : undefined}
+        title={ahorro > 0 ? `Ahorrás ${formatearPesos(ahorro)} sobre el precio de lista` : undefined}
       >
         {/* El importe en serif, como los demas numeros grandes del sitio. */}
         <p className="font-display text-2xl text-tinta leading-none">{formatearPesos(promo.precio_promo)}</p>
@@ -132,7 +133,7 @@ function PromoCard({
             aria-expanded={abierta}
             className="text-xs text-tinta-media hover:text-ahorro transition-colors"
           >
-            {abierta ? "Ocultar sucursales" : "Ver donde esta"}
+            {abierta ? "Ocultar sucursales" : "Ver dónde está"}
           </button>
           {abierta && (
             /* Con la lista completa, una promo en 400 sucursales no entra de un

@@ -35,7 +35,7 @@ function Contador({ etiqueta, valor, minimo, onCambiar }: {
       <span className="numero text-sm text-tinta w-5 text-center" aria-live="polite">
         {valor}
       </span>
-      <button type="button" className={boton} disabled={valor >= 10} onClick={() => onCambiar(valor + 1)} aria-label={`Mas ${etiqueta.toLowerCase()}`}>
+      <button type="button" className={boton} disabled={valor >= 10} onClick={() => onCambiar(valor + 1)} aria-label={`Más ${etiqueta.toLowerCase()}`}>
         +
       </button>
     </div>
@@ -76,7 +76,7 @@ function EmpezarConCanastaBasica({ onCargar }: { onCargar: (items: ItemCanastaIA
               cantidad: redondear(item.cantidad * factor, item.unidad),
               unidad: item.unidad,
               gama: "economico",
-              razon: `Canasta basica del INDEC para ${quienes}`,
+              razon: `Canasta básica del INDEC para ${quienes}`,
             }))
           )
         );
@@ -87,9 +87,9 @@ function EmpezarConCanastaBasica({ onCargar }: { onCargar: (items: ItemCanastaIA
 
   return (
     <div className="mt-6 pt-5 border-t border-linea">
-      <p className="text-sm text-tinta">O empeza con la canasta basica del INDEC</p>
+      <p className="text-sm text-tinta">O empezá con la canasta básica del INDEC</p>
       <p className="text-xs text-tinta-suave mt-0.5 mb-3">
-        Los alimentos basicos de un mes para tu hogar, en gama economica. Despues sacas lo que no consumis y ajustas
+        Los alimentos básicos de un mes para tu hogar, en gama económica. Después sacás lo que no consumís y ajustás
         el resto.
       </p>
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
@@ -101,12 +101,12 @@ function EmpezarConCanastaBasica({ onCargar }: { onCargar: (items: ItemCanastaIA
           disabled={cargando}
           className="text-sm font-semibold text-ahorro border border-ahorro-borde bg-ahorro-tenue px-4 py-2 rounded-lg hover:border-ahorro disabled:opacity-60 transition-colors"
         >
-          {cargando ? "Cargando…" : "Cargar canasta basica"}
+          {cargando ? "Cargando…" : "Cargar canasta básica"}
         </button>
       </div>
       {error && (
         <p className="mt-3 text-sm text-alerta bg-alerta-tenue border border-alerta/20 rounded-lg px-3 py-2">
-          No se pudo cargar la canasta basica: {error}
+          No se pudo cargar la canasta básica: {error}
         </p>
       )}
     </div>

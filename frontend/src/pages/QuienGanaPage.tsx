@@ -5,6 +5,7 @@ import FilaDeCifras from "../components/FilaDeCifras";
 import MapaDelMercado from "../components/MapaDelMercado";
 import { formatearNumero } from "../utils/formato";
 import type { QuienGana } from "../types";
+import { nombreCategoria } from "../utils/nombres";
 
 /*
   Supermercado mas barato.
@@ -105,22 +106,22 @@ function QuienGanaPage() {
       <Titular
         antetitulo={
           resumen
-            ? `Mas barato · ${resumen.categorias.length} categorias · ${formatearNumero(resumen.comparables)} productos comparables`
-            : "Mas barato"
+            ? `Más barato · ${resumen.categorias.length} categorías · ${formatearNumero(resumen.comparables)} productos comparables`
+            : "Más barato"
         }
         bajada={
           <>
           <p>
-            Solo se comparan productos identicos, con el mismo codigo de barras, presentes en dos o mas cadenas: asi
+            Solo se comparan productos idénticos, con el mismo código de barras, presentes en dos o más cadenas: así
             la marca propia no le regala victorias a nadie. Y se mide sobre los productos que cada cadena
-            efectivamente ofrece, no sobre el total de la categoria, para que tener un surtido mas amplio no se
-            confunda con ser mas barato.
+            efectivamente ofrece, no sobre el total de la categoría, para que tener un surtido más amplio no se
+            confunda con ser más barato.
           </p>
           {resumen?.sinMayoristas && (
             <p className="mt-2">
-              {MAYORISTAS.get(resumen.lider)}. Sin contar mayoristas, la mas barata es{" "}
+              {MAYORISTAS.get(resumen.lider)}. Sin contar mayoristas, la más barata es{" "}
               <strong className="font-medium text-papel">{resumen.sinMayoristas[0]}</strong>, en{" "}
-              {resumen.sinMayoristas[1]} de las {resumen.categorias.length} categorias.
+              {resumen.sinMayoristas[1]} de las {resumen.categorias.length} categorías.
             </p>
           )}
           </>
@@ -128,11 +129,11 @@ function QuienGanaPage() {
       >
         {resumen ? (
           <>
-            <Resaltado tono="barato">{resumen.lider}</Resaltado> es la mas barata en{" "}
-            {resumen.categoriasLideradas} de las {resumen.categorias.length} categorias
+            <Resaltado tono="barato">{resumen.lider}</Resaltado> es la más barata en{" "}
+            {resumen.categoriasLideradas} de las {resumen.categorias.length} categorías
           </>
         ) : (
-          "Que cadena tiene el precio mas bajo en cada categoria"
+          "Qué cadena tiene el precio más bajo en cada categoría"
         )}
       </Titular>
 
@@ -150,16 +151,16 @@ function QuienGanaPage() {
             <FilaDeCifras
               cifras={[
                 {
-                  etiqueta: "Gana en mas categorias",
+                  etiqueta: "Gana en más categorías",
                   valor: resumen.lider,
                   detalle: `${resumen.categoriasLideradas} de ${resumen.categorias.length}`,
                 },
                 {
                   etiqueta: "Productos comparables",
                   valor: formatearNumero(resumen.comparables),
-                  detalle: "en dos o mas cadenas",
+                  detalle: "en dos o más cadenas",
                 },
-                { etiqueta: "Cadenas", valor: formatearNumero(resumen.cadenas), detalle: "con 20 o mas comparables" },
+                { etiqueta: "Cadenas", valor: formatearNumero(resumen.cadenas), detalle: "con 20 o más comparables" },
               ]}
             />
           </div>
@@ -169,12 +170,12 @@ function QuienGanaPage() {
           </div>
 
           {detalle.length === 0 ? (
-            <p className="text-sm text-tinta-suave">Toca una categoria del mapa para ver cadena por cadena.</p>
+            <p className="text-sm text-tinta-suave">Tocá una categoría del mapa para ver cadena por cadena.</p>
           ) : (
             <div>
               <div className="flex items-baseline justify-between gap-3 pb-2 border-b border-linea-fuerte">
                 <h2 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave">
-                  {categoriaElegida}: de lo que ofrece, en cuanto tiene el precio mas bajo
+                  {nombreCategoria(categoriaElegida)}: de lo que ofrece, en cuánto tiene el precio más bajo
                 </h2>
                 <button
                   onClick={() => setCategoriaElegida("")}
@@ -189,7 +190,7 @@ function QuienGanaPage() {
                   <li key={r.cadena} className="border-b border-linea py-3">
                     <div
                       className="flex items-baseline justify-between gap-3 mb-1.5"
-                      title={`${r.cadena}: es la mas barata en ${formatearNumero(r.productos_ganados)} de los ${formatearNumero(r.productos_ofrecidos)} productos comparables que ofrece (${r.pct_gana_cuando_compite}%). La categoria tiene ${formatearNumero(r.total_productos_categoria)} comparables en total.`}
+                      title={`${r.cadena}: es la más barata en ${formatearNumero(r.productos_ganados)} de los ${formatearNumero(r.productos_ofrecidos)} productos comparables que ofrece (${r.pct_gana_cuando_compite}%). La categoría tiene ${formatearNumero(r.total_productos_categoria)} comparables en total.`}
                     >
                       <span className={i === 0 ? "text-sm font-medium text-tinta" : "text-sm text-tinta-media"}>
                         {r.cadena}
@@ -221,9 +222,9 @@ function QuienGanaPage() {
           )}
 
           <p className="text-xs text-tinta-suave mt-5 leading-relaxed">
-            Un producto puede empatar en varias cadenas, y cada una mide sobre su propio surtido, asi que los
-            porcentajes no suman 100. Solo entran cadenas con al menos 20 productos comparables en la categoria; las
-            demas quedan como celda vacia en el mapa.
+            Un producto puede empatar en varias cadenas, y cada una mide sobre su propio surtido, así que los
+            porcentajes no suman 100. Solo entran cadenas con al menos 20 productos comparables en la categoría; las
+            demás quedan como celda vacía en el mapa.
           </p>
         </>
       )}

@@ -1,4 +1,5 @@
 import type { QuienGana } from "../types";
+import { nombreCategoria } from "../utils/nombres";
 
 /*
   Mapa del mercado: una grilla de categorias x cadenas, cada celda pintada segun
@@ -90,7 +91,7 @@ function MapaDelMercado({ filas, categoriaElegida, onElegir }: Props) {
                 <th
                   key={cadena}
                   scope="col"
-                  title={`${cadena}: lidera en ${liderazgos.get(cadena) ?? 0} categorias`}
+                  title={`${cadena}: lidera en ${liderazgos.get(cadena) ?? 0} categorías`}
                   className="w-10 p-0 align-bottom"
                 >
                   {/* Vertical y de abajo hacia arriba: 14 nombres de cadena en
@@ -119,7 +120,7 @@ function MapaDelMercado({ filas, categoriaElegida, onElegir }: Props) {
                         elegida ? "text-tinta font-medium" : "text-tinta-media hover:text-tinta",
                       ].join(" ")}
                     >
-                      {categoria}
+                      {nombreCategoria(categoria)}
                     </button>
                   </th>
                   {cadenas.map((cadena) => {
@@ -130,13 +131,13 @@ function MapaDelMercado({ filas, categoriaElegida, onElegir }: Props) {
                           onClick={() => onElegir(categoria)}
                           aria-label={
                             celda
-                              ? `${cadena} en ${categoria}: ${celda.pct_gana_cuando_compite}% de los productos que ofrece`
-                              : `${cadena} no compite en ${categoria}`
+                              ? `${cadena} en ${nombreCategoria(categoria)}: ${celda.pct_gana_cuando_compite}% de los productos que ofrece`
+                              : `${cadena} no compite en ${nombreCategoria(categoria)}`
                           }
                           title={
                             celda
-                              ? `${categoria} · ${cadena}: mas barata en ${celda.pct_gana_cuando_compite}% de los ${celda.productos_ofrecidos} productos comparables que ofrece`
-                              : `${categoria} · ${cadena}: menos de 20 productos comparables, no se mide`
+                              ? `${nombreCategoria(categoria)} · ${cadena}: más barata en ${celda.pct_gana_cuando_compite}% de los ${celda.productos_ofrecidos} productos comparables que ofrece`
+                              : `${nombreCategoria(categoria)} · ${cadena}: menos de 20 productos comparables, no se mide`
                           }
                           className={[
                             "block w-full h-5 rounded-[2px] transition-opacity hover:opacity-70",

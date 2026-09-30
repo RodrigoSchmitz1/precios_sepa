@@ -167,21 +167,21 @@ async def responder_error_de_bigquery(request: Request, error: GoogleAPICallErro
     if not _es_cuota_agotada(error):
         return JSONResponse(
             status_code=503,
-            content={"detail": "No se pudo consultar la base de datos. Proba de nuevo en unos minutos."},
+            content={"detail": "No se pudo consultar la base de datos. Probá de nuevo en unos minutos."},
         )
     try:
         hora, segundos = _reinicio_de_cuota()
         cuando = f"a las {hora} (hora de Argentina)"
         encabezados = {"Retry-After": str(segundos)}
     except Exception:
-        cuando = "a la medianoche del Pacifico"
+        cuando = "a la medianoche del Pacífico"
         encabezados = {}
     return JSONResponse(
         status_code=503,
         headers=encabezados,
         content={
             "detail": (
-                "El sitio alcanzo el limite diario de consultas a la base de datos, "
+                "El sitio alcanzó el límite diario de consultas a la base de datos, "
                 "que existe para que el proyecto no genere costos. Los datos vuelven "
                 f"a estar disponibles {cuando}."
             )
@@ -794,8 +794,8 @@ def interpretar_canasta_personalizada(datos: DescripcionCanasta):
     except genai_errors.APIError as error:
         if error.code == 429:
             return JSONResponse(status_code=503, content={
-                "detail": "Hay muchas canastas armandose al mismo tiempo. Proba de nuevo en un minuto, "
-                          "o arma la tuya con la canasta basica o eligiendo las categorias a mano."})
+                "detail": "Hay muchas canastas armándose al mismo tiempo. Probá de nuevo en un minuto, "
+                          "o armá la tuya con la canasta básica o eligiendo las categorías a mano."})
         raise
 
 
@@ -855,11 +855,11 @@ class OptimizarCompraRequest(BaseModel):
 def optimizar_compra_canasta(datos: OptimizarCompraRequest):
     """En que sucursales cercanas conviene comprar la canasta, con 1, 2 o 3 paradas."""
     if not datos.items:
-        return JSONResponse(status_code=422, content={"detail": "La canasta esta vacia."})
+        return JSONResponse(status_code=422, content={"detail": "La canasta está vacía."})
     if len(datos.items) > MAXIMO_ITEMS_OPTIMIZAR:
         return JSONResponse(
             status_code=422,
-            content={"detail": f"Son demasiadas categorias: el maximo es {MAXIMO_ITEMS_OPTIMIZAR}."},
+            content={"detail": f"Son demasiadas categorías: el máximo es {MAXIMO_ITEMS_OPTIMIZAR}."},
         )
     return precios_por_sucursal.optimizar(
         _indice_sucursales(),
@@ -973,7 +973,7 @@ def obtener_mismo_producto(id_producto: str):
     if resultado is None:
         return JSONResponse(
             status_code=404,
-            content={"detail": "Ese producto no tiene precio en dos o mas cadenas en el ultimo dia."},
+            content={"detail": "Ese producto no tiene precio en dos o más cadenas en el último día."},
         )
     return resultado
 

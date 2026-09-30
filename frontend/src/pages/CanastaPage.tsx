@@ -102,20 +102,20 @@ function CanastaPage() {
         antetitulo={
           todas.length > 0
             ? [
-                `Canasta basica`,
-                `${categorias} categorias`,
+                `Canasta básica`,
+                `${categorias} categorías`,
                 `${formatearNumero(todas.length)} localidades`,
                 fechaEnPalabras(masBarata.fecha_datos) && `precios del ${fechaEnPalabras(masBarata.fecha_datos)}`,
               ]
                 .filter(Boolean)
                 .join(" · ")
-            : "Canasta basica"
+            : "Canasta básica"
         }
         bajada={
           masBarata ? (
             <>
               <p>
-                Es lo que come <strong className="font-medium">un adulto durante un mes</strong> segun la canasta
+                Es lo que come <strong className="font-medium">un adulto durante un mes</strong> según la canasta
                 alimentaria del INDEC
                 {mediana && (
                   <>
@@ -127,10 +127,10 @@ function CanastaPage() {
                 .
               </p>
               <p className="mt-2">
-                Las mismas {categorias} categorias y las mismas cantidades en todas las localidades. Solo entran las
-                localidades donde se puede medir la canasta completa, porque sumar las categorias que cada una tenga
-                haria parecer mas baratas a las que tienen menos datos. Si a una le faltan observaciones de una
-                categoria se usa la mediana de su provincia, en hasta 4 de las {categorias}.
+                Las mismas {categorias} categorías y las mismas cantidades en todas las localidades. Solo entran las
+                localidades donde se puede medir la canasta completa, porque sumar las categorías que cada una tenga
+                haría parecer más baratas a las que tienen menos datos. Si a una le faltan observaciones de una
+                categoría se usa la mediana de su provincia, en hasta 4 de las {categorias}.
               </p>
               {/*
                 Por que la brecha es chica. Sin esto se leia como "el pais cuesta
@@ -141,8 +141,8 @@ function CanastaPage() {
               {bonaerenses > todas.length / 2 && (
                 <p className="mt-2">
                   {bonaerenses} de las {todas.length} localidades son de CABA o de la provincia de Buenos Aires: en el
-                  resto del pais pocas juntan datos para la canasta completa. Y SEPA solo informa cadenas grandes,
-                  con precios parecidos en todas partes; los almacenes y las verdulerias de barrio no estan.
+                  resto del país pocas juntan datos para la canasta completa. Y SEPA solo informa cadenas grandes,
+                  con precios parecidos en todas partes; los almacenes y las verdulerías de barrio no están.
                 </p>
               )}
             </>
@@ -152,11 +152,11 @@ function CanastaPage() {
         {masBarata && masCara ? (
           <>
             {/* El espacio duro evita que la cifra y su unidad queden en lineas distintas. */}
-            Llenar la misma canasta cuesta <Resaltado>{brecha.toFixed(0)}%&nbsp;mas</Resaltado> en{" "}
+            Llenar la misma canasta cuesta <Resaltado>{brecha.toFixed(0)}%&nbsp;más</Resaltado> en{" "}
             {masCara.localidad} que en {masBarata.localidad}
           </>
         ) : (
-          "Cuanto cuesta la canasta basica en cada localidad"
+          "Cuánto cuesta la canasta básica en cada localidad"
         )}
       </Titular>
 
@@ -192,7 +192,7 @@ function CanastaPage() {
             <FilaDeCifras
               cifras={[
                 {
-                  etiqueta: "Mas barata",
+                  etiqueta: "Más barata",
                   valor: formatearPesos(masBarata.costo_canasta_total),
                   detalle: nombreDe(masBarata),
                 },
@@ -206,7 +206,7 @@ function CanastaPage() {
                     ]
                   : []),
                 {
-                  etiqueta: "Mas cara",
+                  etiqueta: "Más cara",
                   valor: formatearPesos(masCara.costo_canasta_total),
                   detalle: nombreDe(masCara),
                 },
@@ -227,7 +227,7 @@ function CanastaPage() {
           />
 
           {filas.length === 0 && (
-            <p className="text-sm text-tinta-suave">Ninguna localidad medida coincide con esa busqueda.</p>
+            <p className="text-sm text-tinta-suave">Ninguna localidad medida coincide con esa búsqueda.</p>
           )}
 
           {filas.length > 0 && (
@@ -276,7 +276,7 @@ function CanastaPage() {
                           <span className="block text-xs text-tinta-suave truncate">
                             {nombreProvincia(c.provincia)}
                             {c.categorias_imputadas > 0 && (
-                              <span title="Categorias valuadas con la mediana de la provincia, porque la localidad no junta suficientes observaciones">
+                              <span title="Categorías valuadas con la mediana de la provincia, porque la localidad no junta suficientes observaciones">
                                 {" "}
                                 · {c.categorias_imputadas} con precio provincial
                               </span>
@@ -327,7 +327,7 @@ function CanastaPage() {
                   onClick={() => setMostradas(mostradas + TANDA)}
                   className="w-full py-3 text-sm font-medium text-tinta-media hover:bg-papel-hundido border-b border-linea transition-colors"
                 >
-                  Ver {Math.min(TANDA, faltan)} localidades mas
+                  Ver {Math.min(TANDA, faltan)} localidades más
                   <span className="numero text-tinta-suave"> ({formatearNumero(faltan)} restantes)</span>
                 </button>
               )}

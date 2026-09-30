@@ -232,33 +232,33 @@ function Presentacion() {
   const secciones = [
     {
       ruta: "/canasta",
-      titulo: "Canasta basica",
-      pregunta: "Cuanto cuesta comer en cada localidad",
+      titulo: "Canasta básica",
+      pregunta: "Cuánto cuesta comer en cada localidad",
       grafico:
         canasta.length > 1 ? <MiniTira valores={canasta.map((c) => c.costo_canasta_total)} /> : null,
     },
     {
       ruta: "/canasta-personalizada",
       titulo: "Tu canasta",
-      pregunta: "Contas que consumis y se cotiza con precios reales de tu zona",
+      pregunta: "Contás qué consumís y se cotiza con precios reales de tu zona",
       grafico: null,
     },
     {
       ruta: "/quien-gana",
-      titulo: "Mas barato",
-      pregunta: "Que cadena tiene el precio mas bajo en cada categoria",
+      titulo: "Más barato",
+      pregunta: "Qué cadena tiene el precio más bajo en cada categoría",
       grafico: lideres.length > 0 ? <MiniLideres lideres={lideres} /> : null,
     },
     {
       ruta: "/mismo-producto",
       titulo: "Mismo producto",
-      pregunta: "Cuanto cuesta el mismo codigo de barras en cada cadena",
+      pregunta: "Cuánto cuesta el mismo código de barras en cada cadena",
       grafico: brechas.length > 0 ? <MiniBrechas diferencias={brechas} /> : null,
     },
     {
       ruta: "/inflacion",
-      titulo: "Inflacion",
-      pregunta: "Que categorias subieron y cuales bajaron",
+      titulo: "Inflación",
+      pregunta: "Qué categorías subieron y cuáles bajaron",
       grafico:
         inflacion.length > 1 ? <MiniDivergente variaciones={inflacion.map((f) => f.variacion_pct)} /> : null,
     },
@@ -279,9 +279,9 @@ function Presentacion() {
       </h1>
 
       <p className="text-tinta-media leading-relaxed max-w-2xl mb-7">
-        Las cadenas informan sus precios al programa SEPA de la Secretaria de Comercio: unos 14 millones por dia,
-        sucursal por sucursal. Este sitio los toma, los limpia y los convierte en respuestas concretas sobre donde hay
-        descuentos, cuanto cuesta comer en cada lugar y quien vende mas barato.
+        Las cadenas informan sus precios al programa SEPA de la Secretaría de Comercio: unos 14 millones por día,
+        sucursal por sucursal. Este sitio los toma, los limpia y los convierte en respuestas concretas sobre dónde hay
+        descuentos, cuánto cuesta comer en cada lugar y quién vende más barato.
       </p>
 
       {(brecha !== null || inflacion.length > 0) && (
@@ -291,7 +291,7 @@ function Presentacion() {
               ...(brecha !== null && masBarata && masCara
                 ? [
                     {
-                      etiqueta: "Canasta mas barata",
+                      etiqueta: "Canasta más barata",
                       valor: formatearPesos(masBarata.costo_canasta_total),
                       detalle: `por adulto, en ${masBarata.localidad}`,
                     },
@@ -306,7 +306,7 @@ function Presentacion() {
               ...(inflacion.length > 0
                 ? [
                     {
-                      etiqueta: "Categorias al alza",
+                      etiqueta: "Categorías al alza",
                       valor: `${subieron} de ${inflacion.length}`,
                       detalle: `desde el ${fechaEnPalabras(inflacion[0].fecha_inicio)}`,
                     },

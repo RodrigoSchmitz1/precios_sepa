@@ -5,6 +5,7 @@ import Titular, { Resaltado } from "../components/Titular";
 import FilaDeCifras from "../components/FilaDeCifras";
 import { fechaEnPalabras, formatearVariacion } from "../utils/formato";
 import type { InflacionResumen } from "../types";
+import { nombreCategoria } from "../utils/nombres";
 
 /*
   Inflacion: ranking de todas las categorias por variacion de precios. Antes se
@@ -106,22 +107,22 @@ function InflacionPage() {
       <Titular
         antetitulo={
           filas.length > 0
-            ? `Inflacion · ${fechaEnPalabras(filas[0].fecha_inicio)} al ${fechaEnPalabras(filas[0].fecha_fin)}`
-            : "Inflacion"
+            ? `Inflación · ${fechaEnPalabras(filas[0].fecha_inicio)} al ${fechaEnPalabras(filas[0].fecha_fin)}`
+            : "Inflación"
         }
         bajada={
           <>
             <p>
-              La variacion se mide sobre los productos presentes en las dos fechas y encadenando los cambios dia a
-              dia: comparar el precio promedio de dos fechas sueltas mezclaria los cambios de precio con los cambios
+              La variación se mide sobre los productos presentes en las dos fechas y encadenando los cambios día a
+              día: comparar el precio promedio de dos fechas sueltas mezclaría los cambios de precio con los cambios
               de surtido.
             </p>
             {resumen && (
               <p className="mt-2 text-sm text-sobre-oscuro-aviso">
                 {resumen.dias === 1
-                  ? "Es el movimiento de un solo dia, no de un mes: por eso son decimas y no puntos."
-                  : `Es el movimiento acumulado de ${resumen.dias} dias, no de un mes.`}{" "}
-                El historico recien empezo a acumularse y suma un eslabon por dia.
+                  ? "Es el movimiento de un solo día, no de un mes: por eso son décimas y no puntos."
+                  : `Es el movimiento acumulado de ${resumen.dias} días, no de un mes.`}{" "}
+                El histórico recién empezó a acumularse y suma un eslabón por día.
               </p>
             )}
           </>
@@ -133,10 +134,10 @@ function InflacionPage() {
             <Resaltado tono={resumen.general >= 0 ? undefined : "barato"}>
               {formatearVariacion(Math.abs(resumen.general)).replace("+", "")}
             </Resaltado>{" "}
-            en {resumen.dias} {resumen.dias === 1 ? "dia" : "dias"}
+            en {resumen.dias} {resumen.dias === 1 ? "día" : "días"}
           </>
         ) : (
-          "Que categorias subieron y cuales bajaron"
+          "Qué categorías subieron y cuáles bajaron"
         )}
       </Titular>
 
@@ -149,7 +150,7 @@ function InflacionPage() {
       {estado === null && <p className="text-sm text-tinta-suave">Cargando…</p>}
 
       {estado?.filas && filas.length === 0 && (
-        <p className="text-sm text-tinta-suave">Todavia no hay dos fechas encadenables en el historico.</p>
+        <p className="text-sm text-tinta-suave">Todavía no hay dos fechas encadenables en el histórico.</p>
       )}
 
       {resumen && masExtrema && (
@@ -165,11 +166,11 @@ function InflacionPage() {
                 {
                   etiqueta: "Subieron",
                   valor: `${resumen.subieron} de ${filas.length}`,
-                  detalle: `categorias; ${resumen.bajaron} bajaron`,
+                  detalle: `categorías; ${resumen.bajaron} bajaron`,
                 },
                 {
                   etiqueta: "Periodo",
-                  valor: `${resumen.dias} ${resumen.dias === 1 ? "dia" : "dias"}`,
+                  valor: `${resumen.dias} ${resumen.dias === 1 ? "día" : "días"}`,
                   detalle: `hasta el ${fechaEnPalabras(filas[0].fecha_fin)}`,
                 },
                 {
@@ -183,9 +184,9 @@ function InflacionPage() {
 
           <div>
             <div className="flex items-baseline justify-between gap-3 pb-2 border-b border-linea-fuerte mb-2">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave">Todas las categorias</h2>
+              <h2 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave">Todas las categorías</h2>
               <span className="text-xs text-tinta-suave">
-                escala hasta {magnitudMaxima} ({masExtrema.categoria})
+                escala hasta {magnitudMaxima} ({nombreCategoria(masExtrema.categoria)})
               </span>
             </div>
 
@@ -216,7 +217,7 @@ function InflacionPage() {
                           >
                             &#9654;
                           </span>
-                          {f.categoria}
+                          {nombreCategoria(f.categoria)}
                         </span>
                         <div className="flex items-baseline gap-2.5 shrink-0">
                           {/*
@@ -278,10 +279,10 @@ function InflacionPage() {
             </ul>
 
             <p className="text-[11px] text-tinta-suave mt-4 pt-3 border-t border-linea leading-relaxed">
-              La variacion de una categoria es la media geometrica de los factores encadenados de todas sus series de
-              precios; sin datos de volumen de ventas no hay con que ponderar, asi que cada cadena pesa igual. Solo
-              entran las series con la cadena de factores completa y las categorias cubiertas por al menos 3 cadenas:
-              con una sola cadena el numero no es el mercado, es un supermercado.
+              La variación de una categoría es la media geométrica de los factores encadenados de todas sus series de
+              precios; sin datos de volumen de ventas no hay con qué ponderar, así que cada cadena pesa igual. Solo
+              entran las series con la cadena de factores completa y las categorías cubiertas por al menos 3 cadenas:
+              con una sola cadena el número no es el mercado, es un supermercado.
             </p>
           </div>
         </>

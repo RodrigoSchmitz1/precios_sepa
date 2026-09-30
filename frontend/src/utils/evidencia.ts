@@ -30,13 +30,13 @@ export const EVIDENCIA = {
     // verificado por quien.
     texto: "lo declara la cadena",
     clase: "bg-ahorro-tenue text-ahorro border-ahorro-borde",
-    ayuda: "El super anuncia el porcentaje (\"30% de descuento\") y coincide con la rebaja de sus precios.",
+    ayuda: "El súper anuncia el porcentaje (\"30% de descuento\") y coincide con la rebaja de sus precios.",
   },
   mercado: {
     color: "text-dato-azul",
     texto: "verificado con otras cadenas",
     clase: "bg-dato-azul-tenue text-dato-azul border-dato-azul/25",
-    ayuda: "El super no anuncia el porcentaje, pero el precio rebajado no es sospechosamente bajo al lado de lo que cobran otras cadenas por el mismo producto.",
+    ayuda: "El súper no anuncia el porcentaje, pero el precio rebajado no es sospechosamente bajo al lado de lo que cobran otras cadenas por el mismo producto.",
   },
   sin_verificar: {
     color: "text-aviso",
@@ -44,7 +44,7 @@ export const EVIDENCIA = {
     // comparar. Ademas queda en paralelo con "verificado con otras cadenas".
     texto: "sin verificar con otras cadenas",
     clase: "bg-aviso-tenue text-aviso border-aviso/25",
-    ayuda: "Ninguna otra cadena vende ese mismo producto, asi que no hay con que compararlo.",
+    ayuda: "Ninguna otra cadena vende ese mismo producto, así que no hay con qué compararlo.",
   },
 } as const;
 

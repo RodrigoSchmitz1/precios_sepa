@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { obtenerCanastaDetalle } from "../api/client";
 import { formatearPesos, formatearNumero } from "../utils/formato";
 import type { CanastaDetalle } from "../types";
+import { nombreCategoria } from "../utils/nombres";
 
 /*
   Desglose de la canasta de una localidad, categoria por categoria.
@@ -77,10 +78,10 @@ function DetalleCanasta({ localidad, provincia, total }: Props) {
     <div className="bg-papel-hundido rounded-xl p-4">
       <div className="flex items-baseline justify-between gap-3 mb-3">
         <h3 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave">
-          Que compone la canasta en {localidad}
+          Qué compone la canasta en {localidad}
         </h3>
         <span className="text-xs text-tinta-suave">
-          {filas.length} categorias · orden por peso en el total
+          {filas.length} categorías · orden por peso en el total
         </span>
       </div>
 
@@ -91,11 +92,11 @@ function DetalleCanasta({ localidad, provincia, total }: Props) {
             <li key={f.categoria}>
               <div className="flex items-baseline justify-between gap-3 text-xs mb-0.5">
                 <span className="text-tinta-media truncate">
-                  {f.categoria}
+                  {nombreCategoria(f.categoria)}
                   {f.origen_precio === "provincia" && (
                     <span
                       className="ml-1.5 text-[10px] font-medium uppercase tracking-wide text-aviso bg-aviso-tenue rounded px-1 py-px"
-                      title="Esta localidad no junta 6 observaciones de la categoria: se usa la mediana de la provincia"
+                      title="Esta localidad no junta 6 observaciones de la categoría: se usa la mediana de la provincia"
                     >
                       provincia
                     </span>
@@ -139,12 +140,12 @@ function DetalleCanasta({ localidad, provincia, total }: Props) {
       </ul>
 
       <p className="text-[11px] text-tinta-suave mt-3 pt-3 border-t border-linea">
-        Cada categoria se valua con la mediana del precio por unidad de los productos de
-        gama economica de esa localidad, tras recortar el decil mas caro y el mas barato.
-        Las cantidades salen de la canasta basica del INDEC, adaptada. Cuando la localidad no
-        junta 6 observaciones de una categoria (pasa sobre todo con el pollo y el pescado
+        Cada categoría se valúa con la mediana del precio por unidad de los productos de
+        gama económica de esa localidad, tras recortar el decil más caro y el más barato.
+        Las cantidades salen de la canasta básica del INDEC, adaptada. Cuando la localidad no
+        junta 6 observaciones de una categoría (pasa sobre todo con el pollo y el pescado
         frescos, que se venden en pocas sucursales) se usa la mediana de la provincia, en hasta
-        4 categorias: van marcadas.
+        4 categorías: van marcadas.
       </p>
     </div>
   );

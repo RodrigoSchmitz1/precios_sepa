@@ -73,7 +73,7 @@ function MapaZona({ punto, radioKm, onElegirPunto, sucursales = [] }: Props) {
               },
             }}
           >
-            <Popup>Arrastrame o toca el mapa para mover la zona</Popup>
+            <Popup>Arrastrame o tocá el mapa para mover la zona</Popup>
           </Marker>
         </>
       )}

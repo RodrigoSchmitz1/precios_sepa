@@ -173,8 +173,8 @@ function PromosPage() {
             cifras={[
               { etiqueta: "En esta zona", valor: formatearNumero(promos.length), detalle: "promos vigentes" },
               { etiqueta: "Mayor descuento", valor: `${mayorDescuento}%`, detalle: cadenaDelMayor },
-              { etiqueta: "Cadenas", valor: formatearNumero(cadenas), detalle: "con promos aca" },
-              { etiqueta: "Categorias", valor: formatearNumero(categoriasDistintas), detalle: "con al menos una promo" },
+              { etiqueta: "Cadenas", valor: formatearNumero(cadenas), detalle: "con promos acá" },
+              { etiqueta: "Categorías", valor: formatearNumero(categoriasDistintas), detalle: "con al menos una promo" },
             ]}
           />
         </div>
@@ -194,7 +194,7 @@ function PromosPage() {
           <MapaPromos promos={promos} sucursales={sucursales} onMoverMapa={setBbox} destino={destino} />
         </div>
         <p className="text-xs text-tinta-suave mt-2">
-          Movete por el mapa para ver las promos de otra zona. Para hacer zoom con la ruedita, primero hace click en el mapa.
+          Movete por el mapa para ver las promos de otra zona. Para hacer zoom con la ruedita, primero hacé click en el mapa.
         </p>
       </div>
 
@@ -237,7 +237,7 @@ function PromosPage() {
             <div role="group" aria-label="Ordenar promos" className="inline-flex rounded-lg border border-linea bg-papel-hundido p-0.5">
               {(
                 [
-                  ["sucursales", "En mas sucursales"],
+                  ["sucursales", "En más sucursales"],
                   ["descuento", "Mayor descuento"],
                 ] as const
               ).map(([valor, texto]) => (
@@ -267,7 +267,7 @@ function PromosPage() {
           {!cargando && !error && hayMas && (
             <p className="text-xs text-aviso bg-aviso-tenue border border-aviso/20 rounded-lg px-3 py-2 mb-4">
               Mostrando las {formatearNumero(promos.length)} promos con mayor descuento de esta zona.
-              Acerca el mapa para ver mas.
+              Acercá el mapa para ver más.
             </p>
           )}
 
@@ -293,7 +293,7 @@ function PromosPage() {
             pregunta y una linea por etiqueta, en palabras de quien compra.
           */}
           <div className="text-xs text-tinta-media bg-papel-hundido rounded-lg px-3 py-2.5 mb-4 leading-relaxed">
-            <p className="font-semibold text-tinta">Como sabemos que el descuento es real</p>
+            <p className="font-semibold text-tinta">Cómo sabemos que el descuento es real</p>
             <ul className="mt-1.5 space-y-1">
               {NIVELES_EVIDENCIA.map((nivel) => (
                 <li key={nivel}>
@@ -305,7 +305,7 @@ function PromosPage() {
               ))}
             </ul>
             <p className="mt-1.5">
-              Si un descuento no cierra por ningun lado, la promo no se muestra: por ejemplo, una notebook de
+              Si un descuento no cierra por ningún lado, la promo no se muestra: por ejemplo, una notebook de
               $1.439.000 &quot;a $214.900&quot;.
             </p>
           </div>
@@ -322,7 +322,7 @@ function PromosPage() {
               onClick={() => setMostradas(mostradas + TANDA)}
               className="w-full py-3 text-sm font-medium text-tinta-media hover:bg-papel-hundido border-b border-linea transition-colors"
             >
-              Ver {Math.min(TANDA, faltan)} promos mas
+              Ver {Math.min(TANDA, faltan)} promos más
               <span className="numero text-tinta-suave"> ({formatearNumero(faltan)} restantes)</span>
             </button>
           )}

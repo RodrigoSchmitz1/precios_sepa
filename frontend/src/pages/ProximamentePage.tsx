@@ -7,7 +7,7 @@ function ProximamentePage({ titulo }: Props) {
     <div className="max-w-3xl mx-auto text-center py-20">
       <h1 className="text-3xl font-bold text-gray-900 mb-3">{titulo}</h1>
       <p className="text-gray-500">
-        Esta seccion esta en construccion. Pronto vas a poder verla aca.
+        Esta sección está en construcción. Pronto vas a poder verla acá.
       </p>
     </div>
   );

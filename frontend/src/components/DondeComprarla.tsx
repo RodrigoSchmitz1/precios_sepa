@@ -4,6 +4,7 @@ import MapaZona from "./MapaZona";
 import FilaDeCifras from "./FilaDeCifras";
 import { formatearNumero, formatearPesos } from "../utils/formato";
 import type { ItemCanastaIA, OpcionCompra, ResultadoOptimizacion } from "../types";
+import { nombreCategoria } from "../utils/nombres";
 
 /*
   Donde comprar la canasta: la compra dividida entre las sucursales cercanas.
@@ -37,7 +38,7 @@ function firmaDe(items: ItemCanastaIA[], punto: Punto, radioKm: number): string 
 /** "Pan, Arroz y 3 mas": la lista completa de 20 categorias tapa el resto. */
 function resumirItems(nombres: string[]): string {
   if (nombres.length <= 3) return nombres.join(", ");
-  return `${nombres.slice(0, 3).join(", ")} y ${nombres.length - 3} mas`;
+  return `${nombres.slice(0, 3).join(", ")} y ${nombres.length - 3} más`;
 }
 
 function Opcion({ opcion, referencia }: { opcion: OpcionCompra; referencia: number | null }) {
@@ -52,7 +53,7 @@ function Opcion({ opcion, referencia }: { opcion: OpcionCompra; referencia: numb
         <div className="text-right">
           <p className="font-display text-2xl text-tinta leading-none">{formatearPesos(opcion.total)}</p>
           {ahorro > 0 && (
-            <p className="numero text-xs text-ahorro">ahorras {formatearPesos(ahorro)}</p>
+            <p className="numero text-xs text-ahorro">ahorrás {formatearPesos(ahorro)}</p>
           )}
         </div>
       </div>
@@ -78,7 +79,7 @@ function Opcion({ opcion, referencia }: { opcion: OpcionCompra; referencia: numb
 
       <p className="text-[11px] text-tinta-suave mt-1.5 leading-snug">
         {opcion.sucursales
-          .map((s) => `${s.cadena}: ${resumirItems(s.items.map((i) => i.categoria))}`)
+          .map((s) => `${s.cadena}: ${resumirItems(s.items.map((i) => nombreCategoria(i.categoria)))}`)
           .join(" · ")}
       </p>
     </li>
@@ -121,19 +122,19 @@ function DondeComprarla({ items }: Props) {
   const ubicarme = () => {
     setErrorUbicacion(null);
     if (!navigator.geolocation) {
-      setErrorUbicacion("Este navegador no puede darnos tu ubicacion. Toca el mapa para elegir la zona.");
+      setErrorUbicacion("Este navegador no puede darnos tu ubicación. Tocá el mapa para elegir la zona.");
       return;
     }
     navigator.geolocation.getCurrentPosition(
       (pos) => setPunto({ latitud: pos.coords.latitude, longitud: pos.coords.longitude }),
-      () => setErrorUbicacion("No pudimos leer tu ubicacion. Toca el mapa para elegir la zona.")
+      () => setErrorUbicacion("No pudimos leer tu ubicación. Tocá el mapa para elegir la zona.")
     );
   };
 
   return (
     <section className="mb-8">
       <h2 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave mb-3">
-        4 · Donde comprarla
+        4 · Dónde comprarla
       </h2>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-3">
@@ -141,9 +142,9 @@ function DondeComprarla({ items }: Props) {
           onClick={ubicarme}
           className="text-sm font-medium text-ahorro hover:text-ahorro-hover transition-colors"
         >
-          Usar mi ubicacion
+          Usar mi ubicación
         </button>
-        <span className="text-xs text-tinta-suave">o toca el mapa</span>
+        <span className="text-xs text-tinta-suave">o tocá el mapa</span>
 
         <div className="flex items-center gap-1.5 ml-auto">
           <span className="text-xs text-tinta-suave">Radio</span>
@@ -177,7 +178,7 @@ function DondeComprarla({ items }: Props) {
 
       {!punto && (
         <p className="text-sm text-tinta-suave">
-          Elegi desde donde salis a comprar y calculamos en que sucursales cercanas conviene comprar cada cosa.
+          Elegí desde dónde salís a comprar y calculamos en qué sucursales cercanas conviene comprar cada cosa.
         </p>
       )}
 
@@ -191,7 +192,7 @@ function DondeComprarla({ items }: Props) {
 
       {resultado && resultado.opciones.length === 0 && (
         <p className="text-sm text-tinta-suave">
-          No hay sucursales con precios dentro de {resultado.radio_km} km de ese punto. Proba con un radio mas
+          No hay sucursales con precios dentro de {resultado.radio_km} km de ese punto. Probá con un radio más
           grande o mové el punto.
         </p>
       )}
@@ -220,7 +221,7 @@ function DondeComprarla({ items }: Props) {
                   detalle: `a ${resultado.radio_km} km o menos`,
                 },
                 {
-                  etiqueta: "Categorias cubiertas",
+                  etiqueta: "Categorías cubiertas",
                   valor: `${mejor.items_cubiertos} de ${items.length}`,
                   detalle: "con precio en la zona",
                 },
@@ -242,9 +243,9 @@ function DondeComprarla({ items }: Props) {
           )}
 
           <p className="text-[11px] text-tinta-suave mt-3 leading-relaxed">
-            Los kilometros son informativos: no se le pone precio a la distancia, porque eso depende de como se
-            mueva cada uno. Solo se usan para desempatar entre sucursales que cuestan lo mismo. Precios del dia,
-            por categoria y gama, no por producto puntual.
+            Los kilómetros son informativos: no se le pone precio a la distancia, porque eso depende de cómo se
+            mueva cada uno. Solo se usan para desempatar entre sucursales que cuestan lo mismo. Precios del día,
+            por categoría y gama, no por producto puntual.
           </p>
         </>
       )}

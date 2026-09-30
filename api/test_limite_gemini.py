@@ -36,7 +36,7 @@ class TestLimiteGemini(unittest.TestCase):
         with mock.patch.object(main, "interpretar_descripcion", falla(429)):
             respuesta = self.cliente.post(RUTA, json={"descripcion": "vivo solo"})
         self.assertEqual(respuesta.status_code, 503)
-        self.assertIn("Proba de nuevo en un minuto", respuesta.json()["detail"])
+        self.assertIn("Probá de nuevo en un minuto", respuesta.json()["detail"])
 
     def test_otro_error_de_gemini_no_se_disfraza(self):
         with mock.patch.object(main, "interpretar_descripcion", falla(400)):

@@ -1,6 +1,7 @@
 import { useId, useState } from "react";
 import type { CategoriaCanasta } from "../types";
 import { normalizar } from "../utils/texto";
+import { nombreCategoria } from "../utils/nombres";
 
 /*
   Buscador para sumar a la canasta una categoria que la IA no propuso.
@@ -48,7 +49,7 @@ function AgregarCategoria({ categorias, onAgregar, etiqueta }: Props) {
 
       {consulta && coincidencias.length === 0 && (
         <p className="mt-2 text-xs text-tinta-suave">
-          No hay otra categoria con ese nombre para agregar.
+          No hay otra categoría con ese nombre para agregar.
         </p>
       )}
 
@@ -63,7 +64,7 @@ function AgregarCategoria({ categorias, onAgregar, etiqueta }: Props) {
               }}
               className="text-xs text-tinta-media bg-papel border border-linea rounded-full px-3 py-1 hover:border-ahorro hover:text-ahorro transition-colors"
             >
-              + {c.categoria}
+              + {nombreCategoria(c.categoria)}
               <span className="text-tinta-suave"> · {c.unidad}</span>
             </button>
           ))}
