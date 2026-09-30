@@ -1,11 +1,37 @@
 # Changuito
 
-Precios reales de supermercados argentinos, con datos oficiales del programa
-SEPA (Secretaría de Comercio). Pipeline diario que ingiere ~14 millones de
-precios por día, los transforma con dbt sobre BigQuery y los publica en una
-aplicación web.
+**Cuánto cuestan las cosas en los supermercados de la Argentina, hoy.** Las
+promos en un mapa, la canasta básica por localidad, qué cadena es más barata y
+cuánto subieron los precios, con los datos oficiales del programa SEPA de la
+Secretaría de Comercio.
 
-### 🔗 [precios-sepa-api-803135877045.us-central1.run.app](https://precios-sepa-api-803135877045.us-central1.run.app)
+### [Ver el sitio →](https://precios-sepa-api-803135877045.us-central1.run.app)
+
+[![Changuito: las promos de hoy en el mapa](docs/img/changuito-promos.png)](https://precios-sepa-api-803135877045.us-central1.run.app)
+
+| Tu canasta, cotizada | Inflación por categoría | El mismo producto, otra cadena |
+|---|---|---|
+| [![Tu canasta](docs/img/changuito-tu-canasta.png)](https://precios-sepa-api-803135877045.us-central1.run.app/canasta-personalizada) | [![Inflación](docs/img/changuito-inflacion.png)](https://precios-sepa-api-803135877045.us-central1.run.app/inflacion) | [![El mismo producto](docs/img/changuito-mismo-producto.png)](https://precios-sepa-api-803135877045.us-central1.run.app/mismo-producto) |
+
+## En 30 segundos
+
+- **Qué es.** Un pipeline diario que toma unos 14 millones de precios, los
+  transforma con dbt sobre BigQuery y los publica en un sitio con seis
+  secciones. Corre solo todos los días.
+- **Números que resisten una segunda mirada.** El dato de origen tiene trampas:
+  ocho veces comparaba cosas que no eran comparables, y el número publicado
+  estaba mal sin que nada fallara. Cada caso está contado abajo, con lo que
+  se midió y el test que ahora lo cubre:
+  [las decisiones que importan](#las-decisiones-que-importan).
+- **Calidad verificable.** 27 modelos y 116 tests de dbt, más 126 tests en
+  Python, que corren en cada cambio: [calidad](#calidad).
+- **Costo cero, por diseño.** Todo entra en los niveles gratuitos, con una
+  cuota dura que impide pasarse: [costo](#costo).
+- **Un pipeline que se repara solo.** Si un día no llegan datos los recupera
+  al siguiente, y avisa por mail cuando algo se atrasa:
+  [arquitectura](#arquitectura).
+
+El resto de este documento es para quien quiere ver cómo se resolvió cada cosa.
 
 ---
 
