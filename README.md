@@ -24,7 +24,7 @@ Comercio.
   estaba mal sin que nada fallara. Cada caso está contado abajo, con lo que
   se midió y el test que ahora lo cubre:
   [las decisiones que importan](#las-decisiones-que-importan).
-- **Calidad verificable.** 24 modelos y 100 tests de dbt, más 126 tests en
+- **Calidad verificable.** 24 modelos y 100 tests de dbt, más 134 tests en
   Python, que corren en cada cambio: [calidad](#calidad).
 - **Costo cero, por diseño.** Todo entra en los niveles gratuitos, con una
   cuota dura que impide pasarse: [costo](#costo).
@@ -380,7 +380,7 @@ respetando el barrio cuando la cadena sí lo informa bien.
 ## Calidad
 
 **24 modelos y 94 tests de dbt**, que corren en cada ejecución del pipeline,
-más 6 tests unitarios de dbt con filas de prueba y 126 tests unitarios en Python sobre la API y la ingesta que no necesitan
+más 6 tests unitarios de dbt con filas de prueba y 134 tests unitarios en Python sobre la API y la ingesta que no necesitan
 BigQuery.
 Además de los genéricos, hay tests singulares para las cosas que sólo se
 detectan mirando el resultado agregado: que Carne vacuna y Pollo no mezclen
