@@ -29,6 +29,8 @@ unit_tests:
       - input: ref('stg_categorias')
         rows:
           - {id_producto: "1", descripcion: PARME SSA JALAP 180G, marca: LA PARMESANA, categoria: Aderezos, rubro: Almacen}
+      - input: source('sepa', 'productos')
+        rows: []
     expect:
       rows:
         - {cadena: Changomas, precio_en_rango: false, precio_creible: true}
@@ -59,6 +61,8 @@ unit_tests:
       - input: ref('stg_categorias')
         rows:
           - {id_producto: "2", descripcion: FANTA ZERO 1.75L, marca: FANTA, categoria: Gaseosas, rubro: Bebidas}
+      - input: source('sepa', 'productos')
+        rows: []
     expect:
       rows:
         - {cadena: HiperChangomas, precio_creible: false}
@@ -86,9 +90,42 @@ unit_tests:
       - input: ref('stg_categorias')
         rows:
           - {id_producto: "3", descripcion: Semilla Sesamo Tostado FOR GOOD, marca: FOR GOOD, categoria: Almacen, rubro: Almacen}
+      - input: source('sepa', 'productos')
+        rows: []
     expect:
       rows:
         - {cadena: Vea, precio_en_rango: false, precio_creible: true}
         - {cadena: Jumbo, precio_en_rango: true, precio_creible: true}
         - {cadena: Carrefour, precio_en_rango: true, precio_creible: true}
         - {cadena: Coto, precio_en_rango: true, precio_creible: true}
+
+  - name: mismo_producto_elige_el_nombre_entre_todas_las_cadenas
+    description: >
+      La Playadito suave de 500 g del 2026-10-07: la categorizacion la guardo
+      como "YERBA", marca "PLAYA", que es como la informa una sola cadena, y
+      buscar "playadito" no la encontraba. Se elige el nombre con la marca que
+      informan mas comercios, con tamano, corto; y la busqueda junta todos.
+    model: mart_mismo_producto
+    overrides:
+      macros:
+        ultima_fecha: "2026-10-07"
+    given:
+      - input: ref('int_precio_producto_cadena')
+        rows:
+          - {fecha_datos: "2026-10-07", id_producto: "911", cadena: Dia, empresa: "15", precio_mediano: 3000, precio_minimo: 3000, precio_maximo: 3000, sucursales: 900, cantidad_normalizada: 500, unidad_normalizada: g}
+          - {fecha_datos: "2026-10-07", id_producto: "911", cadena: Coto, empresa: "12", precio_mediano: 3100, precio_minimo: 3100, precio_maximo: 3100, sucursales: 100, cantidad_normalizada: 500, unidad_normalizada: g}
+          - {fecha_datos: "2026-10-07", id_producto: "911", cadena: Vea, empresa: "9", precio_mediano: 3200, precio_minimo: 3200, precio_maximo: 3200, sucursales: 80, cantidad_normalizada: 500, unidad_normalizada: g}
+      - input: ref('stg_categorias')
+        rows:
+          - {id_producto: "911", descripcion: YERBA, marca: PLAYA, categoria: Yerba mate, rubro: Infusiones y azucares}
+      - input: source('sepa', 'productos')
+        rows:
+          - {fecha_datos: "2026-10-07", id_producto: "911", id_comercio: "15", productos_descripcion: YERBA, productos_marca: PLAYA}
+          - {fecha_datos: "2026-10-07", id_producto: "911", id_comercio: "12", productos_descripcion: YERBA MATE SUAVE C PALO PLAYADITO X 500 GRS., productos_marca: PLAYADITO}
+          - {fecha_datos: "2026-10-07", id_producto: "911", id_comercio: "9", productos_descripcion: PLAYADITO YERBA MATE SUAVE 500G, productos_marca: PLAYADITO}
+          - {fecha_datos: "2026-10-07", id_producto: "911", id_comercio: "2", productos_descripcion: Yerba Mate PLAYADITO Suave x500gr PAQ-500-gr., productos_marca: PLAYADITO}
+    expect:
+      rows:
+        - {cadena: Coto, descripcion: PLAYADITO YERBA MATE SUAVE 500G, marca: PLAYADITO}
+        - {cadena: Dia, descripcion: PLAYADITO YERBA MATE SUAVE 500G, marca: PLAYADITO}
+        - {cadena: Vea, descripcion: PLAYADITO YERBA MATE SUAVE 500G, marca: PLAYADITO}

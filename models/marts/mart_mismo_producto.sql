@@ -188,13 +188,75 @@ por_producto AS (
     -- Con una sola cadena creible no hay contra que comparar, igual que antes
     -- pero contando las que sirven.
     HAVING COUNTIF(precio_creible) >= 2
+),
+
+-- NOMBRES (2026-10-08). Cada cadena informa su propia descripcion del mismo
+-- codigo de barras, y el modelo usaba una sola: la que quedo en la
+-- categorizacion. Para la Playadito suave de 500 g, que esta en 14 cadenas,
+-- esa era "YERBA" con la marca "PLAYA" (la de una cadena); las otras seis
+-- decian "YERBA MATE SUAVE C PALO PLAYADITO X 500 GRS" y parecidas. Buscar
+-- "playadito" no la encontraba.
+--
+-- Ahora el nombre se elige entre todas: con la marca que informan mas
+-- comercios, que traiga el tamano, sin pasar de 45 caracteres (las mas largas
+-- son relleno: "PAQ-500-gr.") y, entre esas, la mas corta. Y la busqueda usa
+-- TODAS las descripciones y marcas juntas, asi que el producto aparece con
+-- cualquiera de sus nombres. Sale del crudo del mismo dia: una lectura de tres
+-- columnas, ~0,9 GiB.
+nombres_crudos AS (
+    SELECT
+        id_producto,
+        id_comercio,
+        TRIM(productos_descripcion) AS descripcion,
+        UPPER(TRIM(productos_marca)) AS marca
+    FROM {{ source("sepa", "productos") }}
+    WHERE fecha_datos = DATE('{{ fecha }}')
+        AND productos_descripcion IS NOT NULL
+        AND id_producto IN (SELECT id_producto FROM por_producto)
+    GROUP BY 1, 2, 3, 4
+),
+
+marca_producto AS (
+    SELECT
+        id_producto,
+        ARRAY_AGG(marca ORDER BY comercios DESC, LENGTH(marca) DESC LIMIT 1)[OFFSET(0)] AS marca
+    FROM (
+        SELECT id_producto, marca, COUNT(DISTINCT id_comercio) AS comercios
+        FROM nombres_crudos
+        WHERE marca IS NOT NULL AND marca != ""
+        GROUP BY id_producto, marca
+    )
+    GROUP BY id_producto
+),
+
+nombre_producto AS (
+    SELECT
+        n.id_producto,
+        ARRAY_AGG(
+            n.descripcion
+            ORDER BY
+                STRPOS(UPPER(n.descripcion), IFNULL(m.marca, "")) > 0 DESC,
+                REGEXP_CONTAINS(n.descripcion, r"[0-9]") DESC,
+                LENGTH(n.descripcion) <= 45 DESC,
+                LENGTH(n.descripcion),
+                n.descripcion
+            LIMIT 1
+        )[OFFSET(0)] AS descripcion,
+        ANY_VALUE(m.marca) AS marca,
+        SUBSTR(STRING_AGG(DISTINCT LOWER(CONCAT(n.descripcion, " ", IFNULL(n.marca, ""))), " "), 1, 1500)
+            AS textos_busqueda
+    FROM nombres_crudos AS n
+    LEFT JOIN marca_producto AS m USING (id_producto)
+    GROUP BY n.id_producto
 )
 
 SELECT
     ev.fecha_datos,
     ev.id_producto,
-    cat.descripcion,
-    cat.marca,
+    COALESCE(np.descripcion, cat.descripcion) AS descripcion,
+    COALESCE(np.marca, cat.marca) AS marca,
+    -- Todas las descripciones y marcas del producto, solo para buscar.
+    COALESCE(np.textos_busqueda, LOWER(CONCAT(cat.descripcion, " ", IFNULL(cat.marca, "")))) AS textos_busqueda,
     cat.categoria,
     cat.rubro,
     ev.cadena,
@@ -226,3 +288,5 @@ JOIN {{ ref("stg_categorias") }} AS cat
     ON ev.id_producto = cat.id_producto
 LEFT JOIN tamano_producto AS tp
     ON ev.id_producto = tp.id_producto
+LEFT JOIN nombre_producto AS np
+    ON ev.id_producto = np.id_producto
