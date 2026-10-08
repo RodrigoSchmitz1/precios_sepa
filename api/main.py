@@ -487,42 +487,9 @@ def obtener_categorias_disponibles():
     return [fila["categoria"] for fila in resultados]
 
 
-@api.get("/canasta")
-@cachear
-def obtener_canasta(
-    busqueda: Optional[str] = Query(None, description="Buscar localidad por texto"),
-    provincia: Optional[str] = Query(None, description="Filtrar por provincia (ej: AR-B)"),
-    limite: int = Query(500, le=2000, description="Cantidad maxima de resultados"),
-):
-    # Ya no se filtra por cobertura: desde el 2026-09-08 el mart emite solo
-    # localidades con la canasta completa, que son las unicas comparables entre si.
-    tabla = f"{PROYECTO}.dbt_precios.mart_canasta_localidad"
-    condiciones = [solo_ultima_fecha(tabla)]
-    parametros = []
-
-    if busqueda:
-        condiciones.append("LOWER(localidad) LIKE @busqueda")
-        parametros.append(bigquery.ScalarQueryParameter("busqueda", "STRING", f"%{busqueda.lower()}%"))
-    if provincia:
-        condiciones.append("provincia = @provincia")
-        parametros.append(bigquery.ScalarQueryParameter("provincia", "STRING", provincia))
-
-    where = f"WHERE {' AND '.join(condiciones)}"
-
-    query = f"""
-        SELECT localidad, provincia, categorias_en_canasta, categorias_imputadas,
-               costo_canasta_total, fecha_datos
-        FROM `{tabla}`
-        {where}
-        ORDER BY costo_canasta_total ASC
-        LIMIT @limite
-    """
-    parametros.append(bigquery.ScalarQueryParameter("limite", "INT64", limite))
-
-    job_config = bigquery.QueryJobConfig(query_parameters=parametros)
-    resultados = cliente_bq.query(query, job_config=job_config).result()
-    return [dict(fila) for fila in resultados]
-
+# /canasta y /canasta/detalle se retiraron el 2026-10-08 junto con la seccion
+# Canasta basica (ver frontend/src/components/Presentacion.tsx). La composicion
+# sigue: es la base del boton "Empezar con la canasta basica" de Tu canasta.
 
 # Grupos para mostrar la composicion de la canasta. Es presentacion: el orden
 # dentro de cada grupo es el de las listas y una categoria que falte aca cae en
@@ -562,47 +529,6 @@ def obtener_composicion_canasta():
     eso, y lo comparaba con Tu canasta de una familia entera.
     """
     return _composicion_canasta()
-
-
-@api.get("/canasta/detalle")
-@cachear
-def obtener_canasta_detalle(
-    localidad: str = Query(..., description="Localidad exacta"),
-    provincia: str = Query(..., description="Codigo ISO de provincia, ej AR-C"),
-):
-    """Desglose de la canasta de una localidad, categoria por categoria.
-
-    Un total de seis cifras sin nada detras es un numero que hay que creer. Con
-    el desglose el lector ve de que esta hecho, cuanto pesa cada categoria y
-    sobre cuantas observaciones se calculo, y decide por su cuenta si le cierra.
-    """
-    tabla = f"{PROYECTO}.dbt_precios.mart_canasta_detalle"
-    query = f"""
-        SELECT
-            categoria,
-            cantidad_necesaria,
-            precio_mediano_unidad,
-            costo_categoria,
-            muestras,
-            origen_precio
-        FROM `{tabla}`
-        WHERE {solo_ultima_fecha(tabla)}
-            AND localidad = @localidad
-            AND provincia = @provincia
-        ORDER BY costo_categoria DESC
-    """
-    job_config = bigquery.QueryJobConfig(query_parameters=[
-        bigquery.ScalarQueryParameter("localidad", "STRING", localidad),
-        bigquery.ScalarQueryParameter("provincia", "STRING", provincia),
-    ])
-    # La unidad de cada categoria sale de la composicion (ya en memoria): sin
-    # ella la pagina mostraba "4.440 x $12,60/u" en vez de "4,44 kg a
-    # $12.600/kg", y "/u" no se entendia.
-    unidades = {i["categoria"]: i["unidad"] for g in _composicion_canasta() for i in g["items"]}
-    return [
-        {**dict(fila), "unidad": unidades.get(fila["categoria"])}
-        for fila in cliente_bq.query(query, job_config=job_config).result()
-    ]
 
 
 def _ctes_cadena_contigua(tabla: str) -> str:

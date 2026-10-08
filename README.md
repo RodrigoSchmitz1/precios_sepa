@@ -1,9 +1,10 @@
 # Changuito
 
 **Cuánto cuestan las cosas en los supermercados de la Argentina, hoy.** Las
-promos en un mapa, la canasta básica por localidad, qué cadena es más barata y
-cuánto subieron los precios, con los datos oficiales del programa SEPA de la
-Secretaría de Comercio.
+promos en un mapa, tu compra del mes cotizada en tu zona, qué cadena es más
+barata, cuánto cuesta el mismo producto en cada una y cuánto subieron los
+precios, con los datos oficiales del programa SEPA de la Secretaría de
+Comercio.
 
 ### [Ver el sitio →](https://precios-sepa-api-803135877045.us-central1.run.app)
 
@@ -16,14 +17,14 @@ Secretaría de Comercio.
 ## En 30 segundos
 
 - **Qué es.** Un pipeline diario que toma unos 14 millones de precios, los
-  transforma con dbt sobre BigQuery y los publica en un sitio con seis
+  transforma con dbt sobre BigQuery y los publica en un sitio con cinco
   secciones. Corre solo todos los días.
 - **Números que resisten una segunda mirada.** El dato de origen tiene trampas:
   ocho veces comparaba cosas que no eran comparables, y el número publicado
   estaba mal sin que nada fallara. Cada caso está contado abajo, con lo que
   se midió y el test que ahora lo cubre:
   [las decisiones que importan](#las-decisiones-que-importan).
-- **Calidad verificable.** 27 modelos y 116 tests de dbt, más 126 tests en
+- **Calidad verificable.** 24 modelos y 100 tests de dbt, más 126 tests en
   Python, que corren en cada cambio: [calidad](#calidad).
 - **Costo cero, por diseño.** Todo entra en los niveles gratuitos, con una
   cuota dura que impide pasarse: [costo](#costo).
@@ -40,7 +41,6 @@ El resto de este documento es para quien quiere ver cómo se resolvió cada cosa
 | Sección | Qué responde |
 |---|---|
 | **Promos vigentes** | Qué descuentos hay hoy cerca mío, sobre un mapa, con cada promo calificada según la evidencia que la respalda y filtros por rubro |
-| **Canasta básica** | Cuánto cuesta la canasta alimentaria en cada localidad |
 | **Tu canasta** | Describís en lenguaje natural qué consumís, una IA arma tu canasta y se cotiza con precios reales. También se puede partir de la canasta básica del INDEC para tu hogar o elegir las categorías a mano |
 | **Supermercado más barato** | Qué cadena tiene el precio más bajo, comparando productos idénticos, categoría por categoría |
 | **El mismo producto** | Cuánto cuesta el mismo código de barras en cada cadena, y cuánta diferencia hay, sin contar los precios que contradicen al resto del mercado |
@@ -52,7 +52,7 @@ El resto de este documento es para quien quiere ver cómo se resolvió cada cosa
 
 ```
 Portal SEPA ──> Ingesta local ──> BigQuery ──> dbt ──> FastAPI + React
- (datos.gob)     (Python)          (crudo)    (27 modelos)   (Cloud Run)
+ (datos.gob)     (Python)          (crudo)    (24 modelos)   (Cloud Run)
                      │                             │
               Task Scheduler                GitHub Actions
                  07:00 ART                    08:37 ART*
@@ -351,8 +351,23 @@ salía con menos leche que la base de ese hogar.
 Ahora el modelo devuelve sólo lo que depende del texto —cuántos adultos
 equivalentes son, qué no consumen y qué sube o baja, como un factor— y la
 canasta la arma el código: la base del INDEC multiplicada por el hogar, con un
-test que la compara contra la misma tabla que usa la canasta básica. Los seis
+test que la compara contra la tabla del INDEC de la seed `composicion_canasta`. Los seis
 ejemplos de la página dan la misma canasta en corridas sucesivas.
+
+### Una sección que se retiró
+
+Hubo una sexta sección, **Canasta básica**: el costo de la canasta alimentaria
+del INDEC en cada localidad. Buena parte de las decisiones de arriba salieron de
+ella, y aun así se sacó el 2026-10-08. Medido ese día, 75 de las 89 localidades
+eran de CABA o de la provincia de Buenos Aires, no había ninguna del norte, y
+Chubut salía más barato que CABA, cuando la Patagonia es la región más cara de
+la canasta oficial. No era un error de cálculo sino un límite de la fuente: SEPA
+informa cadenas grandes, que fijan precios casi iguales en todo el país, y lo
+que encarece una región (el almacén, la verdulería, la carnicería del barrio)
+no está en SEPA. La pregunta que prometía la sección, cuánto cuesta comer en
+cada lugar, el dato no la puede responder, y un número que no convence le resta
+credibilidad al resto. La canasta del INDEC sigue como punto de partida de Tu
+canasta, donde sí sirve.
 
 ### Geografía
 
@@ -364,7 +379,7 @@ respetando el barrio cuando la cadena sí lo informa bien.
 
 ## Calidad
 
-**27 modelos y 110 tests de dbt**, que corren en cada ejecución del pipeline,
+**24 modelos y 94 tests de dbt**, que corren en cada ejecución del pipeline,
 más 6 tests unitarios de dbt con filas de prueba y 126 tests unitarios en Python sobre la API y la ingesta que no necesitan
 BigQuery.
 Además de los genéricos, hay tests singulares para las cosas que sólo se

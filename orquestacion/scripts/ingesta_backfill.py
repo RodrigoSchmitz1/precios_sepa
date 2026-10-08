@@ -48,7 +48,6 @@ PROYECTO = "proyecto-precios-504221"
 TABLA_CRUDA = f"{PROYECTO}.sepa.productos"
 TABLAS_HISTORICO = [
     f"{PROYECTO}.dbt_precios.historico_quien_gana",
-    f"{PROYECTO}.dbt_precios.historico_canasta_localidad",
     f"{PROYECTO}.dbt_precios.historico_precios_cadena_categoria",
 ]
 
@@ -176,7 +175,7 @@ def calcular_faltantes(cliente, dias, hoy):
 
     en_crudo = fechas_con_particion(cliente, TABLA_CRUDA, desde)
 
-    # Union de los tres historicos: cada uno arranco en una fecha distinta, asi
+    # Union de los historicos: cada uno arranco en una fecha distinta, asi
     # que mirar uno solo marcaria como faltantes fechas que si fueron procesadas.
     en_historico = set()
     for tabla in TABLAS_HISTORICO:

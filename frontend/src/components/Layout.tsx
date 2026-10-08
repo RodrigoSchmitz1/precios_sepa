@@ -2,7 +2,6 @@ import { Outlet, NavLink } from "react-router";
 
 const SECCIONES = [
   { ruta: "/", nombre: "Promos" },
-  { ruta: "/canasta", nombre: "Canasta básica" },
   { ruta: "/canasta-personalizada", nombre: "Tu canasta" },
   { ruta: "/quien-gana", nombre: "Más barato" },
   { ruta: "/mismo-producto", nombre: "Mismo producto" },

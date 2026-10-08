@@ -1,14 +1,10 @@
 import { useEffect, useState } from "react";
 import { Link } from "react-router";
-import {
-  obtenerCanasta,
-  obtenerInflacionResumen,
-  obtenerProductosDestacados,
-  obtenerQuienGana,
-} from "../api/client";
-import { fechaEnPalabras, formatearNumero, formatearPesos } from "../utils/formato";
+import { obtenerInflacionResumen, obtenerProductosDestacados, obtenerQuienGana } from "../api/client";
+import { fechaEnPalabras } from "../utils/formato";
+import { nombreLegible } from "../utils/texto";
 import FilaDeCifras from "./FilaDeCifras";
-import type { Canasta, InflacionResumen, ProductoComparado, QuienGana } from "../types";
+import type { InflacionResumen, ProductoComparado, QuienGana } from "../types";
 
 /*
   Portada del sitio.
@@ -18,8 +14,8 @@ import type { Canasta, InflacionResumen, ProductoComparado, QuienGana } from "..
   se presenta con un micrografico hecho con SUS datos reales, no con un dibujo
   decorativo: se ve que el sitio esta vivo antes de entrar a ninguna seccion.
 
-  Las cuatro fuentes que alimentan esto no agregan consultas a BigQuery. Canasta,
-  inflacion y quien gana se piden con los MISMOS argumentos que usan sus paginas
+  Las tres fuentes que alimentan esto no agregan consultas a BigQuery. Inflacion
+  y quien gana se piden con los MISMOS argumentos que usan sus paginas
   (obtenerQuienGana("") es literalmente la llamada de Mas barato), asi que caen
   en la misma entrada de la cache de la API; los destacados de Mismo producto
   salen del indice en memoria, que se arma con list_rows y no consume cuota.
@@ -27,35 +23,18 @@ import type { Canasta, InflacionResumen, ProductoComparado, QuienGana } from "..
   Si alguna falla, la portada se muestra igual sin ese numero o sin ese grafico:
   nunca puede dejar el sitio en blanco. Es lo que pasa cuando se agota la cuota
   diaria, y conviene probarlo en ese estado antes de darlo por bueno.
+
+  SIN CANASTA BASICA (2026-10-08). La seccion se retiro: SEPA informa cadenas
+  grandes con precios casi iguales en todo el pais, asi que no podia mostrar las
+  diferencias regionales que prometia (Chubut salia mas barato que CABA). Las
+  cifras de arriba salen ahora de las secciones que quedan.
 */
 
 type Datos = {
-  canasta?: Canasta[];
   inflacion?: InflacionResumen[];
   quienGana?: QuienGana[];
   destacados?: ProductoComparado[];
 };
-
-/** Tira de puntos en miniatura. Se muestrea: 94 puntos en 150px se pisan entre
- *  si y forman una mancha gris, que no se lee como distribucion. Con uno de
- *  cada tres se ve la forma, y los dos extremos van siempre. */
-function MiniTira({ valores }: { valores: number[] }) {
-  const minimo = Math.min(...valores);
-  const maximo = Math.max(...valores);
-  const paso = Math.max(1, Math.ceil(valores.length / 30));
-  const muestra = valores.filter((_, i) => i % paso === 0);
-  const x = (v: number) => (maximo > minimo ? 5 + ((v - minimo) / (maximo - minimo)) * 140 : 75);
-  return (
-    <svg width="150" height="20" viewBox="0 0 150 20" aria-hidden="true" className="shrink-0">
-      <line x1="2" x2="148" y1="15" y2="15" className="stroke-linea" />
-      {muestra.map((v, i) => (
-        <circle key={i} cx={x(v)} cy={9} r="2.5" className="fill-tinta-suave/45" />
-      ))}
-      <circle cx={x(minimo)} cy={9} r="4" className="fill-dato-verde" />
-      <circle cx={x(maximo)} cy={9} r="4" className="fill-alerta" />
-    </svg>
-  );
-}
 
 /** Barras divergentes en miniatura: una categoria, una barra. */
 function MiniDivergente({ variaciones }: { variaciones: number[] }) {
@@ -161,15 +140,8 @@ function Presentacion() {
 
   useEffect(() => {
     let cancelado = false;
-    obtenerCanasta({ limite: 2000 })
-      .then((canasta) => {
-        if (!cancelado) setDatos((previo) => ({ ...previo, canasta }));
-      })
-      .catch(() => {
-        // La portada no muestra el error: las secciones lo explican cuando se
-        // entra a ellas, y un cartel rojo arriba de todo asusta mas de lo que
-        // informa.
-      });
+    // La portada no muestra los errores: las secciones los explican cuando se
+    // entra a ellas, y un cartel rojo arriba de todo asusta mas de lo que informa.
     obtenerInflacionResumen()
       .then((inflacion) => {
         if (!cancelado) setDatos((previo) => ({ ...previo, inflacion }));
@@ -190,16 +162,7 @@ function Presentacion() {
     };
   }, []);
 
-  const canasta = datos.canasta ?? [];
   const inflacion = datos.inflacion ?? [];
-  const masBarata = canasta[0];
-  const masCara = canasta[canasta.length - 1];
-  const brecha =
-    masBarata && masCara && masBarata.costo_canasta_total > 0
-      ? Math.round(
-          ((masCara.costo_canasta_total - masBarata.costo_canasta_total) / masBarata.costo_canasta_total) * 100
-        )
-      : null;
   const subieron = inflacion.filter((f) => f.variacion_pct >= 0.005).length;
 
   /*
@@ -212,31 +175,25 @@ function Presentacion() {
     en el orden que manda la API: si ese ORDER BY cambiara, un grafico que se
     apoya en el orden mentiria en silencio.
   */
-  const lideres = (() => {
-    const mejorPorCategoria = new Map<string, QuienGana>();
-    for (const fila of datos.quienGana ?? []) {
-      const actual = mejorPorCategoria.get(fila.categoria);
-      if (!actual || fila.pct_gana_cuando_compite > actual.pct_gana_cuando_compite) {
-        mejorPorCategoria.set(fila.categoria, fila);
-      }
+  const mejorPorCategoria = new Map<string, QuienGana>();
+  for (const fila of datos.quienGana ?? []) {
+    const actual = mejorPorCategoria.get(fila.categoria);
+    if (!actual || fila.pct_gana_cuando_compite > actual.pct_gana_cuando_compite) {
+      mejorPorCategoria.set(fila.categoria, fila);
     }
-    const porCadena = new Map<string, number>();
-    for (const fila of mejorPorCategoria.values()) {
-      porCadena.set(fila.cadena, (porCadena.get(fila.cadena) ?? 0) + 1);
-    }
-    return [...porCadena.values()].sort((a, b) => b - a);
-  })();
+  }
+  const porCadena = new Map<string, number>();
+  for (const fila of mejorPorCategoria.values()) {
+    porCadena.set(fila.cadena, (porCadena.get(fila.cadena) ?? 0) + 1);
+  }
+  const ranking = [...porCadena.entries()].sort((a, b) => b[1] - a[1]);
+  const lideres = ranking.map(([, n]) => n);
+  const masDispar = datos.destacados?.[0];
+  const fechaDatos = fechaEnPalabras(datos.inflacion?.[0]?.fecha_fin ?? "");
 
   const brechas = (datos.destacados ?? []).map((p) => p.diferencia_pct);
 
   const secciones = [
-    {
-      ruta: "/canasta",
-      titulo: "Canasta básica",
-      pregunta: "Cuánto cuesta comer en cada localidad",
-      grafico:
-        canasta.length > 1 ? <MiniTira valores={canasta.map((c) => c.costo_canasta_total)} /> : null,
-    },
     {
       ruta: "/canasta-personalizada",
       titulo: "Tu canasta",
@@ -268,7 +225,7 @@ function Presentacion() {
     <section className="mb-10" aria-labelledby="titulo-portada">
       <p className="text-xs font-semibold uppercase tracking-wider text-tinta-suave mb-3">
         Datos oficiales del SEPA
-        {masBarata && fechaEnPalabras(masBarata.fecha_datos) && ` · precios del ${fechaEnPalabras(masBarata.fecha_datos)}`}
+        {fechaDatos && ` · precios del ${fechaDatos}`}
       </p>
 
       <h1
@@ -281,25 +238,28 @@ function Presentacion() {
       <p className="text-tinta-media leading-relaxed max-w-2xl mb-7">
         Las cadenas informan sus precios al programa SEPA de la Secretaría de Comercio: unos 14 millones por día,
         sucursal por sucursal. Este sitio los toma, los limpia y los convierte en respuestas concretas sobre dónde hay
-        descuentos, cuánto cuesta comer en cada lugar y quién vende más barato.
+        descuentos, cuánto te sale tu compra del mes y quién vende más barato.
       </p>
 
-      {(brecha !== null || inflacion.length > 0) && (
+      {(masDispar || ranking.length > 0 || inflacion.length > 0) && (
         <div className="mb-8">
           <FilaDeCifras
             cifras={[
-              ...(brecha !== null && masBarata && masCara
+              ...(masDispar
                 ? [
                     {
-                      etiqueta: "Canasta más barata",
-                      valor: formatearPesos(masBarata.costo_canasta_total),
-                      detalle: `por adulto, en ${masBarata.localidad}`,
+                      etiqueta: "Mismo producto",
+                      valor: `${Math.round(masDispar.diferencia_pct)}% más`,
+                      detalle: `${nombreLegible(masDispar.descripcion, masDispar.marca)}, según la cadena`,
                     },
-                    { etiqueta: "Brecha entre localidades", valor: `${brecha}%`, detalle: `hasta ${masCara.localidad}` },
+                  ]
+                : []),
+              ...(ranking.length > 0
+                ? [
                     {
-                      etiqueta: "Localidades medidas",
-                      valor: formatearNumero(canasta.length),
-                      detalle: "con la canasta completa",
+                      etiqueta: "Más barata en más categorías",
+                      valor: ranking[0][0],
+                      detalle: `${ranking[0][1]} de ${mejorPorCategoria.size} categorías`,
                     },
                   ]
                 : []),

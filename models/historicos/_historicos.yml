@@ -15,20 +15,6 @@ models:
       - name: fecha_datos
         tests: [not_null]
 
-  - name: historico_canasta_localidad
-    description: >
-      Acumulacion diaria del costo de canasta basica por localidad. Solo
-      guarda localidades con 20 o mas categorias disponibles, el mismo umbral
-      de confiabilidad que aplica la API. Data irrecuperable.
-    tests:
-      - dbt_utils.unique_combination_of_columns:
-          combination_of_columns: [fecha_datos, localidad, provincia]
-    columns:
-      - name: fecha_datos
-        tests: [not_null]
-      - name: costo_canasta_total
-        tests: [not_null]
-
   - name: historico_precios_cadena_categoria
     description: >
       Acumulacion diaria del nivel de precios por cadena y categoria. Es la

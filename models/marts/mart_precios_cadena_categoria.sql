@@ -5,7 +5,7 @@
 -- Sirve de base para comparar cadenas entre si y, con su historico,
 -- para calcular evolucion de precios / inflacion por categoria a nivel
 -- nacional (sin desagregar por provincia -- no es el foco de este KPI).
--- Mismo criterio de calidad que mart_canasta_localidad: gama economica
+-- Mismo criterio de calidad que la canasta basica (retirada el 2026-10-08): gama economica
 -- (evita sesgo de productos premium), filtro de sanidad de gramaje,
 -- outliers percentil 10-90, umbral minimo de 20 muestras.
 -- A diferencia de la canasta, cubre TODAS las categorias (no solo las 29

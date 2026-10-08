@@ -75,10 +75,6 @@ vars:
   # La referencia se calcula entre empresas y no entre banderas a proposito: con
   # banderas, Carrefour pesa cuatro veces y Cencosud tres, asi que la "mediana
   # del mercado" seria la mediana de dos empresas.
-  # Cuantas de las categorias de la canasta basica se pueden valuar con la
-  # mediana de la provincia cuando la localidad no junta datos. La medicion que
-  # lo justifica esta en mart_canasta_detalle.
-  canasta_maximo_imputadas: 4
   # Fechas pendientes que procesa una corrida, de la mas vieja a la mas nueva.
   # La cuota diaria es de 32 GiB (32 x 31 = 992, debajo del TiB gratuito; ver
   # DEPLOY.md). Medido el 2026-10-08: seis fechas juntas costaron 29,5 GiB; con

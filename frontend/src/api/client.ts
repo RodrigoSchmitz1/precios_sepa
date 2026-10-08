@@ -4,8 +4,6 @@ import type {
   LugarMapa,
   SucursalMapa,
   QuienGana,
-  Canasta,
-  CanastaDetalle,
   GrupoComposicion,
   Inflacion,
   InflacionResumen,
@@ -126,26 +124,9 @@ export async function obtenerQuienGana(categoria: string): Promise<QuienGana[]> 
 // entero de una vez y saca la lista de categorias de ahi, asi que ese endpoint
 // era una consulta a BigQuery para un dato que ya estaba en el navegador.
 
-export async function obtenerCanasta(filtros: FiltrosPromos): Promise<Canasta[]> {
-  const query = armarQuery(filtros);
-  const respuesta = await fetch(`${API_BASE}/canasta?${query}`);
-  if (!respuesta.ok) await fallar(respuesta, "Error al traer canasta");
-  return leerJson(respuesta);
-}
-
 export async function obtenerComposicionCanasta(): Promise<GrupoComposicion[]> {
   const respuesta = await fetch(`${API_BASE}/canasta/composicion`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer la composición");
-  return leerJson(respuesta);
-}
-
-export async function obtenerCanastaDetalle(
-  localidad: string,
-  provincia: string
-): Promise<CanastaDetalle[]> {
-  const params = new URLSearchParams({ localidad, provincia });
-  const respuesta = await fetch(`${API_BASE}/canasta/detalle?${params.toString()}`);
-  if (!respuesta.ok) await fallar(respuesta, "Error al traer el detalle");
   return leerJson(respuesta);
 }
 

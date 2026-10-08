@@ -37,14 +37,6 @@ faltantes AS (
         WHERE h.fecha_datos = u.fecha
     )
 
-    UNION ALL
-
-    SELECT "historico_canasta_localidad", u.fecha
-    FROM ultima_disponible u
-    WHERE NOT EXISTS (
-        SELECT 1 FROM {{ ref("historico_canasta_localidad") }} h
-        WHERE h.fecha_datos = u.fecha
-    )
 )
 
 SELECT * FROM faltantes

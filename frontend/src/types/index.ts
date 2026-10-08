@@ -81,19 +81,6 @@ export type QuienGana = {
   pct_victorias: number;
 };
 
-export type Canasta = {
-  localidad: string;
-  provincia: string;
-  categorias_en_canasta: number;
-  /** Categorias valuadas con la mediana de la provincia porque la localidad no
-   *  junta suficientes observaciones. Como mucho canasta_maximo_imputadas
-   *  (dbt_project.yml), hoy 4. */
-  categorias_imputadas: number;
-  costo_canasta_total: number;
-  /** Fecha real de los precios, para poder decir de cuando es el dato. */
-  fecha_datos: string;
-};
-
 export type InflacionResumen = {
   categoria: string;
   /** Variacion del mercado: media geometrica de los factores encadenados de
@@ -162,22 +149,6 @@ export type ResultadoCanastaPersonalizada = {
 export type GrupoComposicion = {
   grupo: string;
   items: { categoria: string; cantidad: number; unidad: "g" | "cc" | "unidad" }[];
-};
-
-/** Una linea del desglose de la canasta de una localidad. */
-export type CanastaDetalle = {
-  categoria: string;
-  cantidad_necesaria: number;
-  precio_mediano_unidad: number;
-  costo_categoria: number;
-  /** Observaciones de precio sobre las que se calculo la mediana. Se muestra
-   *  para que el lector pueda juzgar cuan firme es cada linea. */
-  muestras: number;
-  /** "provincia" cuando la localidad no junta 6 observaciones de la categoria y
-   *  se usa la mediana provincial; en ese caso muestras es la de la provincia. */
-  origen_precio: "localidad" | "provincia";
-  /** Unidad de la cantidad: g, cc o piezas. Opcional por compatibilidad. */
-  unidad?: "g" | "cc" | "unidad" | null;
 };
 
 export type LocalidadOpcion = {

@@ -59,11 +59,10 @@ CRUDO = f"{PROYECTO}.sepa.productos"
 # puede ser el portal demorado y con 3 el crudo ya esta por quedar vacio.
 ATRASO_MAXIMO_DIAS = 2
 
-# Donde queda cada fecha una vez procesada. Los mismos tres que mira la
+# Donde queda cada fecha una vez procesada. Los mismos que mira la
 # ingesta: cada uno arranco en una fecha distinta, asi que se usa la union.
 HISTORICOS = [
     f"{PROYECTO}.dbt_precios.historico_quien_gana",
-    f"{PROYECTO}.dbt_precios.historico_canasta_localidad",
     f"{PROYECTO}.dbt_precios.historico_precios_cadena_categoria",
 ]
 

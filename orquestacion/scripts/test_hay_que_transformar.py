@@ -18,7 +18,7 @@ def hora(h, m=0):
     return datetime(2026, 9, 25, h, m, tzinfo=timezone.utc)
 
 
-MODELOS_DE_AYER = {"stg_productos": hora(15, 55), "mart_canasta_localidad": hora(15, 56)}
+MODELOS_DE_AYER = {"stg_productos": hora(15, 55), "mart_quien_gana": hora(15, 56)}
 
 
 class TestDecidir(unittest.TestCase):

@@ -43,19 +43,10 @@ const SECCIONES: Seccion[] = [
     ],
   },
   {
-    ruta: "/canasta",
-    nombre: "Canasta básica",
-    parrafos: [
-      "Las cantidades son las de la canasta básica alimentaria del INDEC para un adulto durante un mes (región GBA). Para un hogar se multiplica por sus adultos equivalentes: una familia de dos adultos y dos chicos cuenta como 3,09.",
-      "Cada categoría se valúa con el precio por kilo, litro o unidad de los productos más baratos de la categoría (el tercio económico), tomando la mediana de las sucursales de la localidad. Hacen falta al menos 6 precios; si no llega, se usa la mediana de la provincia, en hasta 4 categorías.",
-      "Solo aparecen las localidades donde se puede medir la canasta entera. Sumar lo que cada una tenga haría parecer más baratas a las que tienen menos datos.",
-    ],
-  },
-  {
     ruta: "/canasta-personalizada",
     nombre: "Tu canasta",
     parrafos: [
-      "Lo que escribís lo interpreta una IA, que elige categorías y cantidades partiendo de las de la canasta del INDEC. Es un punto de partida: cada cantidad se puede cambiar.",
+      "La base es la canasta básica alimentaria del INDEC para un adulto durante un mes (región GBA), multiplicada por los adultos equivalentes del hogar: una familia de dos adultos y dos chicos cuenta como 3,09. Lo que escribís lo interpreta una IA, que decide cuántos son, qué no consumen y qué comen más o menos; las cuentas las hace el sitio. Es un punto de partida: cada cantidad se puede cambiar.",
       "Cada categoría se cotiza con la mediana del precio por kilo, litro o unidad de la gama elegida en las localidades que marques. Si tu zona no tiene datos de una categoría, se usa el precio de la provincia y se aclara.",
       "En las categorías que se compran por pieza (huevos, pañales, toallitas) la cantidad sale del envase: un maple de 30 huevos cuenta como 30. Lo que no dice cuántas piezas trae no entra en ese precio.",
     ],
