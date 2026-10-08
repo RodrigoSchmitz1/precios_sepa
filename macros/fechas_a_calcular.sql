@@ -107,7 +107,7 @@
 
     {#- TOPE DE FECHAS POR CORRIDA (2026-10-08). Cada fecha pendiente suma unos 5
         GiB a la corrida (el 01-10, tres fechas costaron 21,8 GiB) y la cuota
-        diaria es de 27: despues de varios dias sin publicacion, SEPA largo seis
+        diaria era de 27 (hoy 32): despues de varios dias sin publicacion, SEPA largo seis
         fechas juntas y una sola corrida las habria cortado a mitad de camino. Se
         procesan las mas viejas primero y el resto al dia siguiente; como las
         pendientes se calculan contra los historicos, la corrida siguiente sigue

@@ -85,7 +85,17 @@ de 25 GiB por día parece holgada, pero el 10 de septiembre cerraba con ~641
 GiB usados y quedaban 19 GiB por día: con 25, el mes podía terminar pagando aunque
 ningún día individual se pasara.
 
-Con 19 GiB por día el pipeline entra. Y como corre temprano en el día de la
+**El valor vigente desde el 2026-10-08 es 32 GiB por día, fijo.** 32 x 31 = 992
+GiB: ningún mes puede pasar el TiB gratuito aunque todos los días toquen el
+techo, así que no hace falta recalcularlo mes a mes. No se usa 33 (1.023 GiB)
+porque la última consulta del día puede pasarse un poco del límite. Un día con
+muchas fechas atrasadas se puede subir puntualmente, siempre que lo usado en el
+mes más el techo de ese día más 32 por cada día restante no pase el TiB; después
+se vuelve a 32. Ese día de octubre se subió a 40 y seis fechas juntas costaron
+29,5 GiB. Del lado del pipeline, `maximo_fechas_por_corrida` (dbt_project.yml)
+limita cuántas fechas procesa una corrida, para que nunca se corte a mitad.
+
+Con el techo del día el pipeline entra. Y como corre temprano en el día de la
 cuota, que se reinicia a la medianoche del Pacífico (las 4 de la mañana en
 Argentina), si algo se pasa es el tráfico del sitio el que recibe el rechazo, no
 la ingesta.
