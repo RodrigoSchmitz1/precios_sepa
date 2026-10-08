@@ -13,6 +13,7 @@ import type {
   CategoriaCanasta,
   ProductoComparado,
   ProductoDetalle,
+  ProductoSugerido,
   ResultadoLista,
   ResultadoOptimizacion,
 } from "../types";
@@ -203,6 +204,17 @@ export async function cotizarLista(items: { id_producto: string; cantidad: numbe
     body: JSON.stringify({ items }),
   });
   if (!respuesta.ok) await fallar(respuesta, "Error al cotizar tu lista");
+  return leerJson(respuesta);
+}
+
+/** De tu canasta a tu lista: los productos mas comunes de cada categoria. */
+export async function obtenerSugeridos(categorias: string[], limite: number): Promise<Record<string, ProductoSugerido[]>> {
+  const respuesta = await fetch(`${API_BASE}/mismo-producto/sugeridos`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ categorias, limite }),
+  });
+  if (!respuesta.ok) await fallar(respuesta, "Error al traer los productos de tu canasta");
   return leerJson(respuesta);
 }
 

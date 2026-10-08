@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "react-router";
 import EmpezarConCanastaBasica from "../components/EmpezarConCanastaBasica";
 import {
   LUGARES_DE_COMPRA,
@@ -747,6 +748,25 @@ function CanastaPersonalizadaPage() {
           se calcule el costo: son dos preguntas distintas (cuanto sale y donde
           conviene comprarla) y la segunda se puede responder sola. */}
       {cotizables.length > 0 && <DondeComprarla items={cotizables} />}
+
+      {/* De tu canasta a tu lista: aca se cotizan categorias; en El mismo
+          producto se elige la marca exacta de cada una. */}
+      {cotizables.length > 0 && (
+        <Link
+          to="/mismo-producto"
+          className="group mt-6 flex items-center justify-between gap-4 rounded-2xl border border-ahorro-borde bg-ahorro-tenue/40 p-4 sm:p-5 hover:bg-ahorro-tenue transition-colors"
+        >
+          <span>
+            <span className="block font-display text-xl text-tinta mb-1">¿Ya sabés qué marcas comprás?</span>
+            <span className="block text-sm text-tinta-media leading-relaxed">
+              Elegí la marca exacta de cada cosa y mirá en qué cadena te sale más barata tu compra.
+            </span>
+          </span>
+          <span className="shrink-0 text-sm font-medium text-ahorro group-hover:translate-x-0.5 transition-transform">
+            Elegir marcas →
+          </span>
+        </Link>
+      )}
 
       {/*
         Barra de sesion: la canasta se guarda sola en el navegador y el link

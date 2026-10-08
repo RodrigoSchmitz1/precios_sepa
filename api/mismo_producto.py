@@ -148,9 +148,14 @@ def armar_indice(filas) -> dict:
                 "unidad_normalizada": fila.get("unidad_normalizada"),
                 "fecha_datos": str(fila["fecha_datos"]),
                 "precios": [],
+                # Se busca tambien en como lo llama cada cadena: el mismo codigo
+                # puede llegar como "YERBA" de marca "PLAYA" en una y como
+                # "PLAYADITO YERBA MATE SUAVE 500G" en otra (textos_busqueda los
+                # junta a todos; .get porque llega en la corrida siguiente).
                 "_texto": normalizar(
                     f"{fila['descripcion']} {fila['marca'] or ''} "
-                    f"{_tamanos_buscables(fila.get('cantidad_normalizada'), fila.get('unidad_normalizada'))}"
+                    f"{_tamanos_buscables(fila.get('cantidad_normalizada'), fila.get('unidad_normalizada'))} "
+                    f"{fila.get('textos_busqueda') or ''}"
                 ),
             }
         producto["precios"].append(
@@ -212,6 +217,45 @@ def destacados(indice: dict, limite: int = 12) -> list[dict]:
     ]
     candidatos.sort(key=lambda p: (-p["diferencia_pct"], p["descripcion"]))
     return [_resumen(p) for p in candidatos[:limite]]
+
+
+# De tu canasta a tu lista: Tu canasta cotiza categorias ("yerba, 2 kg por
+# mes"); aca se elige la marca exacta de cada una.
+MAXIMO_CATEGORIAS_SUGERIDAS = 80
+MAXIMO_SUGERIDOS_POR_CATEGORIA = 12
+
+
+def sugeridos_por_categoria(indice: dict, categorias: list, limite: int = 4) -> dict:
+    """Los productos mas comunes de cada categoria, para elegir la marca de un toque.
+
+    "Mas comun" es en cuantas sucursales tiene precio creible, sumando todas las
+    cadenas: la Playadito de 500 g esta en miles y una yerba de una sola cadena
+    en decenas. Es lo que mejor aproxima "la que compra la mayoria", y es la que
+    mas se puede comparar.
+
+    Primero una opcion por marca: la pregunta es "¿de que marca?", y tres
+    fideos Lucchetti en distintos cortes no la responden. Si no alcanzan las
+    marcas se completa con las que siguen.
+    """
+    pedidas = {str(c) for c in categorias[:MAXIMO_CATEGORIAS_SUGERIDAS] if isinstance(c, str)}
+    limite = max(1, min(int(limite), MAXIMO_SUGERIDOS_POR_CATEGORIA))
+    por_categoria: dict[str, list] = {c: [] for c in pedidas}
+    for producto in indice.values():
+        lista = por_categoria.get(producto["categoria"])
+        if lista is None:
+            continue
+        sucursales = sum(p["sucursales"] for p in producto["precios"] if p["precio_creible"])
+        lista.append((sucursales, producto))
+    resultado = {}
+    for categoria, candidatos in por_categoria.items():
+        candidatos.sort(key=lambda x: (-x[0], x[1]["descripcion"]))
+        marcas, primeros, resto = set(), [], []
+        for sucursales, p in candidatos:
+            marca = normalizar(p["marca"] or p["descripcion"])
+            (resto if marca in marcas else primeros).append((sucursales, p))
+            marcas.add(marca)
+        resultado[categoria] = [{**_resumen(p), "sucursales": s} for s, p in (primeros + resto)[:limite]]
+    return resultado
 
 
 # Tu lista: cuanto cuesta en cada cadena una lista de productos exactos.

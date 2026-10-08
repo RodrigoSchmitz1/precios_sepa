@@ -1,10 +1,12 @@
 import { useEffect, useState } from "react";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { buscarProductos, obtenerProducto, obtenerProductosDestacados } from "../api/client";
 import Titular, { Resaltado } from "../components/Titular";
 import FilaDeCifras from "../components/FilaDeCifras";
 import TiraDePuntos from "../components/TiraDePuntos";
 import TuLista from "../components/TuLista";
+import DeTuCanasta from "../components/DeTuCanasta";
+import { leerDelNavegador } from "../utils/canastaGuardada";
 import { fechaEnPalabras, formatearNumero, formatearPesos, tamanoQueFalta } from "../utils/formato";
 import { nombreLegible } from "../utils/texto";
 import { guardarLista, leerLista, MAXIMO_PRODUCTOS } from "../utils/lista";
@@ -236,6 +238,44 @@ function BotonLista({ enLista, onAgregar, compacto = false }: { enLista: boolean
   );
 }
 
+/** Sin canasta ni lista: los dos caminos para armar la compra. */
+function DosCaminos() {
+  return (
+    <section aria-labelledby="titulo-dos-caminos" className="mb-10">
+      <h2 id="titulo-dos-caminos" className="font-display text-2xl text-tinta mb-1">
+        ¿Dónde te conviene hacer la compra?
+      </h2>
+      <p className="text-sm text-tinta-media mb-4">
+        Con tus productos exactos te decimos en qué cadena te sale más barata la compra entera y cuánto ahorrás.
+      </p>
+      <div className="grid sm:grid-cols-2 gap-3">
+        <Link
+          to="/canasta-personalizada"
+          className="group block rounded-2xl border border-ahorro-borde bg-ahorro-tenue/40 p-4 sm:p-5 hover:bg-ahorro-tenue transition-colors"
+        >
+          <span className="block text-xs font-semibold uppercase tracking-wider text-ahorro mb-2">La compra del mes</span>
+          <span className="block font-display text-xl text-tinta mb-1">Armá tu canasta</span>
+          <span className="block text-sm text-tinta-media leading-relaxed">
+            Contanos qué compran en tu casa y la armamos con vos. Después volvé acá y elegí la marca de cada cosa con
+            un toque.
+          </span>
+          <span className="inline-block mt-3 text-sm font-medium text-ahorro group-hover:translate-x-0.5 transition-transform">
+            Ir a Tu canasta →
+          </span>
+        </Link>
+        <div className="rounded-2xl border border-linea bg-papel p-4 sm:p-5">
+          <span className="block text-xs font-semibold uppercase tracking-wider text-tinta-suave mb-2">Algunos productos</span>
+          <span className="block font-display text-xl text-tinta mb-1">Armá tu lista</span>
+          <span className="block text-sm text-tinta-media leading-relaxed">
+            Buscá arriba lo que comprás siempre -tu yerba, tu aceite, tu café- y sumalo con{" "}
+            <span className="text-ahorro font-medium">+ Lista</span>.
+          </span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 function VistaProducto({
   estado,
   onVolver,
@@ -396,17 +436,20 @@ function MismoProductoPage() {
   const [destacados, setDestacados] = useState<Destacados | null>(null);
   const [ejemplos, setEjemplos] = useState<ProductoDetalle[]>([]);
   const [lista, setLista] = useState<ItemLista[]>(leerLista);
+  // Tu canasta, si ya la armo en este navegador: sus categorias son las filas
+  // de "De tu canasta". Se lee una vez; la canasta se edita en su pagina.
+  const [canasta] = useState(() => leerDelNavegador()?.items ?? []);
 
   useEffect(() => {
     guardarLista(lista);
   }, [lista]);
 
   const enLista = (idProducto: string) => lista.some((i) => i.id_producto === idProducto);
-  const agregar = (p: ProductoComparado) =>
+  const agregar = (p: ProductoComparado, cantidad = 1) =>
     setLista((previa) =>
       previa.some((i) => i.id_producto === p.id_producto) || previa.length >= MAXIMO_PRODUCTOS
         ? previa
-        : [...previa, { id_producto: p.id_producto, nombre: nombreConTamano(p), cantidad: 1 }]
+        : [...previa, { id_producto: p.id_producto, nombre: nombreConTamano(p), cantidad, categoria: p.categoria }]
     );
   const cambiarCantidad = (idProducto: string, cantidad: number) =>
     setLista((previa) => previa.map((i) => (i.id_producto === idProducto ? { ...i, cantidad } : i)));
@@ -566,7 +609,11 @@ function MismoProductoPage() {
         )}
       </section>
 
-      {lista.length > 0 ? (
+      {!id && consulta.length < 2 && canasta.length > 0 && (
+        <DeTuCanasta items={canasta} lista={lista} onAgregar={agregar} onVer={elegir} nombrar={nombreConTamano} />
+      )}
+
+      {lista.length > 0 && (
         <TuLista
           lista={lista}
           onCambiarCantidad={cambiarCantidad}
@@ -574,17 +621,17 @@ function MismoProductoPage() {
           onVaciar={() => setLista([])}
           onVer={elegir}
         />
-      ) : (
-        !id && (
-          <section className="mb-10 border border-dashed border-linea-fuerte rounded-2xl p-4 sm:p-5">
-            <h2 className="font-display text-xl text-tinta mb-1">Armá tu lista</h2>
-            <p className="text-sm text-tinta-media leading-relaxed">
-              Buscá los productos que comprás siempre -tu yerba, tu aceite, tu café- y sumalos con{" "}
-              <span className="text-ahorro font-medium">+ Lista</span>. Te decimos en qué cadena te sale más barata la
-              compra entera y cuánto ahorrás.
-            </p>
-          </section>
-        )
+      )}
+
+      {!id && lista.length === 0 && canasta.length === 0 && <DosCaminos />}
+      {!id && lista.length > 0 && canasta.length === 0 && (
+        <p className="-mt-6 mb-10 text-sm text-tinta-media">
+          ¿Es la compra del mes?{" "}
+          <Link to="/canasta-personalizada" className="text-ahorro font-medium hover:text-ahorro-hover">
+            Armá tu canasta
+          </Link>{" "}
+          y elegí acá la marca de cada cosa.
+        </p>
       )}
 
       {!id && consulta.length < 2 && ejemplos.length > 0 && (
@@ -610,12 +657,12 @@ function MismoProductoPage() {
               <ul className="bg-papel border border-linea rounded-2xl divide-y divide-linea overflow-hidden">
                 {destacados.productos.map((producto) => (
                   <FilaProducto
-                key={producto.id_producto}
-                producto={producto}
-                onElegir={elegir}
-                enLista={enLista(producto.id_producto)}
-                onAgregar={agregar}
-              />
+                    key={producto.id_producto}
+                    producto={producto}
+                    onElegir={elegir}
+                    enLista={enLista(producto.id_producto)}
+                    onAgregar={agregar}
+                  />
                 ))}
               </ul>
               <p className="mt-3 text-xs text-tinta-suave leading-relaxed">

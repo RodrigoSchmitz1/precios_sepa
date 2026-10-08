@@ -6,7 +6,15 @@ Tests de El mismo producto, sin BigQuery.
 
 import unittest
 
-from mismo_producto import armar_indice, buscar, cotizar_lista, destacados, detalle, normalizar
+from mismo_producto import (
+    armar_indice,
+    buscar,
+    cotizar_lista,
+    destacados,
+    detalle,
+    normalizar,
+    sugeridos_por_categoria,
+)
 
 
 def producto(
@@ -243,6 +251,49 @@ class TestBuscarTamano(unittest.TestCase):
         self.assertEqual([p["id_producto"] for p in buscar(indice, "natura 1.5l")], ["2"])
         self.assertEqual([p["id_producto"] for p in buscar(indice, "natura 1,5 lt")], ["2"])
         self.assertEqual(buscar(indice, "playadito 1kg"), [])
+
+    def test_se_encuentra_por_el_nombre_de_cualquier_cadena(self):
+        # Una cadena lo informa como "YERBA" de marca "PLAYA"; las demas, con el nombre.
+        filas = producto("1", CUATRO_CADENAS, descripcion="YERBA")
+        for f in filas:
+            f.update(marca="PLAYA", textos_busqueda="yerba playa playadito yerba mate suave 500g playadito")
+        indice = armar_indice(filas)
+        self.assertEqual(len(buscar(indice, "playadito")), 1)
+        self.assertEqual(len(buscar(indice, "yerba suave")), 1)
+
+
+class TestSugeridosPorCategoria(unittest.TestCase):
+    """De tu canasta a tu lista: las marcas mas comunes de cada categoria."""
+
+    def setUp(self):
+        filas = (
+            producto("comun", {"Coto": (3000, 40), "Dia": (3400, 900)}, descripcion="PLAYADITO 500G")
+            + producto("rara", {"Coto": (2500, 5), "Vea": (2600, 3)}, descripcion="YERBA RARA 500G")
+            # Mas sucursales en total, pero las de Jumbo no son creibles: no cuentan.
+            + producto("inflada", {"Coto": (3000, 10), "Jumbo": (100, 5000)}, descripcion="YERBA INFLADA",
+                       no_creibles=("Jumbo",))
+        )
+        self.indice = armar_indice(filas)
+
+    def test_primero_la_que_esta_en_mas_sucursales(self):
+        r = sugeridos_por_categoria(self.indice, ["Yerba mate"], limite=3)
+        self.assertEqual([p["id_producto"] for p in r["Yerba mate"]], ["comun", "inflada", "rara"])
+        self.assertEqual(r["Yerba mate"][0]["sucursales"], 940)
+
+    def test_primero_una_opcion_por_marca(self):
+        filas = (
+            producto("tallarin", {"Coto": (1390, 40), "Dia": (1400, 900)}, descripcion="TALLARIN", marca="LUCCHETTI")
+            + producto("spaghetti", {"Coto": (1390, 40), "Dia": (1400, 890)}, descripcion="SPAGHETTI", marca="LUCCHETTI")
+            + producto("matarazzo", {"Coto": (1500, 40), "Dia": (1600, 500)}, descripcion="PENNE", marca="MATARAZZO")
+        )
+        r = sugeridos_por_categoria(armar_indice(filas), ["Yerba mate"], limite=3)
+        self.assertEqual([p["id_producto"] for p in r["Yerba mate"]], ["tallarin", "matarazzo", "spaghetti"])
+
+    def test_respeta_el_limite_y_las_categorias_sin_productos_vuelven_vacias(self):
+        r = sugeridos_por_categoria(self.indice, ["Yerba mate", "Aceite", 7], limite=1)
+        self.assertEqual(len(r["Yerba mate"]), 1)
+        self.assertEqual(r["Aceite"], [])
+        self.assertNotIn(7, r)
 
 
 class TestTuLista(unittest.TestCase):

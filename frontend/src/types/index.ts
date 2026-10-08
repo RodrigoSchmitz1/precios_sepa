@@ -263,6 +263,15 @@ export type ItemLista = {
    *  esperar a la API. */
   nombre: string;
   cantidad: number;
+  /** La categoria, para saber que ya se eligio la marca de esa categoria de Tu
+   *  canasta. Opcional: las listas guardadas antes no la tienen. */
+  categoria?: string | null;
+};
+
+/** Un producto comun de una categoria, para elegir la marca desde Tu canasta. */
+export type ProductoSugerido = ProductoComparado & {
+  /** Sucursales con precio creible, sumando todas las cadenas. */
+  sucursales: number;
 };
 
 /** Cuanto sale Tu lista en una cadena. */

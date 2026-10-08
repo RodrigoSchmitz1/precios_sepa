@@ -905,6 +905,20 @@ def cotizar_lista_de_productos(datos: ListaDeProductos):
     return mismo_producto.cotizar_lista(_indice_mismo_producto(), items)
 
 
+class CategoriasDeTuCanasta(BaseModel):
+    categorias: list
+    limite: int = 4
+
+
+@api.post("/mismo-producto/sugeridos")
+def sugerir_productos_por_categoria(datos: CategoriasDeTuCanasta):
+    """De tu canasta a tu lista: las marcas mas comunes de cada categoria.
+
+    Un solo pedido para toda la canasta, sobre el indice en memoria.
+    """
+    return mismo_producto.sugeridos_por_categoria(_indice_mismo_producto(), datos.categorias, datos.limite)
+
+
 @api.get("/mismo-producto/destacados")
 def obtener_productos_destacados(limite: int = Query(12, ge=1, le=30)):
     return mismo_producto.destacados(_indice_mismo_producto(), limite)
