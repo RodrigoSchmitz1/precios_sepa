@@ -81,9 +81,20 @@
     {%- endfor -%}
 
     {%- if en_crudo | length == 0 -%}
-        {#- Sin particiones en el crudo no hay nada que calcular; se devuelve una
-            fecha imposible para que el modelo salga vacio en vez de fallar. -#}
-        {{ return("DATE('1970-01-01')") }}
+        {#- SIN FECHAS EN LA FUENTE SE CORTA CON ERROR (2026-10-08). Hasta ese dia
+            se devolvia una fecha imposible "para que el modelo salga vacio en vez
+            de fallar", pensando en los historicos, donde una fecha vacia no toca
+            nada. Pero tambien llaman a este macro mart_canasta_detalle,
+            mart_quien_gana y mart_precios_cadena_categoria, que son tablas que se
+            reconstruyen enteras: SEPA no publico del 2 al 6 de octubre,
+            stg_productos (3 dias de retencion) se vacio, la corrida del 7 las
+            rearmo SIN FILAS y la canasta basica y Mas barato quedaron en blanco.
+            Fallando, cada tabla conserva su ultimo contenido bueno y el workflow
+            avisa, igual que ultima_fecha. -#}
+        {{ exceptions.raise_compiler_error(
+            "La fuente " ~ fuente ~ " no tiene particiones: no hay fechas que calcular. "
+            ~ "Se corta para no reconstruir vacios los marts que dependen de ella."
+        ) }}
     {%- endif -%}
 
     {%- set ordenadas = en_crudo | sort -%}
@@ -94,10 +105,24 @@
         {%- endif -%}
     {%- endfor -%}
 
-    {#- La ultima siempre entra, para que el mart nunca quede vacio. -#}
-    {%- set ultima = ordenadas | last -%}
-    {%- if ultima not in pendientes -%}
-        {%- do pendientes.append(ultima) -%}
+    {#- TOPE DE FECHAS POR CORRIDA (2026-10-08). Cada fecha pendiente suma unos 5
+        GiB a la corrida (el 01-10, tres fechas costaron 21,8 GiB) y la cuota
+        diaria es de 27: despues de varios dias sin publicacion, SEPA largo seis
+        fechas juntas y una sola corrida las habria cortado a mitad de camino. Se
+        procesan las mas viejas primero y el resto al dia siguiente; como las
+        pendientes se calculan contra los historicos, la corrida siguiente sigue
+        sola desde donde quedo. La retencion dinamica de la ingesta mantiene esas
+        fechas en el crudo mientras tanto. -#}
+    {%- set tope = var("maximo_fechas_por_corrida") -%}
+    {%- if pendientes | length > tope -%}
+        {%- set pendientes = pendientes[:tope] -%}
+    {%- else -%}
+        {#- La ultima siempre entra, para que el mart nunca quede vacio. Con el
+            tope activo no hace falta: las pendientes ya traen fechas. -#}
+        {%- set ultima = ordenadas | last -%}
+        {%- if ultima not in pendientes -%}
+            {%- do pendientes.append(ultima) -%}
+        {%- endif -%}
     {%- endif -%}
 
     {#- Fechas forzadas para recalcular (ver OJO AL CAMBIAR UNA METODOLOGIA).

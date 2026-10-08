@@ -10,17 +10,26 @@ mes gratuito para escribir exactamente lo que ya estaba.
 
 LA REGLA. Hay que transformar si pasa cualquiera de estas tres cosas:
 
-  1. Alguna tabla que escribe la ingesta (crudo, comercio, sucursales) se
-     modifico despues que el modelo de dbt mas viejo. Cubre los datos nuevos y
-     tambien una corrida que murio a mitad: el mart que no llego a armarse
-     queda mas viejo que el crudo y la corrida siguiente lo rehace.
-  2. Hubo commits en modelos, seeds, macros o la categorizacion despues de esa
-     misma hora. Un cambio de metodologia tiene que llegar a los marts aunque
-     no haya datos nuevos.
+  1. Hay fechas en el crudo que todavia no estan en los historicos. Cubre los
+     datos nuevos y tambien una corrida que murio a mitad o que proceso solo
+     algunas fechas (ver maximo_fechas_por_corrida): lo que no llego a los
+     historicos sigue pendiente y la corrida siguiente lo retoma.
+  2. Hubo commits en modelos, seeds, macros o la categorizacion despues del
+     ultimo rebuild. Un cambio de metodologia tiene que llegar a los marts
+     aunque no haya datos nuevos.
   3. La corrida no es la programada (workflow_dispatch): quien la dispara a
      mano quiere que corra.
 
-Todo sale de metadata de tablas (tables.get), que no consume cuota.
+POR QUE FECHAS Y NO HORAS DE MODIFICACION (2026-10-08). La primera version
+corria si alguna tabla de la ingesta se habia modificado despues que el modelo
+mas viejo. Pero la ingesta modifica el crudo aunque no cargue nada: ajusta su
+retencion, y eso cambia la hora de modificacion de la tabla. Del 4 al 7 de
+octubre SEPA no publico, la corrida corrio igual todos los dias, y el 7 rearmo
+la canasta y Mas barato sin filas. Comparar fechas presentes contra fechas
+procesadas mide lo que importa.
+
+Todo sale de metadata de tablas (lista de particiones y tables.get), que no
+consume cuota.
 
 EL AVISO DE ATRASO NO SE PIERDE. Antes, un dia sin datos hacia fallar el test
 crudo_al_dia y GitHub mandaba el mail. Si la corrida se saltea, ese test no
@@ -50,12 +59,12 @@ CRUDO = f"{PROYECTO}.sepa.productos"
 # puede ser el portal demorado y con 3 el crudo ya esta por quedar vacio.
 ATRASO_MAXIMO_DIAS = 2
 
-# Lo que escribe la ingesta local. No va producto_categoria, que esta en el
-# mismo dataset pero la escribe este mismo workflow (categorizar.py).
-ENTRADAS = [
-    f"{PROYECTO}.sepa.productos",
-    f"{PROYECTO}.sepa.comercio",
-    f"{PROYECTO}.sepa.sucursales",
+# Donde queda cada fecha una vez procesada. Los mismos tres que mira la
+# ingesta: cada uno arranco en una fecha distinta, asi que se usa la union.
+HISTORICOS = [
+    f"{PROYECTO}.dbt_precios.historico_quien_gana",
+    f"{PROYECTO}.dbt_precios.historico_canasta_localidad",
+    f"{PROYECTO}.dbt_precios.historico_precios_cadena_categoria",
 ]
 
 # Lo que, si cambia en git, cambia lo que calcula dbt.
@@ -63,20 +72,35 @@ RUTAS_DE_CODIGO = ["models", "seeds", "macros", "dbt_project.yml", "packages.yml
                    "orquestacion/scripts/categorizar.py"]
 
 
-def decidir(entradas_modificadas, modelos_modificados, hay_commits, manual):
-    """Devuelve (correr, motivo). Separada de BigQuery y de git para probarla."""
+def decidir(pendientes, modelos_modificados, hay_commits, manual):
+    """Devuelve (correr, motivo). Separada de BigQuery y de git para probarla.
+
+    pendientes: fechas que estan en el crudo y no en los historicos.
+    """
     if manual:
         return True, "corrida manual"
     if not modelos_modificados:
         return True, "no hay modelos armados todavia"
-    mas_viejo = min(modelos_modificados.values())
-    nuevas = sorted(t for t, m in entradas_modificadas.items() if m > mas_viejo)
-    if nuevas:
-        return True, f"la ingesta escribio {', '.join(nuevas)} despues del modelo mas viejo"
+    if pendientes:
+        return True, "fechas sin procesar: " + ", ".join(f.isoformat() for f in sorted(pendientes))
     if hay_commits:
         return True, "hay cambios de codigo de dbt sin aplicar"
-    viejo = min(modelos_modificados, key=modelos_modificados.get)
-    return False, f"nada nuevo desde {mas_viejo:%Y-%m-%d %H:%M} UTC ({viejo})"
+    return False, "no hay fechas nuevas en el crudo ni cambios de codigo"
+
+
+def fechas_con_particion(cliente, tabla):
+    try:
+        particiones = cliente.list_partitions(tabla)
+    except NotFound:
+        return set()
+    return {datetime.strptime(p, "%Y%m%d").date() for p in particiones if p.isdigit()}
+
+
+def fechas_pendientes(cliente):
+    procesadas = set()
+    for tabla in HISTORICOS:
+        procesadas |= fechas_con_particion(cliente, tabla)
+    return fechas_con_particion(cliente, CRUDO) - procesadas
 
 
 def dias_de_atraso(ultima_fecha, hoy):
@@ -120,11 +144,11 @@ def main():
     cliente = bigquery.Client.from_service_account_json(
         os.path.join(os.path.dirname(os.path.abspath(__file__)), "credenciales.json"))
 
-    entradas = modificaciones(cliente, ENTRADAS)
+    pendientes = fechas_pendientes(cliente)
     modelos = modificaciones(cliente, [f"{PROYECTO}.dbt_precios.{n}" for n in nombres_de_modelos()])
     commits = bool(modelos) and hay_commits_desde(min(modelos.values()))
 
-    correr, motivo = decidir(entradas, modelos, commits, manual)
+    correr, motivo = decidir(pendientes, modelos, commits, manual)
     print(f"{'Correr' if correr else 'Saltear'}: {motivo}")
 
     if "GITHUB_OUTPUT" in os.environ:

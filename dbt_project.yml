@@ -79,6 +79,9 @@ vars:
   # mediana de la provincia cuando la localidad no junta datos. La medicion que
   # lo justifica esta en mart_canasta_detalle.
   canasta_maximo_imputadas: 4
+  # Fechas pendientes que procesa una corrida, de la mas vieja a la mas nueva.
+  # Cada una suma ~5 GiB y la cuota diaria es de 27. Ver fechas_a_calcular.
+  maximo_fechas_por_corrida: 3
   # Categorias que se cotizan por pieza y donde las cadenas suelen cargar el
   # paquete entero como "1 unidad". Ver el macro piezas_por_envase.
   categorias_por_pieza: ["Huevos", "Panales", "Higiene bebe", "Descartables"]

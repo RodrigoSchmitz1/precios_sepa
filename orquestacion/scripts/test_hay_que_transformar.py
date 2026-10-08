@@ -22,38 +22,28 @@ MODELOS_DE_AYER = {"stg_productos": hora(15, 55), "mart_canasta_localidad": hora
 
 
 class TestDecidir(unittest.TestCase):
-    def test_sin_datos_ni_codigo_nuevo_saltea(self):
-        # El 26-09: la ingesta no cargo nada y el crudo sigue siendo el de ayer.
-        entradas = {"productos": hora(11, 52), "comercio": hora(11, 49)}
-        correr, _ = decidir(entradas, MODELOS_DE_AYER, hay_commits=False, manual=False)
+    def test_sin_fechas_nuevas_ni_codigo_saltea(self):
+        # Del 4 al 7 de octubre: SEPA no publicaba y la ingesta solo ajustaba la
+        # retencion del crudo. La version anterior corria igual (miraba horas de
+        # modificacion) y el 7 dejo la canasta sin filas.
+        correr, _ = decidir(set(), MODELOS_DE_AYER, hay_commits=False, manual=False)
         self.assertFalse(correr)
 
-    def test_crudo_nuevo_corre(self):
-        entradas = {"productos": hora(16, 30), "comercio": hora(11, 49)}
-        correr, motivo = decidir(entradas, MODELOS_DE_AYER, hay_commits=False, manual=False)
+    def test_fechas_sin_procesar_corre(self):
+        correr, motivo = decidir({date(2026, 10, 2), date(2026, 10, 3)}, MODELOS_DE_AYER, hay_commits=False, manual=False)
         self.assertTrue(correr)
-        self.assertIn("productos", motivo)
-
-    def test_un_mart_que_no_se_armo_hace_correr(self):
-        # dbt murio a mitad (como el 22-09): un mart quedo del dia anterior y es
-        # mas viejo que el crudo que los demas si alcanzaron a procesar.
-        modelos = dict(MODELOS_DE_AYER, mart_quien_gana=hora(9, 0))
-        entradas = {"productos": hora(11, 52)}
-        correr, _ = decidir(entradas, modelos, hay_commits=False, manual=False)
-        self.assertTrue(correr)
+        self.assertIn("2026-10-02", motivo)
 
     def test_cambio_de_codigo_corre_sin_datos_nuevos(self):
-        entradas = {"productos": hora(11, 52)}
-        correr, _ = decidir(entradas, MODELOS_DE_AYER, hay_commits=True, manual=False)
+        correr, _ = decidir(set(), MODELOS_DE_AYER, hay_commits=True, manual=False)
         self.assertTrue(correr)
 
     def test_la_corrida_manual_siempre_corre(self):
-        entradas = {"productos": hora(11, 52)}
-        correr, _ = decidir(entradas, MODELOS_DE_AYER, hay_commits=False, manual=True)
+        correr, _ = decidir(set(), MODELOS_DE_AYER, hay_commits=False, manual=True)
         self.assertTrue(correr)
 
     def test_sin_modelos_armados_corre(self):
-        correr, _ = decidir({"productos": hora(11, 52)}, {}, hay_commits=False, manual=False)
+        correr, _ = decidir(set(), {}, hay_commits=False, manual=False)
         self.assertTrue(correr)
 
 
