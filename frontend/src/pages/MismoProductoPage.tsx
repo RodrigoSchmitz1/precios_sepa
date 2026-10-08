@@ -4,9 +4,11 @@ import { buscarProductos, obtenerProducto, obtenerProductosDestacados } from "..
 import Titular, { Resaltado } from "../components/Titular";
 import FilaDeCifras from "../components/FilaDeCifras";
 import TiraDePuntos from "../components/TiraDePuntos";
+import TuLista from "../components/TuLista";
 import { fechaEnPalabras, formatearNumero, formatearPesos, tamanoQueFalta } from "../utils/formato";
 import { nombreLegible } from "../utils/texto";
-import type { PrecioEnCadena, ProductoComparado, ProductoDetalle } from "../types";
+import { guardarLista, leerLista, MAXIMO_PRODUCTOS } from "../utils/lista";
+import type { ItemLista, PrecioEnCadena, ProductoComparado, ProductoDetalle } from "../types";
 
 /*
   El mismo producto: cuanto cuesta el mismo codigo de barras en cada cadena.
@@ -213,7 +215,38 @@ function ListaDePrecios({ p }: { p: ProductoDetalle }) {
   );
 }
 
-function VistaProducto({ estado, onVolver }: { estado: Detalle | null; onVolver?: () => void }) {
+/** Agregar un producto a Tu lista, o avisar que ya esta. */
+function BotonLista({ enLista, onAgregar, compacto = false }: { enLista: boolean; onAgregar: () => void; compacto?: boolean }) {
+  if (enLista) {
+    return (
+      <span className={`shrink-0 text-ahorro ${compacto ? "text-xs px-2" : "text-sm"}`} aria-label="Está en tu lista">
+        ✓ {compacto ? "En la lista" : "Está en tu lista"}
+      </span>
+    );
+  }
+  return (
+    <button
+      onClick={onAgregar}
+      className={`shrink-0 rounded-full border border-ahorro-borde text-ahorro hover:bg-ahorro-tenue transition-colors ${
+        compacto ? "text-xs px-2.5 py-1" : "text-sm px-4 py-2 font-medium"
+      }`}
+    >
+      + {compacto ? "Lista" : "Agregar a tu lista"}
+    </button>
+  );
+}
+
+function VistaProducto({
+  estado,
+  onVolver,
+  enLista,
+  onAgregar,
+}: {
+  estado: Detalle | null;
+  onVolver?: () => void;
+  enLista?: (id: string) => boolean;
+  onAgregar?: (p: ProductoComparado) => void;
+}) {
   if (estado === null) return <p className="text-sm text-tinta-suave mb-10">Cargando…</p>;
 
   // Sin onVolver la vista se usa como ejemplo dentro de la portada de la
@@ -285,6 +318,13 @@ function VistaProducto({ estado, onVolver }: { estado: Detalle | null; onVolver?
         </div>
       )}
 
+      {onAgregar && enLista && (
+        <div className="mb-6 flex flex-wrap items-center gap-3">
+          <BotonLista enLista={enLista(p.id_producto)} onAgregar={() => onAgregar(p)} />
+          <span className="text-xs text-tinta-suave">Sumalo con lo que comprás siempre y mirá dónde te conviene la compra entera.</span>
+        </div>
+      )}
+
       <div className="mb-6">
         <FilaDeCifras
           cifras={[
@@ -305,13 +345,23 @@ function VistaProducto({ estado, onVolver }: { estado: Detalle | null; onVolver?
   );
 }
 
-function FilaProducto({ producto, onElegir }: { producto: ProductoComparado; onElegir: (id: string) => void }) {
+function FilaProducto({
+  producto,
+  onElegir,
+  enLista,
+  onAgregar,
+}: {
+  producto: ProductoComparado;
+  onElegir: (id: string) => void;
+  enLista: boolean;
+  onAgregar: (p: ProductoComparado) => void;
+}) {
   const hayDiferencia = producto.precio_mas_alto > producto.precio_mas_bajo;
   return (
-    <li>
+    <li className="flex items-center gap-2 pr-3 hover:bg-papel-hundido transition-colors">
       <button
         onClick={() => onElegir(producto.id_producto)}
-        className="w-full flex items-baseline gap-4 px-4 py-3 text-left hover:bg-papel-hundido transition-colors"
+        className="flex-1 min-w-0 flex items-baseline gap-4 pl-4 py-3 text-left"
       >
         <span className="flex-1 min-w-0">
           <span className="block text-sm text-tinta truncate">
@@ -330,6 +380,7 @@ function FilaProducto({ producto, onElegir }: { producto: ProductoComparado; onE
           {hayDiferencia ? `+${porcentaje(producto.diferencia_pct)}` : "igual"}
         </span>
       </button>
+      <BotonLista enLista={enLista} onAgregar={() => onAgregar(producto)} compacto />
     </li>
   );
 }
@@ -344,6 +395,22 @@ function MismoProductoPage() {
   const [detalle, setDetalle] = useState<Detalle | null>(null);
   const [destacados, setDestacados] = useState<Destacados | null>(null);
   const [ejemplos, setEjemplos] = useState<ProductoDetalle[]>([]);
+  const [lista, setLista] = useState<ItemLista[]>(leerLista);
+
+  useEffect(() => {
+    guardarLista(lista);
+  }, [lista]);
+
+  const enLista = (idProducto: string) => lista.some((i) => i.id_producto === idProducto);
+  const agregar = (p: ProductoComparado) =>
+    setLista((previa) =>
+      previa.some((i) => i.id_producto === p.id_producto) || previa.length >= MAXIMO_PRODUCTOS
+        ? previa
+        : [...previa, { id_producto: p.id_producto, nombre: nombreConTamano(p), cantidad: 1 }]
+    );
+  const cambiarCantidad = (idProducto: string, cantidad: number) =>
+    setLista((previa) => previa.map((i) => (i.id_producto === idProducto ? { ...i, cantidad } : i)));
+  const quitar = (idProducto: string) => setLista((previa) => previa.filter((i) => i.id_producto !== idProducto));
 
   useEffect(() => {
     let cancelado = false;
@@ -438,11 +505,16 @@ function MismoProductoPage() {
   return (
     <div className="max-w-4xl mx-auto">
       {id ? (
-        <VistaProducto estado={detalleVigente} onVolver={() => setParams({})} />
+        <VistaProducto
+          estado={detalleVigente}
+          onVolver={() => setParams({})}
+          enLista={enLista}
+          onAgregar={agregar}
+        />
       ) : (
         <Titular
           antetitulo="El mismo producto"
-          bajada="Mismo código de barras, misma presentación: la única diferencia es dónde lo comprás. Buscá un producto y mirá cuánto cuesta en cada cadena."
+          bajada="Mismo código de barras, misma presentación: la única diferencia es dónde lo comprás. Buscá un producto y mirá cuánto cuesta en cada cadena, o armá tu lista con lo que comprás siempre y fijate dónde te conviene la compra entera."
         >
           {mayor ? (
             <>
@@ -482,11 +554,38 @@ function MismoProductoPage() {
         {busquedaVigente?.productos && busquedaVigente.productos.length > 0 && (
           <ul className="mt-3 bg-papel border border-linea rounded-2xl divide-y divide-linea overflow-hidden">
             {busquedaVigente.productos.map((producto) => (
-              <FilaProducto key={producto.id_producto} producto={producto} onElegir={elegir} />
+              <FilaProducto
+                key={producto.id_producto}
+                producto={producto}
+                onElegir={elegir}
+                enLista={enLista(producto.id_producto)}
+                onAgregar={agregar}
+              />
             ))}
           </ul>
         )}
       </section>
+
+      {lista.length > 0 ? (
+        <TuLista
+          lista={lista}
+          onCambiarCantidad={cambiarCantidad}
+          onQuitar={quitar}
+          onVaciar={() => setLista([])}
+          onVer={elegir}
+        />
+      ) : (
+        !id && (
+          <section className="mb-10 border border-dashed border-linea-fuerte rounded-2xl p-4 sm:p-5">
+            <h2 className="font-display text-xl text-tinta mb-1">Armá tu lista</h2>
+            <p className="text-sm text-tinta-media leading-relaxed">
+              Buscá los productos que comprás siempre -tu yerba, tu aceite, tu café- y sumalos con{" "}
+              <span className="text-ahorro font-medium">+ Lista</span>. Te decimos en qué cadena te sale más barata la
+              compra entera y cuánto ahorrás.
+            </p>
+          </section>
+        )
+      )}
 
       {!id && consulta.length < 2 && ejemplos.length > 0 && (
         <section aria-labelledby="titulo-ejemplos" className="mb-12">
@@ -510,7 +609,13 @@ function MismoProductoPage() {
             <>
               <ul className="bg-papel border border-linea rounded-2xl divide-y divide-linea overflow-hidden">
                 {destacados.productos.map((producto) => (
-                  <FilaProducto key={producto.id_producto} producto={producto} onElegir={elegir} />
+                  <FilaProducto
+                key={producto.id_producto}
+                producto={producto}
+                onElegir={elegir}
+                enLista={enLista(producto.id_producto)}
+                onAgregar={agregar}
+              />
                 ))}
               </ul>
               <p className="mt-3 text-xs text-tinta-suave leading-relaxed">

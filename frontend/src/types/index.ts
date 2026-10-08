@@ -255,3 +255,32 @@ export type ResultadoOptimizacion = {
   items_sin_precio: { categoria: string; gama: string; unidad: string }[];
   opciones: OpcionCompra[];
 };
+
+/** Un producto de Tu lista, como se guarda en el navegador. */
+export type ItemLista = {
+  id_producto: string;
+  /** El nombre legible al momento de agregarlo, para mostrar la lista sin
+   *  esperar a la API. */
+  nombre: string;
+  cantidad: number;
+};
+
+/** Cuanto sale Tu lista en una cadena. */
+export type TotalCadenaLista = {
+  cadena: string;
+  total: number;
+  productos_con_precio: number;
+  /** Tiene precio de todos los productos de la lista: solo los totales de
+   *  cadenas completas se comparan entre si. */
+  completa: boolean;
+  faltan: string[];
+};
+
+export type ResultadoLista = {
+  productos: (ProductoComparado & { cantidad: number; mas_barato: { cadena: string; precio: number } })[];
+  no_encontrados: string[];
+  cadenas: TotalCadenaLista[];
+  /** Cada producto en la cadena donde esta mas barato: el piso, yendo a varias. */
+  combinando_cadenas: number;
+  fecha_datos: string | null;
+};

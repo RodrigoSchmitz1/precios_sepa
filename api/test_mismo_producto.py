@@ -6,7 +6,7 @@ Tests de El mismo producto, sin BigQuery.
 
 import unittest
 
-from mismo_producto import armar_indice, buscar, destacados, detalle, normalizar
+from mismo_producto import armar_indice, buscar, cotizar_lista, destacados, detalle, normalizar
 
 
 def producto(
@@ -221,6 +221,79 @@ class TestTamano(unittest.TestCase):
         (resumen,) = buscar(armar_indice(producto("1", CUATRO_CADENAS)), "playadito")
         self.assertIsNone(resumen["cantidad_normalizada"])
 
+
+
+class TestBuscarTamano(unittest.TestCase):
+    def test_el_tamano_se_encuentra_pegado_o_separado(self):
+        indice = armar_indice(producto("1", CUATRO_CADENAS, descripcion="YERBA MATE PLAYADITO 1 KG"))
+        self.assertEqual(len(buscar(indice, "playadito 1kg")), 1)
+        self.assertEqual(len(buscar(indice, "playadito 1 kg")), 1)
+        self.assertEqual(normalizar("Coca Cola 2.25 L"), "coca cola 2.25l")
+
+    def test_el_tamano_informado_se_busca_aunque_no_este_en_la_descripcion(self):
+        # "PLAYADITO YERBA CON" es un paquete de 500 g: el tamano solo esta en la cantidad.
+        filas = producto("1", CUATRO_CADENAS, descripcion="PLAYADITO YERBA CON")
+        for f in filas:
+            f.update(cantidad_normalizada=500.0, unidad_normalizada="g")
+        aceite = producto("2", CUATRO_CADENAS, descripcion="NATURA ACEITE DE GIRASOL")
+        for f in aceite:
+            f.update(cantidad_normalizada=1500.0, unidad_normalizada="cc")
+        indice = armar_indice(filas + aceite)
+        self.assertEqual([p["id_producto"] for p in buscar(indice, "playadito 500g")], ["1"])
+        self.assertEqual([p["id_producto"] for p in buscar(indice, "natura 1.5l")], ["2"])
+        self.assertEqual([p["id_producto"] for p in buscar(indice, "natura 1,5 lt")], ["2"])
+        self.assertEqual(buscar(indice, "playadito 1kg"), [])
+
+
+class TestTuLista(unittest.TestCase):
+    """Cuanto sale una lista de productos exactos en cada cadena."""
+
+    def setUp(self):
+        filas = (
+            producto("yerba", {"Coto": (3000, 40), "Dia": (3400, 90), "Jumbo": (4000, 12)})
+            + producto("aceite", {"Coto": (2000, 40), "Dia": (1800, 90)}, descripcion="ACEITE NATURA 1.5L")
+            + producto("leche", {"Coto": (1500, 40), "Dia": (1200, 90), "Jumbo": (999, 3)},
+                       descripcion="LECHE 1L", no_creibles=("Jumbo",))
+        )
+        self.indice = armar_indice(filas)
+
+    def cotizar(self, *items):
+        return cotizar_lista(self.indice, list(items))
+
+    def test_suma_por_cadena_con_las_cantidades(self):
+        r = self.cotizar({"id_producto": "yerba", "cantidad": 2}, {"id_producto": "aceite", "cantidad": 1})
+        totales = {c["cadena"]: c["total"] for c in r["cadenas"]}
+        self.assertEqual(totales["Coto"], 2 * 3000 + 2000)
+        self.assertEqual(totales["Dia"], 2 * 3400 + 1800)
+
+    def test_las_completas_van_primero_aunque_una_incompleta_sume_menos(self):
+        # Jumbo no tiene aceite: su total es mas bajo porque compra menos, no
+        # porque sea mas barato. No puede quedar arriba.
+        r = self.cotizar({"id_producto": "yerba", "cantidad": 1}, {"id_producto": "aceite", "cantidad": 1})
+        self.assertEqual([c["cadena"] for c in r["cadenas"]], ["Coto", "Dia", "Jumbo"])
+        self.assertTrue(r["cadenas"][0]["completa"])
+        self.assertEqual(r["cadenas"][2]["faltan"], ["aceite"])
+
+    def test_un_precio_no_creible_no_cuenta(self):
+        # La leche de Jumbo a $999 contradice al mercado: Jumbo no la "tiene".
+        r = self.cotizar({"id_producto": "leche", "cantidad": 1})
+        self.assertNotIn("Jumbo", [c["cadena"] for c in r["cadenas"]])
+        self.assertEqual(r["productos"][0]["mas_barato"], {"cadena": "Dia", "precio": 1200})
+
+    def test_combinando_cadenas_es_cada_producto_donde_esta_mas_barato(self):
+        r = self.cotizar({"id_producto": "yerba", "cantidad": 1}, {"id_producto": "aceite", "cantidad": 2})
+        self.assertEqual(r["combinando_cadenas"], 3000 + 2 * 1800)
+
+    def test_productos_desconocidos_y_cantidades_raras(self):
+        r = self.cotizar({"id_producto": "no-existe"}, {"id_producto": "yerba", "cantidad": 500},
+                         {"id_producto": "aceite", "cantidad": "dos"})
+        self.assertEqual(r["no_encontrados"], ["no-existe"])
+        cantidades = {p["id_producto"]: p["cantidad"] for p in r["productos"]}
+        self.assertEqual(cantidades, {"yerba": 99, "aceite": 1})
+
+    def test_lista_sin_productos_conocidos(self):
+        r = self.cotizar({"id_producto": "no-existe", "cantidad": 1})
+        self.assertEqual((r["productos"], r["cadenas"], r["combinando_cadenas"]), ([], [], 0))
 
 if __name__ == "__main__":
     unittest.main()

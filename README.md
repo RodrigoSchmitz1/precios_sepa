@@ -10,9 +10,9 @@ Comercio.
 
 [![Changuito: las promos de hoy en el mapa](docs/img/changuito-promos.png)](https://precios-sepa-api-803135877045.us-central1.run.app)
 
-| Tu canasta, cotizada | Inflación por categoría | El mismo producto, otra cadena |
+| Tu canasta, cotizada | Tu lista: dónde te conviene la compra | Inflación por categoría |
 |---|---|---|
-| [![Tu canasta](docs/img/changuito-tu-canasta.png)](https://precios-sepa-api-803135877045.us-central1.run.app/canasta-personalizada) | [![Inflación](docs/img/changuito-inflacion.png)](https://precios-sepa-api-803135877045.us-central1.run.app/inflacion) | [![El mismo producto](docs/img/changuito-mismo-producto.png)](https://precios-sepa-api-803135877045.us-central1.run.app/mismo-producto) |
+| [![Tu canasta](docs/img/changuito-tu-canasta.png)](https://precios-sepa-api-803135877045.us-central1.run.app/canasta-personalizada) | [![Tu lista](docs/img/changuito-tu-lista.png)](https://precios-sepa-api-803135877045.us-central1.run.app/mismo-producto) | [![Inflación](docs/img/changuito-inflacion.png)](https://precios-sepa-api-803135877045.us-central1.run.app/inflacion) |
 
 ## En 30 segundos
 
@@ -43,7 +43,7 @@ El resto de este documento es para quien quiere ver cómo se resolvió cada cosa
 | **Promos vigentes** | Qué descuentos hay hoy cerca mío, sobre un mapa, con cada promo calificada según la evidencia que la respalda y filtros por rubro |
 | **Tu canasta** | Describís en lenguaje natural qué consumís, una IA arma tu canasta y se cotiza con precios reales. También se puede partir de la canasta básica del INDEC para tu hogar o elegir las categorías a mano |
 | **Supermercado más barato** | Qué cadena tiene el precio más bajo, comparando productos idénticos, categoría por categoría |
-| **El mismo producto** | Cuánto cuesta el mismo código de barras en cada cadena, y cuánta diferencia hay, sin contar los precios que contradicen al resto del mercado |
+| **El mismo producto** | Cuánto cuesta el mismo código de barras en cada cadena, y cuánta diferencia hay, sin contar los precios que contradicen al resto del mercado. Con **Tu lista** sumás los productos exactos que comprás siempre y te dice en qué cadena te sale más barata la compra entera |
 | **Inflación** | Ranking de todas las categorías por variación de precio, con apertura por cadena |
 
 ---

@@ -9,6 +9,7 @@ Este modulo no conoce BigQuery: recibe filas y devuelve diccionarios, para
 poder testearlo sin credenciales.
 """
 
+import re
 import unicodedata
 
 # Para DESTACAR una diferencia, el precio mas bajo y el mas alto tienen que
@@ -49,10 +50,43 @@ CAMPOS_RESUMEN = (
 )
 
 
+# El tamano pegado a su numero: "1 KG" y "1kg" se buscan igual. SEPA escribe
+# de las dos formas y la gente tipea "playadito 1kg" (no encontraba nada).
+TAMANO_SEPARADO = re.compile(r"(\d)\s+(kg|kgs|gr|grs|g|lt|lts|l|ml|cc|un|u)\b")
+
+
 def normalizar(texto: str | None) -> str:
-    """Minusculas y sin tildes: "Café" y "CAFE" tienen que encontrarse igual."""
+    """Minusculas, sin tildes y con el tamano pegado: "Café 1 KG" y "cafe 1kg"
+    tienen que encontrarse igual."""
     descompuesto = unicodedata.normalize("NFD", texto or "")
-    return "".join(c for c in descompuesto if unicodedata.category(c) != "Mn").lower()
+    plano = "".join(c for c in descompuesto if unicodedata.category(c) != "Mn").lower()
+    return TAMANO_SEPARADO.sub(r"\1\2", plano)
+
+
+def _tamanos_buscables(cantidad, unidad) -> str:
+    """El tamano del envase escrito como lo tipea la gente: "500g", "1kg", "1.5l".
+
+    Muchas descripciones de SEPA no lo traen ("PLAYADITO YERBA CON" es un
+    paquete de 500 g): esta en la cantidad informada, no en el texto. Sin esto
+    "playadito 500g" no encontraba nada.
+    """
+    if not cantidad or unidad not in ("g", "cc", "unidad"):
+        return ""
+    if unidad == "unidad":
+        return f"{int(cantidad)}u"
+
+    def numero(valor: float) -> list[str]:
+        texto = f"{valor:.2f}".rstrip("0").rstrip(".")
+        return [texto, texto.replace(".", ",")] if "." in texto else [texto]
+
+    chico, grande = ("g", "kg") if unidad == "g" else ("ml", "l")
+    formas = [f"{n}{chico}" for n in numero(cantidad)]
+    formas += [f"{n}gr" for n in numero(cantidad)] if unidad == "g" else [f"{n}cc" for n in numero(cantidad)]
+    if cantidad >= 250:
+        formas += [f"{n}{grande}" for n in numero(cantidad / 1000)]
+        if unidad == "cc":
+            formas += [f"{n}lt" for n in numero(cantidad / 1000)]
+    return " ".join(formas)
 
 
 def _extremos_respaldados(producto: dict) -> bool:
@@ -114,7 +148,10 @@ def armar_indice(filas) -> dict:
                 "unidad_normalizada": fila.get("unidad_normalizada"),
                 "fecha_datos": str(fila["fecha_datos"]),
                 "precios": [],
-                "_texto": normalizar(f"{fila['descripcion']} {fila['marca'] or ''}"),
+                "_texto": normalizar(
+                    f"{fila['descripcion']} {fila['marca'] or ''} "
+                    f"{_tamanos_buscables(fila.get('cantidad_normalizada'), fila.get('unidad_normalizada'))}"
+                ),
             }
         producto["precios"].append(
             {
@@ -175,3 +212,72 @@ def destacados(indice: dict, limite: int = 12) -> list[dict]:
     ]
     candidatos.sort(key=lambda p: (-p["diferencia_pct"], p["descripcion"]))
     return [_resumen(p) for p in candidatos[:limite]]
+
+
+# Tu lista: cuanto cuesta en cada cadena una lista de productos exactos.
+MAXIMO_PRODUCTOS_LISTA = 50
+MAXIMO_UNIDADES_POR_PRODUCTO = 99
+
+
+def cotizar_lista(indice: dict, items: list[dict]) -> dict:
+    """Cuanto sale una lista de productos exactos (codigo de barras) en cada cadena.
+
+    Es la pregunta de uso diario que la pagina respondia de a un producto: "si
+    compro siempre esto, ¿donde me conviene?". Se suma, por cadena, el precio de
+    cada producto por su cantidad.
+
+    Las cadenas no venden todas lo mismo, asi que un total solo se compara con
+    otro si cubren los mismos productos. Por eso cada cadena dice cuantos tiene:
+    primero van las que tienen la lista completa, de la mas barata a la mas
+    cara, y despues las incompletas. "Combinando cadenas" es el piso: cada
+    producto en la cadena donde esta mas barato.
+
+    Solo cuentan los precios creibles: el que contradice a la mediana entre
+    empresas tampoco entra aca (ver mart_mismo_producto).
+    """
+    pedidos: dict[str, int] = {}
+    for item in items[:MAXIMO_PRODUCTOS_LISTA]:
+        clave = str(item.get("id_producto", ""))
+        cantidad = item.get("cantidad", 1)
+        if isinstance(cantidad, bool) or not isinstance(cantidad, int):
+            cantidad = 1
+        pedidos[clave] = max(1, min(cantidad, MAXIMO_UNIDADES_POR_PRODUCTO))
+
+    productos, no_encontrados = [], []
+    for clave, cantidad in pedidos.items():
+        producto = indice.get(clave)
+        precios = {p["cadena"]: p["precio_mediano"] for p in producto["precios"] if p["precio_creible"]} if producto else {}
+        if not precios:
+            no_encontrados.append(clave)
+            continue
+        cadena_barata = min(precios, key=lambda c: (precios[c], c))
+        productos.append({
+            **_resumen(producto),
+            "cantidad": cantidad,
+            "mas_barato": {"cadena": cadena_barata, "precio": precios[cadena_barata]},
+            "_precios": precios,
+        })
+
+    cadenas = sorted({c for p in productos for c in p["_precios"]})
+    por_cadena = []
+    for cadena in cadenas:
+        con_precio = [p for p in productos if cadena in p["_precios"]]
+        por_cadena.append({
+            "cadena": cadena,
+            "total": round(sum(p["_precios"][cadena] * p["cantidad"] for p in con_precio), 2),
+            "productos_con_precio": len(con_precio),
+            "completa": len(con_precio) == len(productos),
+            "faltan": [p["id_producto"] for p in productos if cadena not in p["_precios"]],
+        })
+    por_cadena.sort(key=lambda c: (not c["completa"], -c["productos_con_precio"], c["total"], c["cadena"]))
+
+    combinada = round(sum(p["mas_barato"]["precio"] * p["cantidad"] for p in productos), 2)
+    for p in productos:
+        del p["_precios"]
+    return {
+        "productos": productos,
+        "no_encontrados": no_encontrados,
+        "cadenas": por_cadena,
+        "combinando_cadenas": combinada,
+        "fecha_datos": next((indice[p["id_producto"]]["fecha_datos"] for p in productos), None),
+    }

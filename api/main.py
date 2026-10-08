@@ -888,6 +888,23 @@ def buscar_mismo_producto(
     return mismo_producto.buscar(_indice_mismo_producto(), q, limite)
 
 
+class ListaDeProductos(BaseModel):
+    items: list
+
+
+@api.post("/mismo-producto/lista")
+def cotizar_lista_de_productos(datos: ListaDeProductos):
+    """Tu lista: cuanto sale una lista de productos exactos en cada cadena.
+
+    Sale del mismo indice en memoria que el resto de la seccion, asi que no
+    consulta BigQuery por mas listas que se armen.
+    """
+    if not datos.items:
+        return JSONResponse(status_code=422, content={"detail": "La lista está vacía."})
+    items = [i for i in datos.items if isinstance(i, dict)]
+    return mismo_producto.cotizar_lista(_indice_mismo_producto(), items)
+
+
 @api.get("/mismo-producto/destacados")
 def obtener_productos_destacados(limite: int = Query(12, ge=1, le=30)):
     return mismo_producto.destacados(_indice_mismo_producto(), limite)

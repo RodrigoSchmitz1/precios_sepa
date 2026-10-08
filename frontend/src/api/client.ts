@@ -13,6 +13,7 @@ import type {
   CategoriaCanasta,
   ProductoComparado,
   ProductoDetalle,
+  ResultadoLista,
   ResultadoOptimizacion,
 } from "../types";
 import { conNombresDeCadena } from "../utils/nombres";
@@ -191,6 +192,17 @@ export async function buscarProductos(consulta: string): Promise<ProductoCompara
 export async function obtenerProductosDestacados(): Promise<ProductoComparado[]> {
   const respuesta = await fetch(`${API_BASE}/mismo-producto/destacados`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer los destacados");
+  return leerJson(respuesta);
+}
+
+/** Tu lista: cuanto sale una lista de productos exactos en cada cadena. */
+export async function cotizarLista(items: { id_producto: string; cantidad: number }[]): Promise<ResultadoLista> {
+  const respuesta = await fetch(`${API_BASE}/mismo-producto/lista`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items }),
+  });
+  if (!respuesta.ok) await fallar(respuesta, "Error al cotizar tu lista");
   return leerJson(respuesta);
 }
 
