@@ -86,12 +86,19 @@ function EmpezarConCanastaBasica({ onCargar }: { onCargar: (items: ItemCanastaIA
   }
 
   return (
-    <div className="mt-6 pt-5 border-t border-linea">
-      <p className="text-sm text-tinta">O empezá con la canasta básica del INDEC</p>
-      <p className="text-xs text-tinta-suave mt-0.5 mb-3">
-        Los alimentos básicos de un mes para tu hogar, en gama económica. Después sacás lo que no consumís y ajustás
-        el resto.
-      </p>
+    <div className="mt-6 tarjeta p-4 sm:p-5">
+      <div className="flex gap-3 mb-4">
+        <span aria-hidden="true" className="shrink-0 w-11 h-11 rounded-xl bg-[#e0f7fa] grid place-items-center text-2xl">
+          📋
+        </span>
+        <div>
+          <p className="text-base font-bold text-tinta">O empezá con la canasta básica del INDEC</p>
+          <p className="text-sm text-tinta-media mt-0.5">
+            Los alimentos básicos de un mes para tu hogar, en gama económica. Después sacás lo que no consumís y
+            ajustás el resto.
+          </p>
+        </div>
+      </div>
       <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
         <Contador etiqueta="Adultos" valor={adultos} minimo={1} onCambiar={setAdultos} />
         <Contador etiqueta="Chicos" valor={chicos} minimo={0} onCambiar={setChicos} />
@@ -99,7 +106,7 @@ function EmpezarConCanastaBasica({ onCargar }: { onCargar: (items: ItemCanastaIA
           type="button"
           onClick={cargar}
           disabled={cargando}
-          className="text-sm font-semibold text-ahorro border border-ahorro-borde bg-ahorro-tenue px-4 py-2 rounded-lg hover:border-ahorro disabled:opacity-60 transition-colors"
+          className="text-sm font-bold text-marca bg-marca-tenue px-4 py-2.5 rounded-xl hover:bg-marca hover:text-white disabled:opacity-60 transition-colors"
         >
           {cargando ? "Cargando…" : "Cargar canasta básica"}
         </button>

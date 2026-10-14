@@ -121,3 +121,135 @@ def optimizar(indice: dict, items: list, latitud: float, longitud: float, radio_
         "items_sin_precio": [_descomponer(c) for c in crudo["items_sin_precio"]],
         "opciones": opciones,
     }
+
+
+# ---------------------------------------------------------------------------
+# Tu canasta en cada cadena (2026-10-14)
+#
+# "Si hago toda la compra en un solo lugar, ¿cuanto me sale en cada uno?". Es la
+# pregunta de quien elige super, mayorista incluido, y sale del mismo indice en
+# memoria: no consulta BigQuery.
+#
+# Dos reglas para que los totales se puedan comparar, medidas sobre la canasta
+# basica del INDEC del 2026-10-09:
+#
+# 1. GAMA DE RESPALDO. La gama corta tercios dentro de cada categoria para todo
+#    el mercado, asi que hay cadenas sin productos en el tercio pedido (Vea,
+#    Jumbo y Disco no tenian 6 de las 32 categorias en gama economica). Si la
+#    cadena no tiene la gama pedida se usa la VECINA, primero la de arriba: es
+#    lo que pagaria quien compra ahi. Solo la vecina: saltar de economica a
+#    premium ponia la leche de Vea a $12.500 el litro y su verdura a $36.000 el
+#    kilo, y Vea salia al doble que Dia. Se informa cuantas.
+#
+# 1b. PRECIOS CREIBLES. Para cada categoria se toma la mediana entre cadenas, y
+#    el precio de una cadena que esta a menos de la mitad o a mas del doble no
+#    cuenta (la misma regla que El mismo producto): es un producto raro o un
+#    error de la fuente, no la compra de nadie.
+#
+# 2. SOLO LO QUE VENDEN TODAS. Una cadena a la que le falta la carne suma menos
+#    porque compra menos, no porque sea mas barata. Entran las cadenas que
+#    cubren al menos COBERTURA_MINIMA de la canasta, y el total de cada una se
+#    hace sobre las categorias que tienen TODAS esas cadenas. Las que quedan
+#    afuera se dicen.
+# ---------------------------------------------------------------------------
+GAMAS = ("economico", "medio", "premium")
+COBERTURA_MINIMA = 0.8
+# Con menos categorias en comun la comparacion deja de ser "tu canasta".
+CATEGORIAS_COMUNES_MINIMAS = 3
+
+
+def _gamas_de_respaldo(gama: str) -> list:
+    """La pedida y despues sus vecinas, primero la de arriba."""
+    if gama not in GAMAS:
+        return [GAMAS[0]]
+    i = GAMAS.index(gama)
+    return [GAMAS[j] for j in (i, i + 1, i - 1) if 0 <= j < len(GAMAS)]
+
+
+def _mediana(valores: list) -> float:
+    ordenados = sorted(valores)
+    n = len(ordenados)
+    medio = n // 2
+    return ordenados[medio] if n % 2 else (ordenados[medio - 1] + ordenados[medio]) / 2
+
+
+def canasta_por_cadena(indice: dict, items: list, localidades: list | None = None) -> dict:
+    """Cuanto sale la canasta en cada cadena, con el precio mediano de sus
+    sucursales: las de la zona si se eligio una y tiene al menos dos cadenas,
+    las de todo el pais si no."""
+    pedidos = [i for i in items if i.get("cantidad") and i.get("categoria") and i.get("unidad")]
+    zona = {(l.get("localidad"), l.get("provincia")) for l in (localidades or [])}
+    sucursales = indice["sucursales"]
+    ambito = "pais"
+    if zona:
+        en_zona = [s for s in sucursales if (s["localidad"], s["provincia"]) in zona]
+        if len({s["cadena"] for s in en_zona}) >= 2:
+            sucursales, ambito = en_zona, "zona"
+
+    claves = {clave_de(i["categoria"], g, i["unidad"]) for i in pedidos for g in GAMAS}
+    precios: dict = {}
+    cuantas: dict = {}
+    for s in sucursales:
+        cuantas[s["cadena"]] = cuantas.get(s["cadena"], 0) + 1
+        de_la_cadena = precios.setdefault(s["cadena"], {})
+        for clave, precio in s["precios"].items():
+            if clave in claves:
+                de_la_cadena.setdefault(clave, []).append(precio)
+
+    # Precio de cada item en cada cadena, con gama de respaldo.
+    tabla: dict = {}
+    for cadena, de_la_cadena in precios.items():
+        fila = []
+        for item in pedidos:
+            encontrado = None
+            for gama in _gamas_de_respaldo(item.get("gama", "economico")):
+                lista = de_la_cadena.get(clave_de(item["categoria"], gama, item["unidad"]))
+                if lista:
+                    encontrado = (_mediana(lista), gama != item.get("gama"))
+                    break
+            fila.append(encontrado)
+        tabla[cadena] = fila
+
+    # Precios creibles: fuera de [mitad, doble] de la mediana entre cadenas no cuenta.
+    for j in range(len(pedidos)):
+        valores = [tabla[c][j][0] for c in tabla if tabla[c][j] is not None]
+        if len(valores) < 3:
+            continue
+        referencia = _mediana(valores)
+        for c in tabla:
+            if tabla[c][j] is not None and not (referencia / 2 <= tabla[c][j][0] <= referencia * 2):
+                tabla[c][j] = None
+
+    def cobertura(cadena):
+        return sum(p is not None for p in tabla[cadena])
+
+    minimo = COBERTURA_MINIMA * len(pedidos)
+    entran = [c for c in tabla if pedidos and cobertura(c) >= minimo]
+    comunes = [j for j in range(len(pedidos)) if entran and all(tabla[c][j] is not None for c in entran)]
+    if len(comunes) < CATEGORIAS_COMUNES_MINIMAS:
+        entran, comunes = [], []
+
+    cadenas = sorted(
+        (
+            {
+                "cadena": c,
+                "total": round(sum(tabla[c][j][0] * pedidos[j]["cantidad"] for j in comunes), 2),
+                "con_otra_gama": sum(tabla[c][j][1] for j in comunes),
+                "sucursales": cuantas[c],
+            }
+            for c in entran
+        ),
+        key=lambda f: (f["total"], f["cadena"]),
+    )
+    return {
+        "ambito": ambito,
+        "cadenas": cadenas,
+        "categorias_comparadas": [pedidos[j]["categoria"] for j in comunes],
+        "categorias_afuera": [pedidos[j]["categoria"] for j in range(len(pedidos)) if j not in comunes],
+        "cadenas_afuera": sorted(
+            ({"cadena": c, "categorias_con_precio": cobertura(c)} for c in tabla if c not in entran),
+            key=lambda f: -f["categorias_con_precio"],
+        ),
+        "total_categorias": len(pedidos),
+        "fecha_datos": indice["fecha_datos"],
+    }

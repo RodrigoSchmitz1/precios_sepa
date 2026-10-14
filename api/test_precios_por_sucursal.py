@@ -112,3 +112,71 @@ class TestOptimizar(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestCanastaPorCadena(unittest.TestCase):
+    """Tu canasta en cada cadena: totales comparables entre cadenas."""
+
+    def setUp(self):
+        from precios_por_sucursal import canasta_por_cadena
+
+        self.calcular = canasta_por_cadena
+        filas = [
+            # Coto y Dia tienen todo; Vea no tiene arroz economico pero si medio.
+            fila("1", "Arroz", "economico", 2.0, cadena="Coto"), fila("1", "Fideos", "economico", 3.0, cadena="Coto"),
+            fila("1", "Yerba", "economico", 5.0, cadena="Coto"), fila("1", "Pollo", "economico", 6.0, cadena="Coto"),
+            fila("2", "Arroz", "economico", 1.0, cadena="Dia"), fila("2", "Fideos", "economico", 2.0, cadena="Dia"),
+            fila("2", "Yerba", "economico", 4.0, cadena="Dia"), fila("2", "Pollo", "economico", 7.0, cadena="Dia"),
+            fila("3", "Arroz", "medio", 4.0, cadena="Vea"), fila("3", "Fideos", "economico", 3.0, cadena="Vea"),
+            fila("3", "Yerba", "economico", 6.0, cadena="Vea"),
+            # Sal en las tres: con cinco categorias, a Vea le falta una (80%) y entra.
+            fila("1", "Sal", "economico", 0.5, cadena="Coto"), fila("2", "Sal", "economico", 0.5, cadena="Dia"),
+            fila("3", "Sal", "economico", 0.5, cadena="Vea"),
+            # Una sola categoria: no entra a comparar.
+            fila("4", "Yerba", "economico", 4.5, cadena="Chica"),
+        ]
+        self.indice = armar_indice(filas)
+        self.items = canasta("Arroz", "Fideos", "Yerba", "Pollo", "Sal")
+
+    def test_compara_solo_lo_que_venden_todas_y_ordena_de_menor_a_mayor(self):
+        r = self.calcular(self.indice, self.items)
+        self.assertEqual([c["cadena"] for c in r["cadenas"]], ["Dia", "Coto", "Vea"])
+        # Pollo no lo tiene Vea: queda afuera para las tres.
+        self.assertEqual(r["categorias_afuera"], ["Pollo"])
+        self.assertEqual(r["cadenas"][0]["total"], (1.0 + 2.0 + 4.0 + 0.5) * 1000)
+
+    def test_sin_la_gama_pedida_usa_la_siguiente_y_lo_cuenta(self):
+        r = self.calcular(self.indice, self.items)
+        vea = next(c for c in r["cadenas"] if c["cadena"] == "Vea")
+        self.assertEqual(vea["con_otra_gama"], 1)
+        self.assertEqual(vea["total"], (4.0 + 3.0 + 6.0 + 0.5) * 1000)
+
+    def test_un_precio_de_mas_del_doble_que_el_resto_no_cuenta(self):
+        filas = [
+            fila("1", "Leche", "economico", 2.0, cadena="Coto"), fila("1", "Arroz", "economico", 2.0, cadena="Coto"),
+            fila("2", "Leche", "economico", 2.2, cadena="Dia"), fila("2", "Arroz", "economico", 2.1, cadena="Dia"),
+            fila("3", "Leche", "economico", 1.9, cadena="Vea"), fila("3", "Arroz", "economico", 2.2, cadena="Vea"),
+            # La leche de esta cadena esta a seis veces el resto: no cuenta.
+            fila("4", "Leche", "economico", 12.5, cadena="Rara"), fila("4", "Arroz", "economico", 2.0, cadena="Rara"),
+            fila("1", "Sal", "economico", 0.5, cadena="Coto"), fila("2", "Sal", "economico", 0.5, cadena="Dia"),
+            fila("3", "Sal", "economico", 0.5, cadena="Vea"), fila("4", "Sal", "economico", 0.5, cadena="Rara"),
+        ]
+        r = self.calcular(armar_indice(filas), canasta("Leche", "Arroz", "Sal"))
+        self.assertNotIn("Rara", [c["cadena"] for c in r["cadenas"]])
+        self.assertEqual(r["cadenas_afuera"], [{"cadena": "Rara", "categorias_con_precio": 2}])
+
+    def test_la_gama_de_respaldo_es_solo_la_vecina(self):
+        from precios_por_sucursal import _gamas_de_respaldo
+
+        self.assertEqual(_gamas_de_respaldo("economico"), ["economico", "medio"])
+        self.assertEqual(_gamas_de_respaldo("medio"), ["medio", "premium", "economico"])
+
+    def test_la_que_cubre_poco_queda_afuera_y_se_dice(self):
+        r = self.calcular(self.indice, self.items)
+        self.assertEqual(r["cadenas_afuera"], [{"cadena": "Chica", "categorias_con_precio": 1}])
+
+    def test_con_zona_usa_sus_sucursales_si_hay_dos_cadenas(self):
+        r = self.calcular(self.indice, self.items, [{"localidad": "CABA", "provincia": "AR-C"}])
+        self.assertEqual(r["ambito"], "zona")
+        r = self.calcular(self.indice, self.items, [{"localidad": "Rosario", "provincia": "AR-S"}])
+        self.assertEqual(r["ambito"], "pais")

@@ -97,7 +97,7 @@ function ComoSeCalculaPage() {
         {SECCIONES.map((seccion) => (
           <section key={seccion.ruta}>
             <h2 className="font-display text-2xl text-tinta mb-3">
-              <Link to={seccion.ruta} className="hover:text-ahorro transition-colors">
+              <Link to={seccion.ruta} className="hover:text-marca transition-colors">
                 {seccion.nombre}
               </Link>
             </h2>

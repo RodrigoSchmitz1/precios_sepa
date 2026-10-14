@@ -80,8 +80,8 @@ function PromoCard({
   const donde = [promo.cadena, promo.categoria && nombreCategoria(promo.categoria), zona].filter(Boolean).join(" · ");
 
   return (
-    <article className="py-4">
-      <div className="flex items-baseline gap-4">
+    <article className="tarjeta p-4 sm:p-5">
+      <div className="flex items-start gap-4">
       <div className="min-w-0 flex-1">
         {/*
           Un escalon mas de cuerpo en las tres lineas (2026-09-23). El nombre del
@@ -89,7 +89,7 @@ function PromoCard({
           que la nota al pie de la pagina; ahora la jerarquia adentro de la fila
           se corresponde con la importancia de cada dato.
         */}
-        <h3 className="text-base text-tinta leading-snug">{nombreLegible(promo.descripcion, promo.marca)}</h3>
+        <h3 className="text-base font-bold text-tinta leading-snug">{nombreLegible(promo.descripcion, promo.marca)}</h3>
         <p className="text-sm text-tinta-suave truncate">{donde}</p>
         {/* min-w-0 en el flex: sin eso la leyenda larga no puede encogerse por
             mas truncate que tenga, y empuja la fila hasta meter scroll
@@ -111,12 +111,13 @@ function PromoCard({
         className="text-right shrink-0"
         title={ahorro > 0 ? `Ahorrás ${formatearPesos(ahorro)} sobre el precio de lista` : undefined}
       >
-        {/* El importe en serif, como los demas numeros grandes del sitio. */}
+        {/* 2026-10-14: el descuento pasa a una pastilla verde arriba del
+            precio, que es lo primero que se busca en una promo. */}
+        <span className="inline-block bg-ahorro-tenue text-ahorro text-sm font-extrabold rounded-lg px-2 py-0.5 mb-1.5">
+          −{Math.round(promo.descuento_pct)}%
+        </span>
         <p className="font-display text-2xl text-tinta leading-none">{formatearPesos(promo.precio_promo)}</p>
-        <p className="numero text-sm text-tinta-suave mt-1">
-          <span className="line-through">{formatearPesos(promo.precio_lista)}</span>{" "}
-          <span className="text-ahorro font-medium">−{promo.descuento_pct}%</span>
-        </p>
+        <p className="numero text-sm text-tinta-suave mt-1 line-through">{formatearPesos(promo.precio_lista)}</p>
       </div>
       </div>
 
@@ -131,7 +132,7 @@ function PromoCard({
           <button
             onClick={() => setAbierta(!abierta)}
             aria-expanded={abierta}
-            className="text-xs text-tinta-media hover:text-ahorro transition-colors"
+            className="text-xs text-tinta-media hover:text-marca transition-colors"
           >
             {abierta ? "Ocultar sucursales" : "Ver dónde está"}
           </button>

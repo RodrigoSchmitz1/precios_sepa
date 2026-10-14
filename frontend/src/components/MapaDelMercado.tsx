@@ -64,9 +64,9 @@ function MapaDelMercado({ filas, categoriaElegida, onElegir }: Props) {
   const paso = (pct: number) => PASOS[Math.min(PASOS.length - 1, Math.floor((pct / maximo) * PASOS.length))];
 
   return (
-    <figure className="m-0">
-      <figcaption className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 pb-2 border-b border-linea-fuerte">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave">
+    <figure className="m-0 tarjeta p-4 sm:p-6">
+      <figcaption className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 pb-3 mb-1 border-b border-linea">
+        <h2 className="text-base font-bold text-tinta">
           El mapa del mercado
         </h2>
         <span className="flex items-center gap-1.5 text-[11px] text-tinta-suave">

@@ -105,7 +105,7 @@ function DeTuCanasta({ items, lista, onAgregar, onVer, nombrar }: Props) {
       </p>
       <div className="h-1.5 bg-papel-hundido rounded-full overflow-hidden mb-5" aria-hidden="true">
         <div
-          className="h-full bg-ahorro rounded-full transition-all"
+          className="h-full bg-marca rounded-full transition-all"
           style={{
             width: `${(elegidas / Math.max(categorias.length, 1)) * 100}%`,
           }}
@@ -122,11 +122,11 @@ function DeTuCanasta({ items, lista, onAgregar, onVer, nombrar }: Props) {
           return (
             <li
               key={item.categoria}
-              className={`rounded-2xl border p-3 sm:p-4 ${elegida ? "border-ahorro-borde bg-ahorro-tenue/40" : "border-linea bg-papel"}`}
+              className={`rounded-2xl border p-3 sm:p-4 ${elegida ? "border-marca-borde bg-marca-tenue/40" : "border-linea bg-papel"}`}
             >
               <div className="flex items-baseline justify-between gap-3 mb-2">
                 <h3 className="text-sm font-semibold text-tinta">
-                  {elegida && <span className="text-ahorro mr-1">✓</span>}
+                  {elegida && <span className="text-marca mr-1">✓</span>}
                   {nombreCategoria(item.categoria)}
                 </h3>
                 {tamano && <span className="text-xs text-tinta-suave shrink-0">{tamano} por mes</span>}
@@ -136,7 +136,7 @@ function DeTuCanasta({ items, lista, onAgregar, onVer, nombrar }: Props) {
                 <div className="flex items-center justify-between gap-3">
                   <button
                     onClick={() => onVer(elegida.id_producto)}
-                    className="min-w-0 text-left text-sm text-tinta truncate hover:text-ahorro"
+                    className="min-w-0 text-left text-sm text-tinta truncate hover:text-marca"
                   >
                     {elegida.nombre}
                     {elegida.cantidad > 1 && <span className="text-tinta-suave numero"> × {elegida.cantidad}</span>}
@@ -175,8 +175,8 @@ function DeTuCanasta({ items, lista, onAgregar, onVer, nombrar }: Props) {
                             aria-pressed={esta}
                             className={`flex flex-col justify-between text-left rounded-xl border px-3 py-2 transition-colors ${
                               esta
-                                ? "border-ahorro bg-papel"
-                                : "border-linea bg-papel hover:border-ahorro-borde hover:bg-ahorro-tenue/30"
+                                ? "border-marca bg-papel"
+                                : "border-linea bg-papel hover:border-marca-borde hover:bg-marca-tenue/30"
                             }`}
                           >
                             <span className="block text-sm text-tinta leading-snug line-clamp-2">{nombrar(p)}</span>
@@ -187,7 +187,7 @@ function DeTuCanasta({ items, lista, onAgregar, onVer, nombrar }: Props) {
                               </span>
                               <span
                                 className={`shrink-0 text-xs font-medium rounded-full px-2.5 py-1 ${
-                                  esta ? "text-ahorro" : "border border-ahorro-borde text-ahorro"
+                                  esta ? "text-marca" : "border border-marca-borde text-marca"
                                 }`}
                               >
                                 {esta ? "✓ En tu lista" : unidades > 1 ? `Sumar ${unidades}` : "Sumar"}

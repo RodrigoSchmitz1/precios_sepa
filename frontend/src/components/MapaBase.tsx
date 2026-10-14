@@ -3,10 +3,10 @@ import { TileLayer } from "react-leaflet";
 /*
   El fondo de los dos mapas del sitio (promos y zona de Tu canasta).
 
-  Son los tiles de OpenStreetMap pasados a gris con un filtro (ver
-  .mapa-base-gris en index.css). A todo color competian con los marcadores, que
-  son el dato; en gris los marcadores se leen solos y el mapa conversa con el
-  resto del sistema.
+  Son los tiles de OpenStreetMap con la saturacion a la mitad (ver
+  .mapa-base-suave en index.css). A todo color competian con los marcadores, que
+  son el dato; en gris (hasta el 2026-10-14) el sitio se veia apagado. A medio
+  color los marcadores siguen mandando y el mapa no parece de diario.
 
   Se probo CARTO Positron, que es gris de origen, pero desde 2025 exige API key y
   sin ella sirve los tiles con una marca de agua de "KEY REQUIRED". OpenStreetMap
@@ -20,7 +20,7 @@ function MapaBase() {
     <TileLayer
       attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
       url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-      className="mapa-base-gris"
+      className="mapa-base-suave"
       maxZoom={19}
     />
   );

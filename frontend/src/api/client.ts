@@ -10,6 +10,7 @@ import type {
   ItemCanastaIA,
   ResultadoCanastaPersonalizada,
   LocalidadOpcion,
+  CanastaPorCadena,
   CategoriaCanasta,
   ProductoComparado,
   ProductoDetalle,
@@ -221,6 +222,20 @@ export async function obtenerSugeridos(categorias: string[], limite: number): Pr
 export async function obtenerProducto(idProducto: string): Promise<ProductoDetalle> {
   const respuesta = await fetch(`${API_BASE}/mismo-producto/${encodeURIComponent(idProducto)}`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer el producto");
+  return leerJson(respuesta);
+}
+
+/** Tu canasta en cada cadena: cuanto sale la compra entera en cada una. */
+export async function cotizarCanastaPorCadena(
+  items: ItemCanastaIA[],
+  localidades: LocalidadOpcion[]
+): Promise<CanastaPorCadena> {
+  const respuesta = await fetch(`${API_BASE}/canasta-personalizada/por-cadena`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items, localidades }),
+  });
+  if (!respuesta.ok) await fallar(respuesta, "Error al comparar las cadenas");
   return leerJson(respuesta);
 }
 

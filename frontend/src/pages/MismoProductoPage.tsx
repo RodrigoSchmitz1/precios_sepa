@@ -132,7 +132,7 @@ function EjemploComparacion({ p, onVer }: { p: ProductoDetalle; onVer: (id: stri
   return (
     <article className="mb-8">
       <button onClick={() => onVer(p.id_producto)} className="group text-left mb-1">
-        <h3 className="font-display text-2xl text-tinta group-hover:text-ahorro transition-colors">{nombre}</h3>
+        <h3 className="font-display text-2xl text-tinta group-hover:text-marca transition-colors">{nombre}</h3>
       </button>
       <p className="text-sm text-tinta-media mb-4">
         {hayDiferencia ? (
@@ -166,7 +166,7 @@ function ListaDePrecios({ p }: { p: ProductoDetalle }) {
   const descartes = explicarDescartes(p);
   return (
     <>
-      <ul className="bg-papel border border-linea rounded-2xl divide-y divide-linea">
+      <ul className="tarjeta divide-y divide-linea">
       {p.precios.map((x) => (
         <li
           key={x.cadena}
@@ -221,7 +221,7 @@ function ListaDePrecios({ p }: { p: ProductoDetalle }) {
 function BotonLista({ enLista, onAgregar, compacto = false }: { enLista: boolean; onAgregar: () => void; compacto?: boolean }) {
   if (enLista) {
     return (
-      <span className={`shrink-0 text-ahorro ${compacto ? "text-xs px-2" : "text-sm"}`} aria-label="Está en tu lista">
+      <span className={`shrink-0 text-marca ${compacto ? "text-xs px-2" : "text-sm"}`} aria-label="Está en tu lista">
         ✓ {compacto ? "En la lista" : "Está en tu lista"}
       </span>
     );
@@ -229,7 +229,7 @@ function BotonLista({ enLista, onAgregar, compacto = false }: { enLista: boolean
   return (
     <button
       onClick={onAgregar}
-      className={`shrink-0 rounded-full border border-ahorro-borde text-ahorro hover:bg-ahorro-tenue transition-colors ${
+      className={`shrink-0 rounded-full border border-marca-borde text-marca hover:bg-marca-tenue transition-colors ${
         compacto ? "text-xs px-2.5 py-1" : "text-sm px-4 py-2 font-medium"
       }`}
     >
@@ -251,24 +251,24 @@ function DosCaminos() {
       <div className="grid sm:grid-cols-2 gap-3">
         <Link
           to="/canasta-personalizada"
-          className="group block rounded-2xl border border-ahorro-borde bg-ahorro-tenue/40 p-4 sm:p-5 hover:bg-ahorro-tenue transition-colors"
+          className="group block rounded-2xl border border-marca-borde bg-marca-tenue/40 p-4 sm:p-5 hover:bg-marca-tenue transition-colors"
         >
-          <span className="block text-xs font-semibold uppercase tracking-wider text-ahorro mb-2">La compra del mes</span>
+          <span className="inline-block text-xs font-bold text-marca bg-white rounded-full px-2.5 py-1 mb-2">La compra del mes</span>
           <span className="block font-display text-xl text-tinta mb-1">Armá tu canasta</span>
           <span className="block text-sm text-tinta-media leading-relaxed">
             Contanos qué compran en tu casa y la armamos con vos. Después volvé acá y elegí la marca de cada cosa con
             un toque.
           </span>
-          <span className="inline-block mt-3 text-sm font-medium text-ahorro group-hover:translate-x-0.5 transition-transform">
+          <span className="inline-block mt-3 text-sm font-medium text-marca group-hover:translate-x-0.5 transition-transform">
             Ir a Tu canasta →
           </span>
         </Link>
         <div className="rounded-2xl border border-linea bg-papel p-4 sm:p-5">
-          <span className="block text-xs font-semibold uppercase tracking-wider text-tinta-suave mb-2">Algunos productos</span>
+          <span className="block text-base font-bold text-tinta mb-2">Algunos productos</span>
           <span className="block font-display text-xl text-tinta mb-1">Armá tu lista</span>
           <span className="block text-sm text-tinta-media leading-relaxed">
             Buscá arriba lo que comprás siempre -tu yerba, tu aceite, tu café- y sumalo con{" "}
-            <span className="text-ahorro font-medium">+ Lista</span>.
+            <span className="text-marca font-medium">+ Lista</span>.
           </span>
         </div>
       </div>
@@ -429,7 +429,7 @@ function MismoProductoPage() {
   const [params, setParams] = useSearchParams();
   const id = params.get("p");
 
-  const [texto, setTexto] = useState("");
+  const [texto, setTexto] = useState(() => params.get("q") ?? ""); // ?q= llega del buscador de la portada
   const consulta = texto.trim();
   const [busqueda, setBusqueda] = useState<Busqueda | null>(null);
   const [detalle, setDetalle] = useState<Detalle | null>(null);
@@ -578,7 +578,7 @@ function MismoProductoPage() {
           placeholder={id ? "Buscar otro producto" : "Buscar: yerba playadito, aceite natura, coca cola 2,25"}
           aria-label="Buscar un producto"
           autoComplete="off"
-          className="w-full bg-papel border border-linea rounded-xl px-4 py-3 text-base focus:outline-none focus:border-ahorro"
+          className="w-full bg-papel rounded-2xl shadow-flotante px-5 py-4 text-base focus:outline-none focus:ring-2 focus:ring-marca/40"
         />
 
         {consulta.length >= 2 && busquedaVigente === null && (
@@ -595,7 +595,7 @@ function MismoProductoPage() {
           </p>
         )}
         {busquedaVigente?.productos && busquedaVigente.productos.length > 0 && (
-          <ul className="mt-3 bg-papel border border-linea rounded-2xl divide-y divide-linea overflow-hidden">
+          <ul className="mt-3 tarjeta divide-y divide-linea overflow-hidden">
             {busquedaVigente.productos.map((producto) => (
               <FilaProducto
                 key={producto.id_producto}
@@ -627,7 +627,7 @@ function MismoProductoPage() {
       {!id && lista.length > 0 && canasta.length === 0 && (
         <p className="-mt-6 mb-10 text-sm text-tinta-media">
           ¿Es la compra del mes?{" "}
-          <Link to="/canasta-personalizada" className="text-ahorro font-medium hover:text-ahorro-hover">
+          <Link to="/canasta-personalizada" className="text-marca font-medium hover:text-marca-hover">
             Armá tu canasta
           </Link>{" "}
           y elegí acá la marca de cada cosa.
@@ -636,7 +636,7 @@ function MismoProductoPage() {
 
       {!id && consulta.length < 2 && ejemplos.length > 0 && (
         <section aria-labelledby="titulo-ejemplos" className="mb-12">
-          <h2 id="titulo-ejemplos" className="text-xs font-semibold uppercase tracking-wider text-tinta-suave mb-4">
+          <h2 id="titulo-ejemplos" className="text-base font-bold text-tinta mb-4">
             Así se ve la comparación
           </h2>
           {ejemplos.map((producto) => (
@@ -647,14 +647,14 @@ function MismoProductoPage() {
 
       {!id && consulta.length < 2 && (
         <section aria-labelledby="titulo-destacados">
-          <h2 id="titulo-destacados" className="text-xs font-semibold uppercase tracking-wider text-tinta-suave mb-3">
+          <h2 id="titulo-destacados" className="text-base font-bold text-tinta mb-3">
             Las mayores diferencias de hoy
           </h2>
           {destacados === null && <p className="text-sm text-tinta-suave">Cargando…</p>}
           {destacados?.error && <Aviso>{destacados.error}</Aviso>}
           {destacados?.productos && (
             <>
-              <ul className="bg-papel border border-linea rounded-2xl divide-y divide-linea overflow-hidden">
+              <ul className="tarjeta divide-y divide-linea overflow-hidden">
                 {destacados.productos.map((producto) => (
                   <FilaProducto
                     key={producto.id_producto}

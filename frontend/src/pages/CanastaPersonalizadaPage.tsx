@@ -25,6 +25,7 @@ import AgregarCategoria from "../components/AgregarCategoria";
 import Titular, { Resaltado } from "../components/Titular";
 import FilaDeCifras from "../components/FilaDeCifras";
 import DondeComprarla from "../components/DondeComprarla";
+import CanastaPorCadena from "../components/CanastaPorCadena";
 import {
   canastaAUrl,
   canastaDesdeUrl,
@@ -47,32 +48,45 @@ import { nombreCategoria, nombreGama } from "../utils/nombres";
   quien es la persona: "jubilados, presupuesto ajustado" podia leerse como un
   juicio. La gama se elige despues, y si no se dice nada la IA usa economica.
   Cada uno toca algo distinto de la canasta: cantidad de personas, bebe, dieta
-  sin carne, mucha carne, alcohol, comida hecha.
+  sin carne, mucha carne, alcohol, comida hecha. 2026-10-14: textos mas
+  concretos (la merienda de los chicos, los chorizos del asado, la gaseosa de
+  quien no cocina), que la IA convierte en categorias y que se leen como una
+  casa real; "Soy vegetariano" paso a "Sin carne", que no asume genero.
 */
 const EJEMPLOS = [
   {
-    titulo: "Somos cuatro, con dos chicos",
-    texto: "Somos una familia de 4, dos adultos y dos chicos, comemos carne y pollo varias veces por semana y tomamos mate",
+    titulo: "Familia con dos chicos",
+    icono: "👨‍👩‍👧‍👦",
+    texto:
+      "Somos cuatro: dos adultos y dos chicos que van al colegio. Comemos carne o pollo casi todos los días, tomamos mate y mucha leche, y siempre hay galletitas y jugo para la merienda",
   },
   {
-    titulo: "Tenemos un bebé",
-    texto: "Somos dos adultos y un bebé de un año, usamos pañales, tomamos mucha leche y cocinamos en casa",
+    titulo: "Con un bebé en casa",
+    icono: "👶",
+    texto:
+      "Somos dos adultos y un bebé de un año. Compramos pañales y toallitas, mucha leche y yogur, y cocinamos en casa todos los días",
   },
   {
-    titulo: "Soy vegetariano",
-    texto: "Soy vegetariano, como muchas verduras, frutas, legumbres, huevos y queso, y cocino en casa",
+    titulo: "Sin carne",
+    icono: "🥦",
+    texto:
+      "No como carne: muchas verduras y frutas, legumbres, arroz, huevos y queso. Cocino en casa casi todos los días",
   },
   {
-    titulo: "Como mucha carne y tomo mate",
-    texto: "Vivo solo, como mucha carne y muchos huevos, y tomo mate todos los días",
+    titulo: "Carne y mate todos los días",
+    icono: "🧉",
+    texto: "Vivo solo. Como carne casi todos los días y muchos huevos, y el mate no falta: yerba de sobra y algo de azúcar",
   },
   {
-    titulo: "Hacemos asado los findes",
-    texto: "Somos una pareja, cocinamos en casa y los fines de semana hacemos asado y tomamos cerveza de vez en cuando",
+    titulo: "Asado los fines de semana",
+    icono: "🔥",
+    texto:
+      "Somos una pareja. En la semana cocinamos en casa y los fines de semana hacemos asado con amigos: carne, chorizos, pan, ensalada, cerveza y vino",
   },
   {
     titulo: "Cocino poco",
-    texto: "Vivo solo y cocino poco: compro comida hecha, panchos, hamburguesas y papas congeladas",
+    icono: "🍕",
+    texto: "Vivo solo y casi no cocino: congelados, fideos, panchos, hamburguesas, pizza y gaseosa",
   },
 ];
 
@@ -122,29 +136,53 @@ function LugaresDeCompra({
   elegidos: LugarDeCompra[];
   onAlternar: (lugar: LugarDeCompra) => void;
 }) {
+  /*
+    2026-10-14: de dos pastillitas de texto chico a dos tarjetas con icono y un
+    interruptor. Eran faciles de pasar por alto y dificiles de tocar en el
+    celular, y es una decision que cambia mucho el total: sin la carne, la
+    canasta de una familia baja a la mitad.
+  */
   return (
-    <div className="mt-4 flex flex-wrap items-center gap-2">
-      <span className="text-xs text-tinta-suave">Fuera del súper compro:</span>
-      {(Object.keys(LUGARES_DE_COMPRA) as LugarDeCompra[]).map((lugar) => {
-        const marcado = elegidos.includes(lugar);
-        return (
-          <button
-            key={lugar}
-            type="button"
-            aria-pressed={marcado}
-            onClick={() => onAlternar(lugar)}
-            className={`text-xs border rounded-full px-3 py-1 transition-colors ${
-              marcado
-                ? "text-ahorro bg-ahorro-tenue border-ahorro-borde"
-                : "text-tinta-media bg-papel border-linea hover:border-linea-fuerte hover:text-tinta"
-            }`}
-          >
-            {marcado ? "✓ " : ""}
-            {LUGARES_DE_COMPRA[lugar].etiqueta}
-          </button>
-        );
-      })}
-    </div>
+    <fieldset className="mt-5">
+      <legend className="text-sm font-bold text-tinta mb-2">¿Comprás algo fuera del súper?</legend>
+      <div className="grid sm:grid-cols-2 gap-3">
+        {(Object.keys(LUGARES_DE_COMPRA) as LugarDeCompra[]).map((lugar) => {
+          const marcado = elegidos.includes(lugar);
+          const datos = LUGARES_DE_COMPRA[lugar];
+          return (
+            <button
+              key={lugar}
+              type="button"
+              role="switch"
+              aria-checked={marcado}
+              onClick={() => onAlternar(lugar)}
+              className={`flex items-center gap-3 text-left rounded-2xl px-4 py-3.5 transition ${
+                marcado ? "bg-marca-tenue ring-2 ring-marca" : "bg-papel shadow-tarjeta hover:shadow-flotante"
+              }`}
+            >
+              <span aria-hidden="true" className="shrink-0 w-11 h-11 rounded-xl bg-papel-hundido grid place-items-center text-2xl">
+                {datos.icono}
+              </span>
+              <span className="flex-1 min-w-0">
+                <span className={`block text-sm font-bold ${marcado ? "text-marca" : "text-tinta"}`}>{datos.etiqueta}</span>
+                <span className="block text-xs text-tinta-media mt-0.5">
+                  {marcado ? `Listo: no se suman ${datos.detalle}` : `Tocá y no se suman ${datos.detalle}`}
+                </span>
+              </span>
+              {/* El interruptor: dice "si o no" sin tener que leer el texto. */}
+              <span
+                aria-hidden="true"
+                className={`shrink-0 w-11 h-6 rounded-full p-0.5 transition-colors ${marcado ? "bg-marca" : "bg-linea-fuerte"}`}
+              >
+                <span
+                  className={`block w-5 h-5 rounded-full bg-white shadow transition-transform ${marcado ? "translate-x-5" : ""}`}
+                />
+              </span>
+            </button>
+          );
+        })}
+      </div>
+    </fieldset>
   );
 }
 
@@ -394,15 +432,15 @@ function CanastaPersonalizadaPage() {
 
       {/* Paso 1 */}
       <section className="mb-8">
-        <h2 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave mb-3">
-          1 · Contá qué consumís
+        <h2 className="font-display text-xl text-tinta mb-3">
+          <span aria-hidden="true" className="inline-grid place-items-center w-7 h-7 rounded-full fondo-marca text-white text-sm font-extrabold mr-2 align-middle">1</span>Contá qué consumís
         </h2>
         <textarea
           value={descripcion}
           onChange={(e) => setDescripcion(e.target.value)}
           placeholder="Ej: somos una familia de 4, dos adultos y dos chicos, comemos bastante carne y pollo y tomamos mate"
           rows={3}
-          className="w-full bg-papel border border-linea rounded-xl px-4 py-3 text-sm leading-relaxed resize-y focus:outline-none focus:border-ahorro"
+          className="w-full bg-papel rounded-2xl shadow-tarjeta px-4 py-3.5 text-base leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-marca/40"
         />
 
         {items.length === 0 && !generando && (
@@ -419,16 +457,21 @@ function CanastaPersonalizadaPage() {
                     type="button"
                     aria-pressed={elegido}
                     onClick={() => setDescripcion(ejemplo.texto)}
-                    className={`text-left border rounded-xl px-3.5 py-2.5 transition-colors shrink-0 w-64 snap-start sm:w-auto ${
+                    className={`flex gap-3 text-left rounded-2xl px-3.5 py-3 transition shrink-0 w-72 snap-start sm:w-auto ${
                       elegido
-                        ? "bg-ahorro-tenue border-ahorro-borde"
-                        : "bg-papel border-linea hover:border-linea-fuerte"
+                        ? "bg-marca-tenue ring-2 ring-marca"
+                        : "bg-papel shadow-tarjeta hover:-translate-y-0.5 hover:shadow-flotante"
                     }`}
                   >
-                    <span className={`block text-sm font-medium ${elegido ? "text-ahorro" : "text-tinta"}`}>
-                      {ejemplo.titulo}
+                    <span aria-hidden="true" className="shrink-0 w-11 h-11 rounded-xl bg-papel-hundido grid place-items-center text-2xl">
+                      {ejemplo.icono}
                     </span>
-                    <span className="block text-xs text-tinta-media mt-0.5 leading-relaxed">{ejemplo.texto}</span>
+                    <span className="min-w-0">
+                      <span className={`block text-sm font-bold ${elegido ? "text-marca" : "text-tinta"}`}>
+                        {ejemplo.titulo}
+                      </span>
+                      <span className="block text-xs text-tinta-media mt-0.5 leading-relaxed">{ejemplo.texto}</span>
+                    </span>
                   </button>
                 );
               })}
@@ -441,7 +484,7 @@ function CanastaPersonalizadaPage() {
         <button
           onClick={handleGenerar}
           disabled={generando || !descripcion.trim()}
-          className="mt-4 bg-ahorro text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-ahorro-hover disabled:bg-linea-fuerte disabled:cursor-not-allowed transition-colors"
+          className="mt-4 fondo-marca text-white text-sm font-bold px-5 py-2.5 rounded-xl shadow-[0_6px_16px_rgb(91_61_245/0.3)] hover:brightness-110 disabled:bg-linea-fuerte disabled:cursor-not-allowed transition-colors"
         >
           {generando ? "Armando tu canasta…" : items.length > 0 ? "Volver a generar" : "Generar canasta"}
         </button>
@@ -474,8 +517,8 @@ function CanastaPersonalizadaPage() {
           {/* Paso 2 */}
           <section className="mb-8">
             <div className="flex items-baseline justify-between gap-3 mb-3">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave">
-                2 · Ajustala a tu gusto
+              <h2 className="font-display text-xl text-tinta">
+                <span aria-hidden="true" className="inline-grid place-items-center w-7 h-7 rounded-full fondo-marca text-white text-sm font-extrabold mr-2 align-middle">2</span>Ajustala a tu gusto
               </h2>
               <span className="text-xs text-tinta-suave">
                 {cotizables.length} {cotizables.length === 1 ? "categoría" : "categorías"}
@@ -519,7 +562,7 @@ function CanastaPersonalizadaPage() {
                   <button
                     key={item.categoria}
                     onClick={() => restaurarItem(item.categoria)}
-                    className="text-xs text-tinta-media bg-papel border border-linea border-dashed rounded-full px-3 py-1 hover:border-ahorro hover:text-ahorro transition-colors"
+                    className="text-xs text-tinta-media bg-papel border border-linea border-dashed rounded-full px-3 py-1 hover:border-marca hover:text-marca transition-colors"
                   >
                     + {nombreCategoria(item.categoria)}
                   </button>
@@ -540,8 +583,8 @@ function CanastaPersonalizadaPage() {
 
           {/* Paso 3 */}
           <section className="mb-8">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave mb-3">
-              3 · Elegí tu zona <span className="normal-case font-normal">(hasta 3)</span>
+            <h2 className="font-display text-xl text-tinta mb-3">
+              <span aria-hidden="true" className="inline-grid place-items-center w-7 h-7 rounded-full fondo-marca text-white text-sm font-extrabold mr-2 align-middle">3</span>Elegí tu zona <span className="text-sm font-semibold text-tinta-suave">(hasta 3)</span>
             </h2>
 
             <input
@@ -549,7 +592,7 @@ function CanastaPersonalizadaPage() {
               value={busquedaLocalidad}
               onChange={(e) => handleBuscarLocalidad(e.target.value)}
               placeholder="Buscar localidad o barrio…"
-              className="w-full bg-papel border border-linea rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-ahorro"
+              className="w-full bg-papel rounded-2xl shadow-tarjeta px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-marca/40"
             />
 
             {opcionesLocalidad.length > 0 && (
@@ -572,14 +615,14 @@ function CanastaPersonalizadaPage() {
                 {localidadesElegidas.map((loc) => (
                   <span
                     key={`${loc.localidad}-${loc.provincia}`}
-                    className="inline-flex items-center gap-1.5 bg-ahorro-tenue text-ahorro border border-ahorro-borde text-xs font-medium pl-3 pr-2 py-1.5 rounded-full"
+                    className="inline-flex items-center gap-1.5 bg-marca-tenue text-marca border border-marca-borde text-xs font-medium pl-3 pr-2 py-1.5 rounded-full"
                   >
                     {loc.localidad}
                     <span className="font-normal opacity-70">{nombreProvincia(loc.provincia)}</span>
                     <button
                       onClick={() => quitarLocalidad(loc)}
                       aria-label={`Quitar ${loc.localidad}`}
-                      className="hover:text-ahorro-hover"
+                      className="hover:text-marca-hover"
                     >
                       ×
                     </button>
@@ -591,7 +634,7 @@ function CanastaPersonalizadaPage() {
             <button
               onClick={handleCalcular}
               disabled={calculando || localidadesElegidas.length === 0 || cotizables.length === 0}
-              className="mt-4 bg-ahorro text-white text-sm font-semibold px-5 py-2.5 rounded-lg hover:bg-ahorro-hover disabled:bg-linea-fuerte disabled:cursor-not-allowed transition-colors"
+              className="mt-4 fondo-marca text-white text-sm font-bold px-5 py-2.5 rounded-xl shadow-[0_6px_16px_rgb(91_61_245/0.3)] hover:brightness-110 disabled:bg-linea-fuerte disabled:cursor-not-allowed transition-colors"
             >
               {calculando ? "Calculando…" : resultado ? "Recalcular costo" : "Calcular costo"}
             </button>
@@ -615,7 +658,7 @@ function CanastaPersonalizadaPage() {
         <section
           className={[
             "bg-papel border rounded-2xl p-6 transition-opacity",
-            resultadoVigente ? "border-ahorro-borde" : "border-linea opacity-60",
+            resultadoVigente ? "border-marca-borde" : "border-linea opacity-60",
           ].join(" ")}
         >
           {!resultadoVigente && (
@@ -747,6 +790,9 @@ function CanastaPersonalizadaPage() {
       {/* Paso 4: donde comprarla. Aparece cuando hay canasta, sin esperar a que
           se calcule el costo: son dos preguntas distintas (cuanto sale y donde
           conviene comprarla) y la segunda se puede responder sola. */}
+      {/* Tu canasta en cada super: la compra entera en un solo lugar. */}
+      {cotizables.length > 0 && <CanastaPorCadena items={cotizables} localidades={localidadesElegidas} />}
+
       {cotizables.length > 0 && <DondeComprarla items={cotizables} />}
 
       {/* De tu canasta a tu lista: aca se cotizan categorias; en El mismo
@@ -754,7 +800,7 @@ function CanastaPersonalizadaPage() {
       {cotizables.length > 0 && (
         <Link
           to="/mismo-producto"
-          className="group mt-6 flex items-center justify-between gap-4 rounded-2xl border border-ahorro-borde bg-ahorro-tenue/40 p-4 sm:p-5 hover:bg-ahorro-tenue transition-colors"
+          className="group mt-6 flex items-center justify-between gap-4 rounded-2xl border border-marca-borde bg-marca-tenue/40 p-4 sm:p-5 hover:bg-marca-tenue transition-colors"
         >
           <span>
             <span className="block font-display text-xl text-tinta mb-1">¿Ya sabés qué marcas comprás?</span>
@@ -762,7 +808,7 @@ function CanastaPersonalizadaPage() {
               Elegí la marca exacta de cada cosa y mirá en qué cadena te sale más barata tu compra.
             </span>
           </span>
-          <span className="shrink-0 text-sm font-medium text-ahorro group-hover:translate-x-0.5 transition-transform">
+          <span className="shrink-0 text-sm font-medium text-marca group-hover:translate-x-0.5 transition-transform">
             Elegir marcas →
           </span>
         </Link>
@@ -775,11 +821,11 @@ function CanastaPersonalizadaPage() {
       {items.length > 0 && (
         <div className="mt-6 flex flex-wrap items-center gap-3 text-xs text-tinta-suave">
           <span className="inline-flex items-center gap-1.5">
-            <span className="w-1.5 h-1.5 rounded-full bg-ahorro" />
+            <span className="w-1.5 h-1.5 rounded-full bg-marca" />
             Se guarda sola en este navegador
           </span>
           <span className="text-linea-fuerte">·</span>
-          <button onClick={copiarLink} className="text-ahorro hover:text-ahorro-hover font-medium">
+          <button onClick={copiarLink} className="text-marca hover:text-marca-hover font-medium">
             {linkCopiado ? "¡Link copiado!" : "Copiar link para compartir"}
           </button>
           <span className="text-linea-fuerte">·</span>

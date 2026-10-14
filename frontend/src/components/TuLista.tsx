@@ -2,6 +2,8 @@ import { useEffect, useState } from "react";
 import { cotizarLista } from "../api/client";
 import { fechaEnPalabras, formatearPesos } from "../utils/formato";
 import { MAXIMO_UNIDADES } from "../utils/lista";
+import { esMayorista } from "../utils/mayoristas";
+import EtiquetaMayorista from "./EtiquetaMayorista";
 import type { ItemLista, ResultadoLista } from "../types";
 
 /*
@@ -66,14 +68,17 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
   const nombres = new Map(lista.map((i) => [i.id_producto, i.nombre]));
   const completas = r?.cadenas.filter((c) => c.completa) ?? [];
   const incompletas = r?.cadenas.filter((c) => !c.completa) ?? [];
-  const barata = completas[0];
+  // El titular es el super comun mas barato: quien no compra por bulto no va a
+  // un mayorista (ver utils/mayoristas). Si el mayorista sale menos, se dice aparte.
+  const barata = completas.find((c) => !esMayorista(c.cadena)) ?? completas[0];
+  const mayorista = completas[0] && completas[0] !== barata && esMayorista(completas[0].cadena) ? completas[0] : null;
   const cara = completas[completas.length - 1];
   const ahorro = barata && cara && completas.length > 1 ? cara.total - barata.total : 0;
   const maximo = Math.max(...completas.map((c) => c.total), 1);
   const unidades = lista.reduce((suma, i) => suma + i.cantidad, 0);
 
   return (
-    <section aria-labelledby="titulo-lista" className="mb-10 bg-papel border border-linea rounded-2xl p-4 sm:p-6">
+    <section aria-labelledby="titulo-lista" className="mb-10 tarjeta p-4 sm:p-6">
       <div className="flex items-baseline justify-between gap-4 mb-4">
         <h2 id="titulo-lista" className="font-display text-2xl text-tinta">
           Tu lista
@@ -103,6 +108,12 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
               </>
             )}
           </p>
+          {mayorista && (
+            <p className="text-sm text-tinta-media mt-1">
+              Contando mayoristas, en {mayorista.cadena} te sale{" "}
+              <span className="numero font-semibold text-tinta">{formatearPesos(mayorista.total)}</span>.
+            </p>
+          )}
           {r && r.combinando_cadenas < barata.total - 0.5 && (
             <p className="text-sm text-tinta-media mt-1">
               Comprando cada producto donde está más barato, {formatearPesos(r.combinando_cadenas)}, aunque eso es ir
@@ -124,7 +135,7 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
           <li key={item.id_producto} className="flex items-center gap-3 py-2">
             <button
               onClick={() => onVer(item.id_producto)}
-              className="flex-1 min-w-0 text-left text-sm text-tinta truncate hover:text-ahorro"
+              className="flex-1 min-w-0 text-left text-sm text-tinta truncate hover:text-marca"
             >
               {item.nombre}
             </button>
@@ -160,22 +171,23 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
 
       {completas.length > 0 && (
         <>
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave mb-2">
+          <h3 className="text-base font-bold text-tinta mb-2">
             Con todos tus productos
           </h3>
           <ul className="space-y-1.5 mb-5">
-            {completas.map((c, i) => (
+            {completas.map((c) => (
               <li key={c.cadena} className="grid grid-cols-[minmax(0,9rem)_1fr_auto] sm:grid-cols-[11rem_1fr_auto] items-center gap-3">
-                <span className={`text-sm truncate ${i === 0 ? "text-tinta font-semibold" : "text-tinta-media"}`}>
+                <span className={`text-sm truncate ${c === barata ? "text-tinta font-semibold" : "text-tinta-media"}`}>
                   {c.cadena}
+                  {esMayorista(c.cadena) && <EtiquetaMayorista />}
                 </span>
                 <span className="h-2 bg-papel-hundido rounded-full overflow-hidden" aria-hidden="true">
                   <span
-                    className={`block h-full rounded-full ${i === 0 ? "bg-ahorro" : "bg-tinta-suave/50"}`}
+                    className={`block h-full rounded-full ${c === barata ? "bg-ahorro" : esMayorista(c.cadena) ? "bg-[#f5b54a]" : "bg-marca/40"}`}
                     style={{ width: `${(c.total / maximo) * 100}%` }}
                   />
                 </span>
-                <span className={`numero text-sm text-right ${i === 0 ? "font-semibold text-tinta" : "text-tinta-media"}`}>
+                <span className={`numero text-sm text-right ${c === barata ? "font-semibold text-tinta" : "text-tinta-media"}`}>
                   {formatearPesos(c.total)}
                 </span>
               </li>
@@ -186,7 +198,7 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
 
       {incompletas.length > 0 && (
         <>
-          <h3 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave mb-2">
+          <h3 className="text-base font-bold text-tinta mb-2">
             Les falta algún producto
           </h3>
           <ul className="divide-y divide-linea mb-2">

@@ -62,7 +62,7 @@ function ContenidoPopup({ grupo }: { grupo: GrupoSucursal }) {
         {[grupo.calle, grupo.numero].filter(Boolean).join(" ") || grupo.nombre_sucursal}
         {grupo.localidad && ` · ${grupo.localidad}`}, {nombreProvincia(grupo.provincia)}
       </p>
-      <p className="text-[11px] font-semibold uppercase tracking-wider text-tinta-suave mt-3 mb-1">
+      <p className="text-xs font-semibold text-tinta-suave mt-3 mb-1">
         {grupo.promos.length} {grupo.promos.length === 1 ? "promo vigente" : "promos vigentes"}
       </p>
       <ul className="max-h-56 overflow-y-auto divide-y divide-linea -mx-1 px-1">

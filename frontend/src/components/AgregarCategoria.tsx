@@ -44,7 +44,7 @@ function AgregarCategoria({ categorias, onAgregar, etiqueta }: Props) {
         onChange={(e) => setTexto(e.target.value)}
         placeholder="Buscar: cerdo, yerba, pañales…"
         autoComplete="off"
-        className="w-full bg-papel border border-linea rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-ahorro"
+        className="w-full bg-papel rounded-2xl shadow-tarjeta px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-marca/40"
       />
 
       {consulta && coincidencias.length === 0 && (
@@ -62,7 +62,7 @@ function AgregarCategoria({ categorias, onAgregar, etiqueta }: Props) {
                 onAgregar(c);
                 setTexto("");
               }}
-              className="text-xs text-tinta-media bg-papel border border-linea rounded-full px-3 py-1 hover:border-ahorro hover:text-ahorro transition-colors"
+              className="text-xs text-tinta-media bg-papel border border-linea rounded-full px-3 py-1 hover:border-marca hover:text-marca transition-colors"
             >
               + {nombreCategoria(c.categoria)}
               <span className="text-tinta-suave"> · {c.unidad}</span>

@@ -59,7 +59,7 @@ function DetalleInflacionCadenas({ categoria }: { categoria: string }) {
   return (
     <div className="bg-papel-hundido rounded-xl p-4">
       <div className="flex items-baseline justify-between gap-3 mb-3">
-        <h3 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave">
+        <h3 className="text-base font-bold text-tinta">
           Cadena por cadena
         </h3>
         <span className="text-xs text-tinta-suave">

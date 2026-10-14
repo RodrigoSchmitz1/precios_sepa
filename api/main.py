@@ -797,6 +797,29 @@ def optimizar_compra_canasta(datos: OptimizarCompraRequest):
     )
 
 
+class CanastaPorCadenaRequest(BaseModel):
+    items: list
+    localidades: list = []
+
+
+@api.post("/canasta-personalizada/por-cadena")
+def canasta_por_cadena(datos: CanastaPorCadenaRequest):
+    """Tu canasta en cada cadena: cuanto sale la compra entera en cada una.
+
+    Sale del mismo indice en memoria que "Donde comprarla": no consulta BigQuery.
+    """
+    if not datos.items:
+        return JSONResponse(status_code=422, content={"detail": "La canasta está vacía."})
+    if len(datos.items) > MAXIMO_ITEMS_OPTIMIZAR:
+        return JSONResponse(
+            status_code=422,
+            content={"detail": f"Son demasiadas categorías: el máximo es {MAXIMO_ITEMS_OPTIMIZAR}."},
+        )
+    items = [i for i in datos.items if isinstance(i, dict)]
+    localidades = [l for l in datos.localidades if isinstance(l, dict)][:3]
+    return precios_por_sucursal.canasta_por_cadena(_indice_sucursales(), items, localidades)
+
+
 # Una localidad se ofrece si tiene precio en al menos esta cantidad de
 # categorias: con menos, casi cualquier canasta quedaria a medio cotizar.
 CATEGORIAS_MINIMAS_LOCALIDAD = 15

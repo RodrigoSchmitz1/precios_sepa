@@ -30,6 +30,11 @@ import type { ReactNode } from "react";
 
   El titular se arma con los datos del momento, nunca con texto fijo: una cifra
   vieja en letra grande es peor que no poner ninguna.
+
+  2026-10-14, estilo "App": la banda deja de ser negra y pasa a ser el degrade
+  de la marca, con la letra de los titulos pesada en vez de serif y dos circulos
+  translucidos de fondo. El negro con serif era lo que hacia que el sitio se
+  leyera "como un diario". El antetitulo pasa de versalitas a una pastilla.
 */
 
 type Props = {
@@ -50,9 +55,11 @@ export function Resaltado({ children, tono = "caro" }: { children: ReactNode; to
 function Titular({ antetitulo, children, bajada }: Props) {
   return (
     /* A sangre y no una tarjeta: ver el comentario de arriba. */
-    <header className="mb-10 bg-tinta mx-[calc(50%-50vw)] px-5 py-8 sm:py-12">
-      <div className="max-w-4xl mx-auto">
-      <p className="text-xs font-semibold uppercase tracking-[0.12em] text-sobre-oscuro-barato mb-4">
+    <header className="relative overflow-hidden mb-10 fondo-marca -mt-10 mx-[calc(50%-50vw)] px-5 pt-10 pb-12 sm:pt-14 sm:pb-16 rounded-b-[2.5rem]">
+      <span aria-hidden="true" className="absolute -right-24 -top-40 w-[30rem] h-[30rem] rounded-full bg-white/[0.07]" />
+      <span aria-hidden="true" className="absolute right-[18%] -bottom-40 w-72 h-72 rounded-full bg-white/[0.06]" />
+      <div className="relative max-w-4xl mx-auto">
+      <p className="inline-block text-xs font-bold text-white bg-white/15 rounded-full px-3 py-1 mb-4">
         {antetitulo}
       </p>
       {/*
@@ -62,11 +69,11 @@ function Titular({ antetitulo, children, bajada }: Props) {
         cuerpo no tiene que hacer ademas ese trabajo. La diferencia se cierra
         por los dos lados: el titular baja un escalon y las listas suben uno.
       */}
-      <h1 className="font-display text-4xl sm:text-5xl lg:text-6xl leading-[1.02] text-papel max-w-3xl text-balance">
+      <h1 className="font-display text-4xl sm:text-5xl lg:text-[3.5rem] leading-[1.05] text-white max-w-3xl text-balance">
         {children}
       </h1>
       {bajada && (
-        <div className="mt-5 text-sm leading-relaxed text-papel/70 max-w-2xl border-t border-papel/15 pt-4">
+        <div className="mt-4 text-base leading-relaxed text-white/85 max-w-2xl">
           {bajada}
         </div>
       )}

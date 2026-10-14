@@ -132,15 +132,16 @@ function DondeComprarla({ items }: Props) {
   };
 
   return (
-    <section className="mb-8">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave mb-3">
-        4 · Dónde comprarla
+    <section className="mt-8 mb-8">
+      <h2 className="font-display text-xl text-tinta mb-3">
+        <span aria-hidden="true" className="inline-grid place-items-center w-7 h-7 rounded-full fondo-marca text-white text-sm font-extrabold mr-2 align-middle">4</span>
+        Dónde comprarla cerca tuyo
       </h2>
 
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2 mb-3">
         <button
           onClick={ubicarme}
-          className="text-sm font-medium text-ahorro hover:text-ahorro-hover transition-colors"
+          className="text-sm font-medium text-marca hover:text-marca-hover transition-colors"
         >
           Usar mi ubicación
         </button>
@@ -155,7 +156,7 @@ function DondeComprarla({ items }: Props) {
               className={[
                 "numero text-xs rounded-full px-2.5 py-1 border transition-colors",
                 r === radioKm
-                  ? "border-ahorro-borde bg-ahorro-tenue text-ahorro font-semibold"
+                  ? "border-marca-borde bg-marca-tenue text-marca font-semibold"
                   : "border-linea text-tinta-media hover:border-linea-fuerte",
               ].join(" ")}
             >

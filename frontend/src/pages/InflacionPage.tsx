@@ -182,9 +182,9 @@ function InflacionPage() {
             />
           </div>
 
-          <div>
-            <div className="flex items-baseline justify-between gap-3 pb-2 border-b border-linea-fuerte mb-2">
-              <h2 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave">Todas las categorías</h2>
+          <div className="tarjeta p-4 sm:p-6">
+            <div className="flex items-baseline justify-between gap-3 pb-3 border-b border-linea mb-2">
+              <h2 className="font-display text-xl text-tinta">Todas las categorías</h2>
               <span className="text-xs text-tinta-suave">
                 escala hasta {magnitudMaxima} ({nombreCategoria(masExtrema.categoria)})
               </span>

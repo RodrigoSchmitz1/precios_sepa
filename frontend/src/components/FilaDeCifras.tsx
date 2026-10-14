@@ -14,6 +14,10 @@ import type { ReactNode } from "react";
   leia como un parrafo en columnas y no como cifras. Que no tengan color no
   quiere decir que no tengan que pesar: el peso lo da el cuerpo. La etiqueta se
   achica y se pone en versalitas para que el numero domine su columna.
+
+  2026-10-14, estilo "App": cada cifra va en su tarjeta blanca con sombra y el
+  numero en la letra de los titulos (pesada). Las columnas separadas por rayitas
+  eran parte del aire "de diario".
 */
 
 export type Cifra = {
@@ -24,17 +28,12 @@ export type Cifra = {
 
 function FilaDeCifras({ cifras }: { cifras: Cifra[] }) {
   return (
-    <dl className="grid grid-cols-2 gap-x-4 sm:gap-x-0 sm:grid-flow-col sm:auto-cols-fr border-y border-linea">
+    <dl className="grid grid-cols-2 sm:grid-cols-none sm:grid-flow-col sm:auto-cols-fr gap-3 sm:gap-4">
       {cifras.map((c) => (
-        <div
-          key={c.etiqueta}
-          className="py-5 sm:px-6 sm:first:pl-0 sm:border-l sm:first:border-l-0 border-linea min-w-0"
-        >
-          <dt className="text-[11px] font-semibold uppercase tracking-wider text-tinta-suave mb-1">
-            {c.etiqueta}
-          </dt>
-          <dd className="numero text-2xl sm:text-3xl font-medium text-tinta leading-none truncate">{c.valor}</dd>
-          {c.detalle && <dd className="mt-1.5 text-xs text-tinta-media leading-snug">{c.detalle}</dd>}
+        <div key={c.etiqueta} className="tarjeta p-4 sm:p-5 min-w-0">
+          <dt className="text-xs sm:text-sm font-semibold text-tinta-suave mb-1.5">{c.etiqueta}</dt>
+          <dd className="font-display text-xl sm:text-[2rem] text-tinta leading-tight break-words">{c.valor}</dd>
+          {c.detalle && <dd className="mt-1.5 text-xs sm:text-sm text-tinta-media leading-snug">{c.detalle}</dd>}
         </div>
       ))}
     </dl>

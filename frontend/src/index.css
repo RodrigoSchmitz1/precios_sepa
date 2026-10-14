@@ -5,10 +5,15 @@
   Tailwind v4 se configura desde CSS: lo que se define en @theme genera
   utilidades (--color-tinta -> bg-tinta, text-tinta, border-tinta).
 
-  Criterio: producto de datos sobre precios e inflacion, no una landing. La
-  referencia es el periodismo de datos: fondo calido, una serif para titulos e
-  importes, y color que entra por los datos (tiles, barras, escalas) y no como
-  decoracion.
+  2026-10-14, estilo "App": la referencia deja de ser el periodismo de datos
+  (serif, papel, blanco y negro) y pasa a ser una app de uso diario: degrade
+  violeta a celeste en la cabecera, Manrope en todo, tarjetas blancas
+  redondeadas con sombra en vez de rayitas, numeros grandes e iconos. Una
+  persona que no lee datos lo veia "señorial, como un diario" y lo cerraba.
+
+  Lo que no cambia: el color de los DATOS sigue codificando algo (verde =
+  barato/ahorro, rosa = caro/alerta) y la paleta categorica sigue validada.
+  El violeta es la marca: botones, links, pestaña activa.
 */
 
 @theme {
@@ -19,36 +24,44 @@
     de sostenerlo; neutro, la tarjeta blanca se despega y el color que queda en
     pantalla es el de los datos.
   */
-  --color-lienzo: #f7f7f6;
+  --color-lienzo: #f4f5fb;
   --color-papel: #ffffff;
-  --color-papel-hundido: #f4f2ee;
+  --color-papel-hundido: #eef0f8;
 
   /* --- Tinta: negro calido, nunca #000 --- */
-  --color-tinta: #1a1815;
-  --color-tinta-media: #57514a;
-  --color-tinta-suave: #8a827a;
+  --color-tinta: #0f1530;
+  --color-tinta-media: #4a5272;
+  --color-tinta-suave: #7a82a1;
 
   /* --- Bordes --- */
-  --color-linea: #e8e4de;
-  --color-linea-fuerte: #d6d0c7;
+  --color-linea: #e6e8f2;
+  --color-linea-fuerte: #d2d6e8;
 
   /*
     --- Acento: verde = ahorro, precio conveniente, accion principal ---
     Mismo tono que --color-dato-verde pero un paso mas oscuro, para que el
     texto blanco encima de los botones tenga contraste suficiente.
   */
-  --color-ahorro: #0b6b4d;
-  --color-ahorro-hover: #085239;
-  --color-ahorro-tenue: #e7f5f0;
-  --color-ahorro-borde: #a9d9c6;
+  --color-ahorro: #087f5b;
+  --color-ahorro-hover: #066b4c;
+  --color-ahorro-tenue: #e3f8ef;
+  --color-ahorro-borde: #a7e3cb;
+
+  /* --- Marca: el violeta del degrade. Botones, links, pestaña activa. ---
+     #5b3df5 sobre blanco da 6,1:1: sirve para texto chico. */
+  --color-marca: #5b3df5;
+  --color-marca-hover: #4a2de0;
+  --color-marca-tenue: #eeeaff;
+  --color-marca-borde: #cfc6ff;
+  --color-celeste: #00b8c4;
 
   /* --- Terracota = caro, alerta, error. Nunca decorativo. --- */
-  --color-alerta: #c0392b;
-  --color-alerta-tenue: #fbeceb;
+  --color-alerta: #d02a55;
+  --color-alerta-tenue: #fde7ee;
 
   /* --- Ambar = advertencia suave (datos incompletos) --- */
-  --color-aviso: #8a6212;
-  --color-aviso-tenue: #fbf3e2;
+  --color-aviso: #8f5d00;
+  --color-aviso-tenue: #fff4db;
 
   /*
     --- Paleta de datos ---
@@ -85,11 +98,13 @@
     y nada mas. Estos dan 7,7:1 y 8,5:1, asi que sirven tambien en cifras
     chicas, y conservan el significado (calido = caro, verde = barato).
   */
-  --color-sobre-oscuro-caro: #ff8a75;
-  --color-sobre-oscuro-barato: #6bc4a2;
+  /* 2026-10-14: la banda ya no es negra sino el degrade violeta; estos dan
+     >= 4,5:1 sobre su parte mas clara (#5b3df5). */
+  --color-sobre-oscuro-caro: #ffd0dc;
+  --color-sobre-oscuro-barato: #8ff5d6;
   /* La advertencia en la bajada del titular. --color-aviso sobre la banda da
      3,24:1, debajo del 4,5 que pide el texto chico; este da 8,2:1. */
-  --color-sobre-oscuro-aviso: #e8a33d;
+  --color-sobre-oscuro-aviso: #ffe08a;
 
   --color-escala-1: #6bc4a2;
   --color-escala-2: #3fae87;
@@ -97,8 +112,32 @@
   --color-escala-4: #0f8058;
   --color-escala-5: #0a6146;
 
-  --font-display: "Instrument Serif", Georgia, serif;
-  --font-sans: "Inter", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-display: "Manrope", system-ui, "Segoe UI", Roboto, sans-serif;
+  --font-sans: "Manrope", system-ui, "Segoe UI", Roboto, sans-serif;
+
+  --shadow-tarjeta: 0 6px 20px rgb(20 20 80 / 0.06);
+  --shadow-flotante: 0 14px 40px rgb(20 20 80 / 0.12);
+}
+
+/* Los titulos: misma letra que el texto, pero pesada y apretada. Va en base
+   para que un font-semibold puesto a mano en un titulo lo pueda pisar. */
+@layer base {
+  .font-display {
+    font-weight: 800;
+    letter-spacing: -0.025em;
+  }
+}
+
+/* El degrade de la marca: cabecera de cada pagina y botones principales. */
+@utility fondo-marca {
+  background-image: linear-gradient(120deg, #3b1fd6 0%, #5b3df5 50%, #1294c4 100%);
+}
+
+/* Tarjeta: blanca, redondeada y con sombra suave, sin borde. */
+@utility tarjeta {
+  background-color: var(--color-papel);
+  border-radius: 1.5rem;
+  box-shadow: var(--shadow-tarjeta);
 }
 
 /*
@@ -133,17 +172,19 @@ body {
 
 /* Foco visible y consistente, sin el anillo azul por defecto del navegador */
 :where(button, input, textarea, select, a):focus-visible {
-  outline: 2px solid var(--color-ahorro);
+  outline: 2px solid var(--color-marca);
   outline-offset: 2px;
 }
 
 /*
-  Fondo de los mapas en gris (ver MapaBase). El filtro va sobre el contenedor de
-  tiles y no sobre el mapa entero, asi los marcadores y los popups conservan su
-  color. Un poco menos de contraste para que calles y nombres queden de fondo.
+  Fondo de los mapas (ver MapaBase). El filtro va sobre el contenedor de tiles y
+  no sobre el mapa entero, asi los marcadores y los popups conservan su color.
+  2026-10-14: de gris a color apagado. En gris era otra pieza del aire "de
+  diario"; con la mitad de saturacion el verde de las plazas y el celeste del
+  agua quedan, pero los marcadores siguen siendo lo que mas se ve.
 */
-.mapa-base-gris {
-  filter: grayscale(1) contrast(0.9) brightness(1.05);
+.mapa-base-suave {
+  filter: saturate(0.5) contrast(0.92) brightness(1.04);
 }
 
 /*
@@ -157,12 +198,12 @@ body {
 .leaflet-container .marker-cluster-small,
 .leaflet-container .marker-cluster-medium,
 .leaflet-container .marker-cluster-large {
-  background-color: color-mix(in srgb, var(--color-ahorro) 22%, transparent);
+  background-color: color-mix(in srgb, var(--color-marca) 24%, transparent);
 }
 .leaflet-container .marker-cluster-small div,
 .leaflet-container .marker-cluster-medium div,
 .leaflet-container .marker-cluster-large div {
-  background-color: var(--color-ahorro);
+  background-color: var(--color-marca);
   color: #fff;
   font-weight: 600;
 }

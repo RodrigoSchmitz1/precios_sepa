@@ -4,6 +4,7 @@ import Titular, { Resaltado } from "../components/Titular";
 import FilaDeCifras from "../components/FilaDeCifras";
 import MapaDelMercado from "../components/MapaDelMercado";
 import { formatearNumero } from "../utils/formato";
+import { liderEn, MAYORISTAS } from "../utils/mayoristas";
 import type { QuienGana } from "../types";
 import { nombreCategoria } from "../utils/nombres";
 
@@ -22,32 +23,6 @@ import { nombreCategoria } from "../utils/nombres";
 */
 
 type Estado = { filas?: QuienGana[]; error?: string };
-
-/*
-  Formatos mayoristas (2026-09-26). Maxi, el mayorista de Carrefour, gana 53 de
-  las 66 categorias: el titular es cierto, pero para quien hace la compra del mes
-  en un super comun la pregunta es quien gana sin ellos. Es una lista y no una
-  regla porque SEPA no marca el formato: sale de mapeo_cadenas.csv.
-*/
-const MAYORISTAS = new Map([["Maxi (Carrefour)", "Maxi es el mayorista de Carrefour"]]);
-
-/** La cadena mas barata en mas categorias, y en cuantas. */
-function liderEn(filas: QuienGana[], categorias: string[]): [string, number] {
-  const liderazgos = new Map<string, number>();
-  for (const categoria of categorias) {
-    const deLaCategoria = filas.filter((f) => f.categoria === categoria);
-    if (deLaCategoria.length === 0) continue;
-    const maximo = Math.max(...deLaCategoria.map((f) => f.pct_gana_cuando_compite));
-    // Un empate en el tope cuenta para las dos: forzar un desempate seria
-    // inventar una diferencia que los datos no tienen.
-    for (const fila of deLaCategoria) {
-      if (fila.pct_gana_cuando_compite === maximo) {
-        liderazgos.set(fila.cadena, (liderazgos.get(fila.cadena) ?? 0) + 1);
-      }
-    }
-  }
-  return [...liderazgos.entries()].sort((a, b) => b[1] - a[1])[0];
-}
 
 function QuienGanaPage() {
   const [estado, setEstado] = useState<Estado | null>(null);
@@ -76,11 +51,11 @@ function QuienGanaPage() {
     for (const categoria of categorias) {
       comparables += filas.find((f) => f.categoria === categoria)!.total_productos_categoria;
     }
-    const [lider, categoriasLideradas] = liderEn(filas, categorias);
+    const [lider, categoriasLideradas] = liderEn(filas, categorias) ?? ["", 0];
     // Si gana un mayorista, tambien quien gana sin ellos: es la respuesta para
     // quien no compra por bulto.
     const sinMayoristas = MAYORISTAS.has(lider)
-      ? liderEn(filas.filter((f) => !MAYORISTAS.has(f.cadena)), categorias)
+      ? (liderEn(filas.filter((f) => !MAYORISTAS.has(f.cadena)), categorias) ?? null)
       : null;
     return {
       categorias,
@@ -174,7 +149,7 @@ function QuienGanaPage() {
           ) : (
             <div>
               <div className="flex items-baseline justify-between gap-3 pb-2 border-b border-linea-fuerte">
-                <h2 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave">
+                <h2 className="text-base font-bold text-tinta">
                   {nombreCategoria(categoriaElegida)}: de lo que ofrece, en cuánto tiene el precio más bajo
                 </h2>
                 <button

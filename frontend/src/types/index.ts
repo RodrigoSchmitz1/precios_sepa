@@ -268,6 +268,20 @@ export type ItemLista = {
   categoria?: string | null;
 };
 
+/** Tu canasta en cada cadena (POST /canasta-personalizada/por-cadena). */
+export type CanastaPorCadena = {
+  /** "zona" si se usaron solo las sucursales de las localidades elegidas. */
+  ambito: "zona" | "pais";
+  cadenas: { cadena: string; total: number; con_otra_gama: number; sucursales: number }[];
+  /** Las categorias que venden todas las cadenas comparadas: sobre ellas se suma. */
+  categorias_comparadas: string[];
+  categorias_afuera: string[];
+  /** Cadenas que no venden lo suficiente de la canasta para comparar parejo. */
+  cadenas_afuera: { cadena: string; categorias_con_precio: number }[];
+  total_categorias: number;
+  fecha_datos: string | null;
+};
+
 /** Un producto comun de una categoria, para elegir la marca desde Tu canasta. */
 export type ProductoSugerido = ProductoComparado & {
   /** Sucursales con precio creible, sumando todas las cadenas. */

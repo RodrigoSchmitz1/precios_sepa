@@ -11,7 +11,7 @@ type Props = {
 function BuscadorProducto({ busqueda, onBusquedaChange }: Props) {
   return (
     <div className="relative">
-      <span className="absolute left-0 top-1/2 -translate-y-1/2 text-tinta-suave text-sm" aria-hidden="true">
+      <span className="absolute left-4 top-1/2 -translate-y-1/2 text-tinta-suave text-base z-10" aria-hidden="true">
         ⌕
       </span>
       <input
@@ -20,7 +20,7 @@ function BuscadorProducto({ busqueda, onBusquedaChange }: Props) {
         value={busqueda}
         onChange={(e) => onBusquedaChange(e.target.value)}
         aria-label="Buscar producto en las promos"
-        className="w-full bg-transparent border-b border-linea-fuerte pl-6 pr-3 py-2.5 text-sm placeholder:text-tinta-suave focus:outline-none focus:border-ahorro"
+        className="w-full bg-papel rounded-2xl shadow-tarjeta pl-10 pr-4 py-3 text-sm placeholder:text-tinta-suave focus:outline-none focus:ring-2 focus:ring-marca/40"
       />
     </div>
   );

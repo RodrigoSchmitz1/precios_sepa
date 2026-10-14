@@ -68,7 +68,7 @@ function FiltroCategorias<T extends ConRubro>({ promos, elegido, onElegir }: Pro
 
   return (
     <nav aria-label="Filtrar por rubro" className="text-sm">
-      <h2 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave mb-3">Rubros</h2>
+      <h2 className="text-base font-bold text-tinta mb-3">Rubros</h2>
 
       <ul className="space-y-0.5">
         <li>
@@ -154,7 +154,7 @@ function Boton({
         "w-full flex items-baseline justify-between gap-2 rounded-lg px-2.5 py-1.5 text-left transition-colors",
         chico ? "text-xs" : "",
         activo
-          ? "bg-ahorro-tenue text-ahorro font-semibold"
+          ? "bg-marca-tenue text-marca font-semibold"
           : "text-tinta-media hover:bg-papel-hundido hover:text-tinta",
       ].join(" ")}
     >
@@ -165,7 +165,7 @@ function Boton({
         )}
         {nombre}
       </span>
-      <span className={["numero text-xs shrink-0", activo ? "text-ahorro" : "text-tinta-suave"].join(" ")}>
+      <span className={["numero text-xs shrink-0", activo ? "text-marca" : "text-tinta-suave"].join(" ")}>
         {cantidad}
       </span>
     </button>

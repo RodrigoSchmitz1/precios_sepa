@@ -219,7 +219,7 @@ function PromosPage() {
 
         <div>
           <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 mb-3">
-            <h2 className="text-xs font-semibold uppercase tracking-wider text-tinta-suave">
+            <h2 className="text-base font-bold text-tinta">
               {filtro?.valor ?? "Todas las promos"}
               {!cargando && !error && (
                 <span className="numero normal-case tracking-normal font-normal">
@@ -311,7 +311,7 @@ function PromosPage() {
           </div>
 
           {/* Filas separadas por linea fina, como los demas listados del sitio. */}
-          <div className="border-t border-linea divide-y divide-linea">
+          <div className="grid gap-3">
             {lote.map((promo, i) => (
               <PromoCard key={`${promo.descripcion}-${promo.cadena}-${i}`} promo={promo} sucursales={sucursales} />
             ))}
