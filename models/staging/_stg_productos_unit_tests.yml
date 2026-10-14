@@ -1,0 +1,40 @@
+unit_tests:
+  - name: stg_productos_lee_el_tamano_de_la_descripcion_si_la_fuente_dice_una_unidad
+    description: >
+      Carrefour informa todo como "1 UNI" y Cencosud escribe litros con etiqueta
+      de ml ("1.00 ml." para un litro); en los dos casos el tamaño esta en el
+      texto. Carrefour (medido
+      el 2026-10-13: "ARROZ PARBOIL GALLO ORO BOLSA X 500 GRS" con cantidad 1).
+      El tamaño se lee de la descripcion solo en ese caso; lo que ya viene en
+      gramos o litros no se toca, y lo que se cuenta por pieza sigue por pieza.
+    model: stg_productos
+    overrides:
+      macros:
+        is_incremental: false
+    given:
+      - input: source('sepa', 'productos')
+        rows:
+          - {id_comercio: "10", id_bandera: "1", id_sucursal: "1", id_producto: "arroz", productos_descripcion: "ARROZ PARBOIL GALLO ORO BOLSA X 500 GRS", productos_cantidad_presentacion: "1", productos_unidad_medida_presentacion: UNI, productos_precio_lista: "1569.00", fecha_datos: "2026-10-13"}
+          - {id_comercio: "10", id_bandera: "1", id_sucursal: "1", id_producto: "kilo", productos_descripcion: "ARROZ INTEGRAL LUCCHETTI X 1 KG", productos_cantidad_presentacion: "1", productos_unidad_medida_presentacion: UNI, productos_precio_lista: "2499.00", fecha_datos: "2026-10-13"}
+          - {id_comercio: "10", id_bandera: "1", id_sucursal: "1", id_producto: "pack", productos_descripcion: "ALFAJOR CHOCOLATE TERRABUSI 6 X 50 GRS", productos_cantidad_presentacion: "1", productos_unidad_medida_presentacion: UNI, productos_precio_lista: "8225.00", fecha_datos: "2026-10-13"}
+          - {id_comercio: "10", id_bandera: "1", id_sucursal: "1", id_producto: "gaseosa", productos_descripcion: "GASEOSA COCA COLA 2,25 L", productos_cantidad_presentacion: "1", productos_unidad_medida_presentacion: UNI, productos_precio_lista: "6000.00", fecha_datos: "2026-10-13"}
+          - {id_comercio: "10", id_bandera: "1", id_sucursal: "1", id_producto: "miles", productos_descripcion: "HARINA 000 BLANCAFLOR X 1.000 GR", productos_cantidad_presentacion: "1", productos_unidad_medida_presentacion: UNI, productos_precio_lista: "1200.00", fecha_datos: "2026-10-13"}
+          - {id_comercio: "10", id_bandera: "1", id_sucursal: "1", id_producto: "huevos", productos_descripcion: "HUEVO BLANCO CARREFOUR CARTON X 30 UNI", productos_cantidad_presentacion: "1", productos_unidad_medida_presentacion: UNI, productos_precio_lista: "7000.00", fecha_datos: "2026-10-13"}
+          - {id_comercio: "10", id_bandera: "1", id_sucursal: "1", id_producto: "vitamina", productos_descripcion: "VITAMINA C 500 MG X 30 COMP", productos_cantidad_presentacion: "1", productos_unidad_medida_presentacion: UNI, productos_precio_lista: "9000.00", fecha_datos: "2026-10-13"}
+          - {id_comercio: "9", id_bandera: "1", id_sucursal: "1", id_producto: "vea_leche", productos_descripcion: "LECHE UAT DESC 1% TREGAR 1L BRK-1000-ml.", productos_cantidad_presentacion: "1.00", productos_unidad_medida_presentacion: "ml.", productos_precio_lista: "1890.00", fecha_datos: "2026-10-13"}
+          - {id_comercio: "9", id_bandera: "1", id_sucursal: "1", id_producto: "vea_coco", productos_descripcion: "LECHE DE COCO EN POLVO VEG GOLDEN 150G DOY-154-gr.", productos_cantidad_presentacion: ".15", productos_unidad_medida_presentacion: "gr.", productos_precio_lista: "5000.00", fecha_datos: "2026-10-13"}
+          - {id_comercio: "15", id_bandera: "1", id_sucursal: "1", id_producto: "dia", productos_descripcion: "ARROZ LARGO FINO X 1 KG", productos_cantidad_presentacion: "500.00", productos_unidad_medida_presentacion: GR, productos_precio_lista: "1990.00", fecha_datos: "2026-10-13"}
+    expect:
+      rows:
+        - {id_producto: "arroz", cantidad_normalizada: 500, unidad_normalizada: g}
+        - {id_producto: "kilo", cantidad_normalizada: 1000, unidad_normalizada: g}
+        - {id_producto: "pack", cantidad_normalizada: 300, unidad_normalizada: g}
+        - {id_producto: "gaseosa", cantidad_normalizada: 2250, unidad_normalizada: cc}
+        - {id_producto: "miles", cantidad_normalizada: 1000, unidad_normalizada: g}
+        - {id_producto: "huevos", cantidad_normalizada: 1, unidad_normalizada: unidad}
+        - {id_producto: "vitamina", cantidad_normalizada: 1, unidad_normalizada: unidad}
+        # Cencosud: la cantidad en litros o kilos con etiqueta de ml o gramos.
+        - {id_producto: "vea_leche", cantidad_normalizada: 1000, unidad_normalizada: cc}
+        - {id_producto: "vea_coco", cantidad_normalizada: 150, unidad_normalizada: g}
+        # La fuente manda cuando informa masa o volumen, aunque el texto diga otra cosa.
+        - {id_producto: "dia", cantidad_normalizada: 500, unidad_normalizada: g}
