@@ -139,13 +139,18 @@ precio_producto_dia AS (
 ),
 
 pares_de_fechas AS (
-    -- Cada fecha contra la anterior DISPONIBLE, no contra "el dia anterior" del
-    -- calendario: si falto un dia de ingesta, la cadena se arma igual saltando
-    -- el hueco, y fecha_base deja constancia de contra que se comparo.
-    SELECT
-        fecha_datos AS fecha,
-        LAG(fecha_datos) OVER (ORDER BY fecha_datos) AS fecha_base
-    FROM (SELECT DISTINCT fecha_datos FROM con_precio_unitario)
+    -- Cada fecha contra la anterior DISPONIBLE en el crudo, no contra "el dia
+    -- anterior" del calendario: si falto un dia de ingesta, la cadena se arma
+    -- igual saltando el hueco, y fecha_base deja constancia de contra que se
+    -- comparo. Los pares vienen armados del macro y no de un LAG sobre el lote:
+    -- con una fecha atrasada en el lote (el 16 llegando junto con el 19, con el
+    -- 17 y el 18 ya procesados) el LAG comparaba el 19 contra el 16. Las fechas
+    -- que entran solo como base no tienen par y salen sin factor, que el
+    -- historico no copia encima del eslabon que ya tenian.
+    SELECT par.fecha, par.fecha_base
+    FROM UNNEST([
+        {{ fechas_a_calcular(ref("stg_productos"), "historico_precios_cadena_categoria", incluir_anterior=true, con_pares=true) }}
+    ]) AS par
 ),
 
 relativos AS (

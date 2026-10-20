@@ -1,4 +1,4 @@
-{% macro fechas_a_calcular(fuente, nombre_historico, incluir_anterior=false, dataset_historico=none) %}
+{% macro fechas_a_calcular(fuente, nombre_historico, incluir_anterior=false, dataset_historico=none, con_pares=false) %}
     {#
       Devuelve, como lista de literales DATE, las fechas que un mart tiene que
       calcular hoy: las que estan en el crudo pero todavia NO llegaron al
@@ -34,10 +34,12 @@
       unica data irrecuperable del proyecto. Una fecha forzada que ya no esta en
       la fuente se ignora, asi que el historico conserva lo que tenia.
 
-      incluir_anterior=true agrega la fecha inmediatamente anterior a la primera
-      pendiente. Lo necesita mart_precios_cadena_categoria, cuyo indice
-      encadenado compara cada fecha contra la anterior: sin ese dia extra no
-      tendria contra que parear.
+      incluir_anterior=true agrega, para cada fecha a calcular, la inmediatamente
+      anterior en el crudo. Lo necesita mart_precios_cadena_categoria, cuyo
+      indice encadenado compara cada fecha contra la anterior: sin ese dia extra
+      no tendria contra que parear. con_pares=true devuelve en cambio los pares
+      STRUCT(fecha, fecha_base) de las fechas a calcular, para que el mart sepa
+      contra cual comparar cada una (las que entran solo como base no llevan par).
 
       dataset_historico hace falta cuando la tabla destino no esta en el mismo
       dataset que la fuente. Es el caso de stg_productos: lee del crudo en sepa
@@ -49,6 +51,9 @@
       no es una dependencia de datos real.
     #}
     {%- if not execute -%}
+        {%- if con_pares -%}
+            {{ return("STRUCT(DATE('1970-01-01') AS fecha, CAST(NULL AS DATE) AS fecha_base)") }}
+        {%- endif -%}
         {{ return("DATE('1970-01-01')") }}
     {%- endif -%}
 
@@ -134,29 +139,41 @@
         {%- endif -%}
     {%- endfor -%}
 
-    {%- if incluir_anterior -%}
-        {%- set primera_pendiente = (pendientes | sort) | first -%}
-        {%- for fecha in ordenadas -%}
-            {%- if fecha < primera_pendiente and fecha not in pendientes -%}
-                {%- do pendientes.append(fecha) -%}
-            {%- endif -%}
-        {%- endfor -%}
-        {#- Solo hace falta la inmediatamente anterior, no todas las previas. -#}
-        {%- set previas = [] -%}
-        {%- for fecha in (pendientes | sort) -%}
-            {%- if fecha < primera_pendiente -%}
-                {%- do previas.append(fecha) -%}
-            {%- endif -%}
-        {%- endfor -%}
-        {%- if previas | length > 1 -%}
-            {%- for fecha in previas[:-1] -%}
-                {%- do pendientes.remove(fecha) -%}
-            {%- endfor -%}
+    {#- LA ANTERIOR DE CADA UNA, NO SOLO DE LA PRIMERA (2026-10-20). Antes se
+        agregaba solo la fecha previa a la primera pendiente, y el mart pareaba
+        cada fecha con la anterior DENTRO del lote. Andaba mientras las
+        pendientes fueran las ultimas. El 20-10 llegaron juntas el 16 (el portal
+        se habia caido) y el 19, con el 17 y el 18 ya procesados: el lote fue
+        15, 16 y 19, y el 19 se comparo contra el 16. La variacion acumulada no
+        cambiaba, pero el 17 y el 18 quedaban fuera de la cadena de inflacion.
+        Ahora cada fecha a calcular trae su anterior real en el crudo, y el
+        mart parea con la lista de pares (con_pares=true) en vez de con LAG. -#}
+    {%- set calculadas = pendientes | sort -%}
+    {%- set pares = [] -%}
+    {%- set lote = [] -%}
+    {%- for fecha in calculadas -%}
+        {%- set previas = ordenadas | select("lt", fecha) | list -%}
+        {%- set base = previas | last if previas else none -%}
+        {%- do pares.append((fecha, base)) -%}
+        {%- if fecha not in lote -%}{%- do lote.append(fecha) -%}{%- endif -%}
+        {%- if incluir_anterior and base is not none and base not in lote -%}
+            {%- do lote.append(base) -%}
         {%- endif -%}
+    {%- endfor -%}
+
+    {%- if con_pares -%}
+        {%- set structs = [] -%}
+        {%- for fecha, base in pares -%}
+            {%- do structs.append(
+                "STRUCT(DATE('" ~ fecha ~ "') AS fecha, "
+                ~ ("DATE('" ~ base ~ "')" if base is not none else "CAST(NULL AS DATE)")
+                ~ " AS fecha_base)") -%}
+        {%- endfor -%}
+        {{ return(structs | join(", ")) }}
     {%- endif -%}
 
     {%- set literales = [] -%}
-    {%- for fecha in (pendientes | sort) -%}
+    {%- for fecha in (lote | sort) -%}
         {%- do literales.append("DATE('" ~ fecha ~ "')") -%}
     {%- endfor -%}
     {{ return(literales | join(", ")) }}
