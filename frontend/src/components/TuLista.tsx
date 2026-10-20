@@ -2,8 +2,6 @@ import { useEffect, useState } from "react";
 import { cotizarLista } from "../api/client";
 import { fechaEnPalabras, formatearPesos } from "../utils/formato";
 import { MAXIMO_UNIDADES } from "../utils/lista";
-import { esMayorista } from "../utils/mayoristas";
-import EtiquetaMayorista from "./EtiquetaMayorista";
 import type { ItemLista, ResultadoLista } from "../types";
 
 /*
@@ -68,10 +66,8 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
   const nombres = new Map(lista.map((i) => [i.id_producto, i.nombre]));
   const completas = r?.cadenas.filter((c) => c.completa) ?? [];
   const incompletas = r?.cadenas.filter((c) => !c.completa) ?? [];
-  // El titular es el super comun mas barato: quien no compra por bulto no va a
-  // un mayorista (ver utils/mayoristas). Si el mayorista sale menos, se dice aparte.
-  const barata = completas.find((c) => !esMayorista(c.cadena)) ?? completas[0];
-  const mayorista = completas[0] && completas[0] !== barata && esMayorista(completas[0].cadena) ? completas[0] : null;
+  // El titular es la mas barata de todas, Maxi incluido (ver CanastaPorCadena).
+  const barata = completas[0];
   const cara = completas[completas.length - 1];
   const ahorro = barata && cara && completas.length > 1 ? cara.total - barata.total : 0;
   const maximo = Math.max(...completas.map((c) => c.total), 1);
@@ -108,12 +104,6 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
               </>
             )}
           </p>
-          {mayorista && (
-            <p className="text-sm text-tinta-media mt-1">
-              Contando mayoristas, en {mayorista.cadena} te sale{" "}
-              <span className="numero font-semibold text-tinta">{formatearPesos(mayorista.total)}</span>.
-            </p>
-          )}
           {r && r.combinando_cadenas < barata.total - 0.5 && (
             <p className="text-sm text-tinta-media mt-1">
               Comprando cada producto donde está más barato, {formatearPesos(r.combinando_cadenas)}, aunque eso es ir
@@ -179,11 +169,10 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
               <li key={c.cadena} className="grid grid-cols-[minmax(0,9rem)_1fr_auto] sm:grid-cols-[11rem_1fr_auto] items-center gap-3">
                 <span className={`text-sm truncate ${c === barata ? "text-tinta font-semibold" : "text-tinta-media"}`}>
                   {c.cadena}
-                  {esMayorista(c.cadena) && <EtiquetaMayorista />}
                 </span>
                 <span className="h-2 bg-papel-hundido rounded-full overflow-hidden" aria-hidden="true">
                   <span
-                    className={`block h-full rounded-full ${c === barata ? "bg-ahorro" : esMayorista(c.cadena) ? "bg-[#f5b54a]" : "bg-marca/40"}`}
+                    className={`block h-full rounded-full ${c === barata ? "bg-ahorro" : "bg-marca/40"}`}
                     style={{ width: `${(c.total / maximo) * 100}%` }}
                   />
                 </span>

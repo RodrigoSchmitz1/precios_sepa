@@ -4,7 +4,7 @@ import Titular, { Resaltado } from "../components/Titular";
 import FilaDeCifras from "../components/FilaDeCifras";
 import MapaDelMercado from "../components/MapaDelMercado";
 import { formatearNumero } from "../utils/formato";
-import { liderEn, MAYORISTAS } from "../utils/mayoristas";
+import { liderEn } from "../utils/liderazgo";
 import type { QuienGana } from "../types";
 import { nombreCategoria } from "../utils/nombres";
 
@@ -52,16 +52,10 @@ function QuienGanaPage() {
       comparables += filas.find((f) => f.categoria === categoria)!.total_productos_categoria;
     }
     const [lider, categoriasLideradas] = liderEn(filas, categorias) ?? ["", 0];
-    // Si gana un mayorista, tambien quien gana sin ellos: es la respuesta para
-    // quien no compra por bulto.
-    const sinMayoristas = MAYORISTAS.has(lider)
-      ? (liderEn(filas.filter((f) => !MAYORISTAS.has(f.cadena)), categorias) ?? null)
-      : null;
     return {
       categorias,
       lider,
       categoriasLideradas,
-      sinMayoristas,
       comparables,
       cadenas: new Set(filas.map((f) => f.cadena)).size,
     };
@@ -85,21 +79,12 @@ function QuienGanaPage() {
             : "Más barato"
         }
         bajada={
-          <>
           <p>
             Solo se comparan productos idénticos, con el mismo código de barras, presentes en dos o más cadenas: así
             la marca propia no le regala victorias a nadie. Y se mide sobre los productos que cada cadena
             efectivamente ofrece, no sobre el total de la categoría, para que tener un surtido más amplio no se
             confunda con ser más barato.
           </p>
-          {resumen?.sinMayoristas && (
-            <p className="mt-2">
-              {MAYORISTAS.get(resumen.lider)}. Sin contar mayoristas, la más barata es{" "}
-              <strong className="font-medium text-papel">{resumen.sinMayoristas[0]}</strong>, en{" "}
-              {resumen.sinMayoristas[1]} de las {resumen.categorias.length} categorías.
-            </p>
-          )}
-          </>
         }
       >
         {resumen ? (

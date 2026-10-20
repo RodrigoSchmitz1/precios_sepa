@@ -1,9 +1,7 @@
 import { useEffect, useState } from "react";
 import { cotizarCanastaPorCadena } from "../api/client";
 import { formatearPesos } from "../utils/formato";
-import { esMayorista } from "../utils/mayoristas";
 import { nombreCategoria } from "../utils/nombres";
-import EtiquetaMayorista from "./EtiquetaMayorista";
 import type { CanastaPorCadena as Resultado, ItemCanastaIA, LocalidadOpcion } from "../types";
 
 /*
@@ -13,9 +11,10 @@ import type { CanastaPorCadena as Resultado, ItemCanastaIA, LocalidadOpcion } fr
   respuesta va en pesos y con el ahorro dicho, que es lo que se recuerda: "en X
   te sale $111.000 y en Y $252.000".
 
-  Los mayoristas se muestran, marcados, pero el titular es el super comun mas
-  barato: quien no compra por bulto no va a cruzar la ciudad hasta un Maxi. Si
-  el mayorista sale mas barato todavia, se dice aparte y con cuanto.
+  Todas las cadenas compiten igual (2026-10-20). Antes Maxi salia marcado como
+  mayorista y el titular era el super mas barato sin el; pero Maxi vende sin
+  minimo de compra y los mayoristas de verdad publican en otro dataset de SEPA,
+  asi que separarlo dejaba afuera justo al mas barato.
 
   Los totales son sobre las categorias que venden TODAS las cadenas de la
   lista (ver canasta_por_cadena en la API): una cadena a la que le falta la
@@ -62,11 +61,9 @@ function CanastaPorCadena({ items, localidades }: Props) {
   if (estado?.error) return null; // La seccion es un extra: si falla, no tapa el resto.
   if (!r || r.cadenas.length < 2) return null;
 
-  const supers = r.cadenas.filter((c) => !esMayorista(c.cadena));
-  const barato = supers[0] ?? r.cadenas[0];
+  const barato = r.cadenas[0];
   const caro = r.cadenas[r.cadenas.length - 1];
   const ahorro = caro.total - barato.total;
-  const mayoristaMasBarato = r.cadenas[0] !== barato && esMayorista(r.cadenas[0].cadena) ? r.cadenas[0] : null;
   const maximo = caro.total;
   const visibles = verTodas ? r.cadenas : r.cadenas.slice(0, VISIBLES);
 
@@ -97,13 +94,6 @@ function CanastaPorCadena({ items, localidades }: Props) {
           </>
         )}
       </p>
-      {mayoristaMasBarato && (
-        <p className="text-sm text-tinta-media mb-1">
-          Contando mayoristas, en {mayoristaMasBarato.cadena} te sale{" "}
-          <span className="numero font-semibold text-tinta">{formatearPesos(mayoristaMasBarato.total)}</span>,{" "}
-          {formatearPesos(barato.total - mayoristaMasBarato.total)} menos que en {barato.cadena}.
-        </p>
-      )}
 
       <ul className="mt-4 space-y-2">
         {visibles.map((c) => {
@@ -116,13 +106,10 @@ function CanastaPorCadena({ items, localidades }: Props) {
             >
               <span className={`text-sm truncate ${esElBarato ? "font-bold text-tinta" : "text-tinta-media"}`}>
                 {c.cadena}
-                {esMayorista(c.cadena) && <EtiquetaMayorista />}
               </span>
               <span className="h-2.5 bg-papel-hundido rounded-full overflow-hidden" aria-hidden="true">
                 <span
-                  className={`block h-full rounded-full ${
-                    esElBarato ? "bg-ahorro" : esMayorista(c.cadena) ? "bg-[#f5b54a]" : "bg-marca/40"
-                  }`}
+                  className={`block h-full rounded-full ${esElBarato ? "bg-ahorro" : "bg-marca/40"}`}
                   style={{ width: `${(c.total / maximo) * 100}%` }}
                 />
               </span>

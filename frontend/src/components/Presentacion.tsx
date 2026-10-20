@@ -8,9 +8,8 @@ import {
   obtenerQuienGana,
 } from "../api/client";
 import { fechaEnPalabras, formatearNumero, formatearPesos, tamanoQueFalta } from "../utils/formato";
-import { esMayorista, liderEn } from "../utils/mayoristas";
+import { liderEn } from "../utils/liderazgo";
 import { nombreLegible } from "../utils/texto";
-import EtiquetaMayorista from "./EtiquetaMayorista";
 import type { InflacionResumen, ProductoComparado, ProductoDetalle, QuienGana } from "../types";
 
 /*
@@ -191,10 +190,7 @@ function TarjetaEjemplo({ producto }: { producto: ProductoDetalle }) {
         {filas.map((p) => (
           <li key={p.cadena}>
             <span className="flex justify-between gap-3 text-sm font-semibold">
-              <span className="truncate">
-                {p.cadena}
-                {esMayorista(p.cadena) && <EtiquetaMayorista sobreColor />}
-              </span>
+              <span className="truncate">{p.cadena}</span>
               <span className="numero shrink-0">{formatearPesos(p.precio_mediano)}</span>
             </span>
             <span className="block h-2.5 mt-1.5 rounded-full bg-white/20 overflow-hidden" aria-hidden="true">
@@ -273,15 +269,12 @@ function Presentacion() {
   const lideres = ranking.map(([, n]) => n);
   /*
     Quien gana, con la misma cuenta que Mas barato (liderEn: un empate cuenta
-    para las dos). Si gana un mayorista, la primera tarjeta es el super que
-    gana sin ellos: es la respuesta para quien hace la compra en el super de
-    siempre. El mayorista se sigue mostrando, al lado y marcado como tal.
+    para las dos). Todas las cadenas compiten igual, Maxi incluido (ver
+    CanastaPorCadena).
   */
   const filasQG = datos.quienGana ?? [];
   const categoriasQG = [...new Set(filasQG.map((f) => f.categoria))];
   const lider = liderEn(filasQG, categoriasQG);
-  const liderSuper =
-    lider && esMayorista(lider[0]) ? liderEn(filasQG.filter((f) => !esMayorista(f.cadena)), categoriasQG) : undefined;
   // Productos comparables: el total de cada categoria, una vez por categoria.
   // Es la misma cuenta que el titular de Mas barato.
   const comparables = [...mejorPorCategoria.values()].reduce((suma, f) => suma + f.total_productos_categoria, 0);
@@ -327,24 +320,7 @@ function Presentacion() {
 
   type CifraPortada = { etiqueta: string; valor: ReactNode; detalle: string; chip: string; chipClase: string };
   const cifras: CifraPortada[] = [];
-  if (lider && liderSuper) {
-    cifras.push(
-      {
-        etiqueta: "El súper más barato",
-        valor: liderSuper[0],
-        detalle: `en ${liderSuper[1]} de ${categoriasQG.length} categorías, sin contar mayoristas`,
-        chip: "🏆 #1 del día",
-        chipClase: "bg-ahorro-tenue text-ahorro",
-      },
-      {
-        etiqueta: "Contando mayoristas",
-        valor: lider[0],
-        detalle: `gana en ${lider[1]} de ${categoriasQG.length} categorías`,
-        chip: "📦 mayorista",
-        chipClase: "bg-[#fff1db] text-aviso",
-      }
-    );
-  } else if (lider) {
+  if (lider) {
     cifras.push({
       etiqueta: "Más barata en más categorías",
       valor: lider[0],
@@ -362,7 +338,6 @@ function Presentacion() {
       chipClase: "bg-alerta-tenue text-alerta",
     });
   }
-  // Sin mayorista en el podio queda lugar para una tercera cifra.
   if (cifras.length < 3 && comparables > 0) {
     cifras.push({
       etiqueta: "Productos comparados",
