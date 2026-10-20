@@ -380,7 +380,7 @@ respetando el barrio cuando la cadena sí lo informa bien.
 ## Calidad
 
 **24 modelos y 94 tests de dbt**, que corren en cada ejecución del pipeline,
-más 8 tests unitarios de dbt con filas de prueba y 143 tests unitarios en Python sobre la API y la ingesta que no necesitan
+más 8 tests unitarios de dbt con filas de prueba y 150 tests unitarios en Python sobre la API y la ingesta que no necesitan
 BigQuery.
 Además de los genéricos, hay tests singulares para las cosas que sólo se
 detectan mirando el resultado agregado: que Carne vacuna y Pollo no mezclen

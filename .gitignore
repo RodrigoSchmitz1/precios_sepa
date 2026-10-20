@@ -10,6 +10,7 @@ orquestacion/.env
 orquestacion/credenciales.json
 *.env
 credenciales.json
+github_token.txt
 
 # Entornos virtuales de Python
 venv/

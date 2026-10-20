@@ -42,6 +42,8 @@ from datetime import date, timedelta
 from google.cloud import bigquery
 from google.cloud.exceptions import NotFound
 
+import disparar_pipeline
+
 CARPETA = os.path.dirname(os.path.abspath(__file__))
 CREDENCIALES = "credenciales.json"
 PROYECTO = "proyecto-precios-504221"
@@ -382,7 +384,10 @@ def main():
         print("    reintentar; despues de eso, no.")
 
     if ok:
-        print("\nCorre dbt a continuacion para que estas fechas lleguen a los historicos.")
+        # Aunque otras fechas hayan fallado: las que entraron conviene
+        # transformarlas ya, antes de que la retencion corta las alcance.
+        print("\nDisparando la transformacion para que estas fechas lleguen a los historicos...")
+        disparar_pipeline.disparar_si_hay_token()
 
     return 1 if (errores or desaparecidas) else 0
 

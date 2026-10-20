@@ -24,8 +24,9 @@ on:
     # el mundo. Con "0 11" la corrida arrancaba entre 3 y 6 horas tarde (medido
     # del 07 al 24-09: 3h45m tipico, 5h45m peor), y los dias de trabajo manual
     # llegaba con la cuota de BigQuery ya gastada: el 22 y el 23-09 fallo por
-    # eso. Si la demora sigue, la salida de fondo es que la ingesta local
-    # dispare este workflow por workflow_dispatch al terminar.
+    # eso. Desde el 2026-10-20 la ingesta local dispara este workflow por
+    # workflow_dispatch apenas carga algo (disparar_pipeline.py); el cron queda
+    # de respaldo y se saltea solo si ya no hay fechas pendientes.
     - cron: "37 11 * * *"
   workflow_dispatch: {}
 
