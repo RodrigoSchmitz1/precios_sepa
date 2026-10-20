@@ -2,15 +2,18 @@ import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import {
   buscarProductos,
+  cotizarCanastaPorCadena,
+  obtenerComposicionCanasta,
   obtenerInflacionResumen,
   obtenerProducto,
   obtenerProductosDestacados,
   obtenerQuienGana,
 } from "../api/client";
-import { fechaEnPalabras, formatearNumero, formatearPesos, tamanoQueFalta } from "../utils/formato";
+import { fechaEnPalabras, formatearPesos, formatearVariacion, tamanoQueFalta } from "../utils/formato";
 import { liderEn } from "../utils/liderazgo";
+import { nombreCategoria } from "../utils/nombres";
 import { nombreLegible } from "../utils/texto";
-import type { InflacionResumen, ProductoComparado, ProductoDetalle, QuienGana } from "../types";
+import type { CanastaPorCadena, InflacionResumen, ProductoComparado, ProductoDetalle, QuienGana } from "../types";
 
 /*
   Portada del sitio.
@@ -59,6 +62,7 @@ type Datos = {
   quienGana?: QuienGana[];
   destacados?: ProductoComparado[];
   ejemplo?: ProductoDetalle;
+  canastaPorCadena?: CanastaPorCadena;
 };
 
 /** Barras divergentes en miniatura: una categoria, una barra. */
@@ -230,6 +234,20 @@ function Presentacion() {
         if (!cancelado) setDatos((previo) => ({ ...previo, destacados }));
       })
       .catch(() => {});
+    // La canasta basica del INDEC (un adulto, gama economica) en cada cadena.
+    // La composicion es una seed que se lee con list_rows y la cotizacion sale
+    // del indice en memoria de Tu canasta: ninguna de las dos consume cuota.
+    obtenerComposicionCanasta()
+      .then((grupos) =>
+        cotizarCanastaPorCadena(
+          grupos.flatMap((g) => g.items.map((i) => ({ ...i, gama: "economico", razon: "" }))),
+          []
+        )
+      )
+      .then((canastaPorCadena) => {
+        if (!cancelado) setDatos((previo) => ({ ...previo, canastaPorCadena }));
+      })
+      .catch(() => {});
     buscarProductos(EJEMPLO_PORTADA)
       .then((r) => (r.length > 0 ? obtenerProducto(r[0].id_producto) : undefined))
       .then((ejemplo) => {
@@ -242,7 +260,13 @@ function Presentacion() {
   }, []);
 
   const inflacion = datos.inflacion ?? [];
-  const subieron = inflacion.filter((f) => f.variacion_pct >= 0.005).length;
+  // "Cuantas subieron" no decia nada: con inflacion casi todas suben siempre
+  // (2026-10-20, 40 de 42). Lo que si es noticia es cual subio mas.
+  const masSubio = inflacion.reduce<InflacionResumen | undefined>(
+    (mayor, f) => (!mayor || f.variacion_pct > mayor.variacion_pct ? f : mayor),
+    undefined
+  );
+  const canastaEnCadenas = datos.canastaPorCadena?.cadenas ?? [];
 
   /*
     Cuantas categorias lidera cada cadena, de mayor a menor.
@@ -275,9 +299,6 @@ function Presentacion() {
   const filasQG = datos.quienGana ?? [];
   const categoriasQG = [...new Set(filasQG.map((f) => f.categoria))];
   const lider = liderEn(filasQG, categoriasQG);
-  // Productos comparables: el total de cada categoria, una vez por categoria.
-  // Es la misma cuenta que el titular de Mas barato.
-  const comparables = [...mejorPorCategoria.values()].reduce((suma, f) => suma + f.total_productos_categoria, 0);
   const fechaDatos = fechaEnPalabras(datos.ejemplo?.fecha_datos ?? datos.inflacion?.[0]?.fecha_fin ?? "");
 
   const brechas = (datos.destacados ?? []).map((p) => p.diferencia_pct);
@@ -329,23 +350,31 @@ function Presentacion() {
       chipClase: "bg-ahorro-tenue text-ahorro",
     });
   }
-  if (inflacion.length > 0) {
+  if (masSubio && masSubio.variacion_pct > 0) {
     cifras.push({
-      etiqueta: "Categorías que subieron",
-      valor: `${subieron} de ${inflacion.length}`,
-      detalle: `desde el ${fechaEnPalabras(inflacion[0].fecha_inicio)}`,
-      chip: "▲ suben",
+      etiqueta: "Lo que más subió",
+      valor: formatearVariacion(masSubio.variacion_pct, 1),
+      detalle: `${nombreCategoria(masSubio.categoria)}, desde el ${fechaEnPalabras(masSubio.fecha_inicio)}`,
+      chip: "▲ el que más subió",
       chipClase: "bg-alerta-tenue text-alerta",
     });
   }
-  if (cifras.length < 3 && comparables > 0) {
-    cifras.push({
-      etiqueta: "Productos comparados",
-      valor: formatearNumero(comparables),
-      detalle: "en dos o más cadenas",
-      chip: "✓ mismo código de barras",
-      chipClase: "bg-marca-tenue text-marca",
-    });
+  // Reemplaza a "productos comparados", que mostraba el trabajo del sitio y no
+  // algo que le sirva a quien compra. La lista viene ordenada de la mas barata
+  // a la mas cara, sobre las categorias que venden todas.
+  if (canastaEnCadenas.length > 1) {
+    const barata = canastaEnCadenas[0];
+    const cara = canastaEnCadenas[canastaEnCadenas.length - 1];
+    const ahorro = Math.round((1 - barata.total / cara.total) * 100);
+    if (ahorro > 0) {
+      cifras.push({
+        etiqueta: "Cuánto ahorrás eligiendo dónde",
+        valor: `${ahorro}%`,
+        detalle: `la canasta básica: ${formatearPesos(barata.total)} en ${barata.cadena} y ${formatearPesos(cara.total)} en ${cara.cadena}`,
+        chip: "💰 canasta básica",
+        chipClase: "bg-ahorro-tenue text-ahorro",
+      });
+    }
   }
 
   const buscar = (e: FormEvent) => {
