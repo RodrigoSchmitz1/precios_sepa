@@ -29,6 +29,16 @@ on:
     - cron: "37 11 * * *"
   workflow_dispatch: {}
 
+# Una corrida por vez. Una manual disparada mientras la programada todavia no
+# arrancaba (el cron se demora horas) corria en paralelo, y las dos procesaban
+# las mismas fechas pendientes: el doble de cuota para el mismo resultado. En
+# fila, la segunda arranca cuando termina la primera; si es la programada,
+# hay_que_transformar.py la saltea porque ya no queda nada pendiente. No se
+# cancela la que esta corriendo: cortar dbt a mitad deja marts a medio rearmar.
+concurrency:
+  group: pipeline-diario
+  cancel-in-progress: false
+
 jobs:
   transformar:
     runs-on: ubuntu-latest
