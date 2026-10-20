@@ -402,9 +402,15 @@ function Presentacion() {
       {cifras.length > 0 && (
         <dl className="relative -mt-16 sm:-mt-20 grid sm:grid-cols-3 gap-3 sm:gap-4">
           {cifras.map((c) => (
-            <div key={c.etiqueta} className="tarjeta shadow-flotante p-5 min-w-0">
+            <div key={c.etiqueta} className="@container tarjeta shadow-flotante p-5 min-w-0">
               <dt className="text-sm font-semibold text-tinta-suave">{c.etiqueta}</dt>
-              <dd className="font-display text-3xl sm:text-4xl text-tinta mt-1.5 leading-tight truncate">{c.valor}</dd>
+              {/* La letra sigue el ancho de la tarjeta (cqi) y no el de la
+                  pantalla: con tres tarjetas en ~800 px, "Maxi (Carrefour)" se
+                  cortaba en "Maxi (Carrefo…". Si un nombre igual no entra, baja
+                  de renglon en vez de cortarse. */}
+              <dd className="font-display text-[clamp(1.125rem,9.5cqi,2.25rem)] text-tinta mt-1.5 leading-tight text-balance break-words">
+                {c.valor}
+              </dd>
               <dd className="text-sm text-tinta-media mt-0.5">{c.detalle}</dd>
               <dd className={`inline-block mt-3 text-xs font-bold rounded-full px-2.5 py-1 ${c.chipClase}`}>{c.chip}</dd>
             </div>
