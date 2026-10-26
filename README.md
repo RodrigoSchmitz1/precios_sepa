@@ -19,511 +19,145 @@ Comercio.
 - **Qué es.** Un pipeline diario que toma unos 14 millones de precios, los
   transforma con dbt sobre BigQuery y los publica en un sitio con cinco
   secciones. Corre solo todos los días.
-- **Números que resisten una segunda mirada.** El dato de origen tiene trampas:
-  ocho veces comparaba cosas que no eran comparables, y el número publicado
-  estaba mal sin que nada fallara. Cada caso está contado abajo, con lo que
-  se midió y el test que ahora lo cubre:
-  [las decisiones que importan](#las-decisiones-que-importan).
-- **Calidad verificable.** 24 modelos y 102 tests de dbt, más 143 tests en
-  Python, que corren en cada cambio: [calidad](#calidad).
+- **Números que resisten una segunda mirada.** El dato de origen tiene trampas
+  que dan un número publicado equivocado sin que nada falle. Abajo están las
+  principales; el detalle de cada una, en [DECISIONES.md](docs/DECISIONES.md).
+- **Calidad verificable.** 24 modelos y 102 tests de dbt, más 150 tests en
+  Python y 51 en el frontend: [calidad](#calidad).
 - **Costo cero, por diseño.** Todo entra en los niveles gratuitos, con una
   cuota dura que impide pasarse: [costo](#costo).
-- **Un pipeline que se repara solo.** Si un día no llegan datos los recupera
-  al siguiente, y avisa por mail cuando algo se atrasa:
-  [arquitectura](#arquitectura).
-
-El resto de este documento es para quien quiere ver cómo se resolvió cada cosa.
-
----
 
 ## Qué muestra
 
 | Sección | Qué responde |
 |---|---|
-| **Promos vigentes** | Qué descuentos hay hoy cerca mío, sobre un mapa, con cada promo calificada según la evidencia que la respalda y filtros por rubro |
-| **Tu canasta** | Describís en lenguaje natural qué consumís, una IA arma tu canasta y se cotiza con precios reales. También se puede partir de la canasta básica del INDEC para tu hogar o elegir las categorías a mano |
+| **Promos vigentes** | Qué descuentos hay hoy cerca mío, sobre un mapa, con cada promo calificada según la evidencia que la respalda |
+| **Tu canasta** | Describís en lenguaje natural qué consumís, una IA arma tu canasta y se cotiza con precios reales de tu zona |
 | **Supermercado más barato** | Qué cadena tiene el precio más bajo, comparando productos idénticos, categoría por categoría |
-| **El mismo producto** | Cuánto cuesta el mismo código de barras en cada cadena, y cuánta diferencia hay, sin contar los precios que contradicen al resto del mercado. Con **Tu lista** sumás los productos exactos que comprás siempre y te dice en qué cadena te sale más barata la compra entera |
+| **El mismo producto** | Cuánto cuesta el mismo código de barras en cada cadena. Con **Tu lista** sumás lo que comprás siempre y te dice dónde sale más barata la compra entera |
 | **Inflación** | Ranking de todas las categorías por variación de precio, con apertura por cadena |
-
----
 
 ## Arquitectura
 
 ```
-Portal SEPA ──> Ingesta local ──> BigQuery ──> dbt ──> FastAPI + React
+Portal SEPA ──> Ingesta local ──> BigQuery ──> dbt ──────> FastAPI + React
  (datos.gob)     (Python)          (crudo)    (24 modelos)   (Cloud Run)
-                     │                             │
-              Task Scheduler                GitHub Actions
-                 07:00 ART                    08:37 ART*
+                     │                ▲
+                     └── dispara ─────┘
+                         GitHub Actions (y un cron de respaldo)
 ```
 
-\* Programado a esa hora; GitHub no garantiza el horario de los cron y hasta
-septiembre de 2026 arrancaba entre 3 y 6 horas tarde. Ver el comentario en
-`.github/workflows/pipeline_diario.yml`.
-
-**La descarga corre en máquinas de casa y no en la nube, y no es un descuido.**
-El portal `datos.produccion.gob.ar` responde 403 a los rangos de IP de
-datacenter: se verificó empíricamente contra GitHub Actions y Google Colab,
-mientras que una conexión doméstica recibe 200. No es un problema de
-User-Agent. Todo lo demás (transformación, categorización, API) sólo habla con
-BigQuery y Gemini, así que corre en la nube sin restricciones.
-
-Se descartó montar un relay por proxy residencial para saltear el bloqueo: es
-eludir deliberadamente un control que el portal puso a propósito.
-
-Para que no dependa de una sola PC, la ingesta corre en dos: una de escritorio
-que queda prendida, a las 07:00, y una notebook de respaldo a las 10:00. Correr
-dos veces es inocuo, porque la ingesta calcula qué fechas faltan en BigQuery y
-si no falta ninguna no hace nada; y como SEPA publica los últimos 7 días, las
-dos tendrían que estar apagadas una semana para perder datos. Cada PC
-reintenta cada 2 horas hasta el mediodía (SEPA publica a la tarde, y un reintento posterior haría la carga pesada en horario de uso): saber qué falta se lee de la lista de particiones,
-que no consume cuota, así que un reintento sin nada que hacer cuesta cero y
-termina en segundos. Si el dato no llega en 3 días, el pipeline falla y
-GitHub avisa por mail. `orquestacion/scripts/instalar_ingesta.ps1` deja una
-PC lista con un comando.
-
-El pipeline de GitHub, a su vez, no corre si no hay nada nuevo: un día sin
-datos rearmaba los mismos marts por ~12 GiB. Decide con metadata de las
-tablas (`hay_que_transformar.py`) y corre igual si cambió el código de dbt.
-
----
+La descarga corre en una máquina de casa porque el portal de SEPA bloquea las IP
+de datacenter (se verificó contra GitHub Actions y Colab). Cuando la ingesta
+carga una fecha nueva, dispara la transformación en GitHub Actions. Si un día no
+hay datos, el pipeline no corre; si faltan tres días seguidos, falla y avisa por
+mail. Más detalle en [ingesta y orquestación](docs/DECISIONES.md#ingesta-y-orquestación).
 
 ## Las decisiones que importan
 
-Este dato tiene trampas que no se ven hasta que uno mira el número y se pregunta
-si puede ser cierto. Estas son las principales y cómo se resolvieron.
+**Una cadena entera puede informar mal un precio.** FANTA Zero 1,75 L figuraba a
+$309 en una cadena con 31 sucursales, cuando las otras diez la cobraban unos
+$5.000. "El mismo producto" lo titulaba como 1.579% de diferencia, y de los 12
+destacados de ese día, los 12 eran errores de la fuente. Los controles miraban
+la coherencia de cada cadena consigo misma, justo lo que este error no rompe.
+Ahora cada precio se contrasta contra la mediana entre empresas. Revisando el
+resto del sitio apareció la regla general: lo que agrega resiste los errores de
+la fuente; lo que titula con un extremo, no.
 
-### Comparar cosas que no son comparables
+**La inflación daba 0,00%.** Restar el precio mediano de dos fechas mezclaba
+cambios de precio con cambios de surtido: "Bazar y hogar" en Disco subía 75%
+sin que ningún precio se moviera. Se pasó a un índice encadenado sobre los
+productos presentes en ambas fechas. El primer estimador, la mediana, daba
+0,00% en 563 de 564 series, porque el 97,9% de los productos no cambia de un
+día al otro. Con la media geométrica (Jevons) son 201 series con variación real.
 
-El error recurrente, en ocho formas distintas:
+**Se perdieron datos con el pipeline en verde.** La ingesta dejó de correr cinco
+días y el test que debía avisar comparaba los históricos contra los marts, que
+tampoco avanzaban. El backfill decía "Cargadas" mientras BigQuery expiraba esas
+fechas en menos de un minuto. Ahora el atraso se mide contra el calendario y la
+ingesta verifica que lo que cargó siga existiendo.
 
-- **La canasta básica** sumaba las categorías que cada localidad tuviera, entre
-  20 y 32, y comparaba esos totales entre sí. Una localidad con menos datos
-  parecía más barata: la mediana era $177.419 con 20 categorías contra $388.726
-  con 30. El ranking medía cuántas categorías faltaban, no precios. Hoy sólo
-  entran las localidades con la canasta **completa**, y un test lo garantiza.
+**Un maple de huevos contaba como un huevo.** Muchas cadenas informan el paquete
+entero como "1 unidad": el huevo premium costaba $2.250, y en la canasta la
+línea de toallitas sumaba unos $250.000. La cantidad se lee de la descripción ("X 30 UNI", "MAPLE") y lo
+que no dice cuántas piezas trae no tiene precio por pieza: no se inventa.
 
-- **"Supermercado más barato"** dividía las victorias de cada cadena por *todos*
-  los productos comparables de la categoría, no por los que esa cadena
-  efectivamente vende. Una cadena que ofrece 20 de 148 no podía pasar de 13,5%
-  por barata que fuera. Al corregir el denominador, el líder cambia en 22 de 58
-  categorías.
+**La IA interpreta, el código cuenta.** Tu canasta le pedía a Gemini que armara
+la canasta ajustando la del INDEC, y fallaba distinto en cada corrida. Ahora el
+modelo sólo devuelve lo que depende del texto (cuántas personas, qué no
+consumen, qué sube o baja) y la canasta la arma el código, con un test contra la
+tabla del INDEC.
 
-- **La inflación** restaba el nivel de precios de dos fechas. Como ese nivel es
-  la mediana de los productos que hubiera ese día, la resta mezclaba cambios de
-  precio con cambios de surtido: "Bazar y hogar" en Disco daba +75,76% sin que
-  ningún precio se hubiera movido. Se reemplazó por un **índice encadenado sobre
-  muestra pareada** (ver abajo).
-
-- **La gama** (económico / medio / premium) ordenaba por el precio del *envase*,
-  así que donde los tamaños varían ordenaba por tamaño: la bolsa grande, que es
-  la más barata por kilo, caía en "premium". En 4 de 47 categorías el
-  "económico" salía **más caro por unidad** que el "premium". Como la canasta
-  filtra por económico, el sesgo llegaba al número publicado.
-
-- **Un mismo producto venía en dos unidades.** Al reconocer `EA` ("each"), el
-  mismo producto pasó a llegar como "380 GR" en una cadena y como "1 EA" en
-  otra: el 13,3% de los productos, que son el 50,2% de las filas. La gama
-  tomaba una unidad cualquiera y dividía el precio por una mediana de
-  cantidades que mezclaba gramos con conteos, así que unas milanesas quedaban
-  "económicas" y entraban a la canasta como pollo a $20.566/kg. Lo publicado:
-  el pollo más caro que la carne y la canasta 34% más cara de lo real (mediana
-  de $371.128 contra $245.352). Ningún test fallaba, porque cada tabla era
-  consistente por separado: el error estaba en cómo se unían. Hoy la gama
-  tiene grano producto × unidad, y un test compara la canasta económica contra
-  la gama media; contra las tablas viejas fallaba en 6 de 32 categorías. Las
-  fechas ya publicadas se recalcularon con una variable de dbt, sin borrar
-  filas del histórico a mano.
-
-- **"Carne vacuna" no era carne vacuna.** La taxonomía no tenía categoría para
-  el cerdo y la clasificación lo mandaba ahí, junto con achuras, cordero y
-  milanesas; "Pollo" mezclaba presas con nuggets y patitas rebozadas. La canasta
-  comparaba una carne abaratada contra un pollo encarecido: el pollo salía
-  $11.500/kg y la carne $8.390. Se agregaron Cerdo, Otras carnes, Achuras y
-  menudencias y Elaborados de carne, y se reclasificaron los 3.098 productos del
-  rubro con reglas explícitas para cada confusión que apareció (una "picada" no
-  es carne picada; una "milanesa de nalga" sin rebozar es un corte crudo). La
-  clasificación quedó versionada: se agregan filas en vez de pisar las
-  anteriores. Hoy el pollo económico cuesta $3.979/kg y la carne $9.990.
-
-- **"Aceite medio" era aceite de oliva.** La gama corta en tercios, por precio
-  por kilo, todos los productos de la categoría. Si la categoría mezcla
-  productos distintos, "medio" no es una marca intermedia sino otro producto:
-  Tu canasta cotizaba el aceite a $31.194/L (todo el girasol quedaba en
-  "económico"), la papa a $10.493/kg (papas congeladas) y la harina con
-  rebozadores y premezclas. 21 categorías tenían el "medio" a 3 veces o más del
-  "económico". Se agregaron siete categorías (aceite de oliva y especiales,
-  verduras y papas procesadas, edulcorantes, premezclas, rebozadores, pastas
-  frescas y comidas preparadas) y se volvieron a clasificar 11.389 productos en
-  dos pasadas. El aceite medio pasó a $4.914/L, la papa a $2.990/kg y la
-  harina a $2.028/kg. La canasta básica, que usa la gama económica, bajó 10,6%
-  sobre las mismas localidades (1,7 puntos por las carnes, ver más abajo; el
-  resto porque el tercio económico tampoco estaba limpio). La serie histórica
-  marca ese salto entre el 22 y el 23 de septiembre. La cobertura bajó de 88 a
-  68 localidades, y volvió a 87 al subir el tope de categorías con precio
-  provincial (ver "Cuando falta el dato").
-
-- **Un maple de huevos contaba como un huevo.** En las categorías que se
-  cotizan por pieza, muchas cadenas informan el paquete entero como "1 UN":
-  "HUEVO BLANCO CARREFOUR CARTON X 30 UNI" llega con cantidad 1. Pasaba en 65
-  de 221 huevos y 150 de 354 pañales, y el huevo premium costaba $2.250. Peor
-  en Higiene bebé: Tu canasta pide 100 unidades pensando en toallitas, pero la
-  mediana mezclaba chupetes y mamaderas, así que la toallita económica salía
-  $2.520 y esa línea sumaba unos $250.000. Hoy, en esas categorías, la
-  cantidad se lee de la descripción ("X 30 UNI", "48U", "MAPLE") y sólo
-  cuentan envases de 3 a 200 piezas: lo que no dice cuántas trae no tiene
-  precio por pieza, y no se inventa. La lectura se revisó sobre los 1.519
-  productos de las cuatro categorías para que no tome medidas como "25X25 CM"
-  o "45 X 55". La toallita económica pasó a $62 y el huevo premium a $450.
-
-### El índice de precios
-
-Medir inflación restando promedios es incorrecto cuando el surtido cambia. El
-modelo calcula, para cada día, un factor contra la fecha anterior usando **sólo
-los productos presentes en ambas**, y la variación de un período se obtiene
-encadenando esos factores. La API exige la cadena completa: si a una serie le
-falta un eslabón no se muestra, en vez de multiplicar salteando el hueco.
-
-El estimador es la **media geométrica de los relativos** (índice de Jevons). El
-primer intento usó la mediana y estaba mal: los cambios de precio son
-esporádicos —el 97,9% de los productos no cambia de un día al otro— así que la
-mediana de los relativos vale 1,0 por construcción y daba 0,00% en 563 de 564
-series. Con Jevons pasan a 201 series con variación real.
-
-Ese mismo 97,9% define cómo se presenta. La primera versión de la página abría
-con un selector de categoría y mostraba sus 14 cadenas: como casi nada se mueve
-de un día al otro, cualquier categoría que uno eligiera daba una pantalla de
-ceros y encontrar la que sí se había movido era recorrer más de 50 a mano. La página
-ahora abre con **el ranking completo del mercado** —una categoría es la media
-geométrica de los factores de todas sus series— y la apertura por cadena es el
-segundo click. Sólo entran las categorías cubiertas por al menos 3 cadenas: con
-una sola, el número no es el mercado, es un supermercado.
-
-### Destacar sin inventar un umbral
-
-Mostrar "la mayor diferencia del día" es una invitación a publicar un error de
-carga. El primer intento, con las promos, fue un tope arbitrario: descartar todo
-descuento mayor al 70%. Funcionaba, pero no había forma de defender el número.
-
-El criterio que lo reemplazó es pedir **respaldo**, no fijar un techo:
-
-- El precio de una cadena es la **mediana entre sus sucursales**, y una
-  diferencia sólo se destaca si los dos extremos vienen de **3 sucursales o
-  más**. Con tres, una sucursal con el precio mal cargado no puede mover la
-  mediana; con dos, sí. Las demás se muestran igual, pero sin destacarse y
-  diciendo sobre cuántas sucursales se calcularon.
-- Se piden **3 empresas distintas**, no 3 cadenas. Carrefour tiene cuatro
-  banderas (Hiper, Market, Express y Maxi) y Cencosud otras tantas: contar
-  banderas hacía pasar por "está en todo el mercado" a un producto que vende una
-  sola empresa, y podía titular comparando Maxi contra Express.
-- En el mapa de categorías × cadenas, la celda vacía significa **"no llega a 20
-  productos comparables"**, que no es lo mismo que ganar 0%. Pintarlas igual
-  sería afirmar algo que el dato no dice.
-
-### Datos que se pierden en silencio
-
-Lo más peligroso no es el dato que rompe la corrida, sino el que desaparece sin
-avisar:
-
-- El mapeo de unidades de la fuente no contemplaba `EA` (el código GS1 de
-  "each"), que cubre el **16,4% del catálogo**. Como todo lo que necesita
-  cantidad descarta las filas sin unidad, ese 18% quedaba fuera de la gama, la
-  canasta y el índice **sin que nada fallara**.
-- La composición de la canasta declaraba `Leche fluida` en gramos, siendo un
-  líquido que se normaliza a `cc`: el join por unidad nunca matcheaba y **la
-  leche no entraba en la canasta**, siendo uno de los ítems de mayor peso.
-
-- La ingesta local dejó de correr cinco días y **nada avisó**. Había un test
-  escrito para eso, pero comparaba los históricos contra la última fecha de los
-  marts: cuando la ingesta se detiene los marts tampoco avanzan, así que la
-  referencia envejecía junto con ellos y la comparación seguía dando bien.
-  Encima el backfill cargaba las fechas viejas e imprimía `Cargadas`, mientras
-  BigQuery las expiraba en menos de un minuto por la retención de 3 días. Se
-  perdieron tres días de historia **con el pipeline en verde y reportando
-  éxito**.
-
-- El portal de SEPA estuvo caído del 26 al 27 de septiembre y esos dos días
-  nunca se publicaron. El 25 llegó tarde y la ingesta abrió la retención del
-  crudo para que no se perdiera, pero no la de `stg_productos`, su copia en
-  dbt, donde el 24 ya había vencido. El índice compara cada día contra el
-  anterior disponible, así que el 25 y el 28 quedaron sin factor y la página de
-  inflación cortó su período en el 24, sin ningún error. Ahora la ingesta abre
-  y cierra la retención del crudo y de sus copias juntas; las dos fechas se
-  recalcularon con la misma variable de dbt que las correcciones de método.
-
-Los tres casos tienen ahora un test que falla si vuelven a aparecer. El último,
-además, cambió la ingesta: ahora abre la retención de particiones antes de un
-backfill, la vuelve a cerrar cuando ya no hace falta, y verifica que lo que
-cargó siga existiendo en vez de darlo por hecho.
-
-### Cuando falta el dato
-
-Al depurar las carnes quedaron pocos productos económicos de pollo y pescado, y
-esos frescos se venden en pocas sucursales: con precio estrictamente local sólo
-16 localidades completaban la canasta, una de CABA. Se midieron tres salidas
-sobre los datos del 2026-09-09:
-
-- Ampliar a gama económica + media: 92 localidades, pero la canasta pasa a
-  $374.172 porque deja de ser la económica.
-- Tomar el tercio más barato de cada localidad: 72, pero el recorte de extremos
-  saca los pollos enteros y el pollo vuelve a salir más caro que la carne.
-- **Mantener la gama económica y usar la mediana provincial en hasta 2 de las
-  32 categorías: 96 localidades, mitad CABA y mitad interior, con una mediana
-  de $238.866.**
-
-Se eligió la última, como hacen los índices oficiales con los precios
-faltantes, con un tope de 2: se temía que con más precios provinciales la
-canasta dejara de describir a su localidad. Cada categoría imputada va marcada
-en el desglose del sitio.
-
-Ese temor se midió el 2026-09-24, cuando las categorías nuevas bajaron la
-cobertura de 88 a 68 localidades. En las localidades que sí tienen precio
-local, se lo reemplazó por el provincial: imputar una categoría mueve la
-canasta 0,0% en la mediana y como mucho 1,9% (la papa fuera de CABA), y aceite,
-azúcar, pollo y leche juntos, 0,7%. Las mismas cadenas cobran lo mismo en toda
-la provincia. El tope pasó a 4: 87 localidades, con la mediana igual ($216.780
-con 2, $216.942 con 4).
-
-La misma escasez decidió qué hacer con las menudencias. El INDEC incluye 270 g
-de hígado, y al contrastar la composición contra su tabla por región (el
-2026-09-24) apareció otro error: las carnes estaban repartidas en tercios
-iguales, 2.090 g de vacuna, pollo y pescado, cuando el INDEC da 4.440, 1.650 y
-180. Se corrigió el reparto, pero el hígado quedó afuera: se compra sobre todo
-en carnicerías, que SEPA no cubre, y en los supermercados es un producto
-puntual (23 de 88 localidades no tenían precio local). Es el 0,2% del costo.
-
-### Ruido de la fuente
-
-- **SEPA mezcla importes de cuota en la columna de promoción.** La portada
-  mostraba colchones con "98,8% OFF". Los valores de promo son un diccionario
-  chico de números redondos reusados entre productos de precio muy distinto, y
-  para el más barato de cada grupo el valor es exactamente `lista/10`: las
-  clásicas 10 cuotas sin interés. Un techo fijo de descuento las frenaba, pero
-  dejaba la lista llena de promos clavadas en ese techo: de 200, 79 tenían
-  exactamente 70% y 186 no eran alimentos. Ahora cada promo entra según la
-  evidencia que la respalda —que la cadena declare el porcentaje, que el precio
-  se sostenga contra otras empresas, o un techo más bajo si no hay ninguna de
-  las dos— y la página dice cuál de las tres es.
-- **Hay provincias enteras disfrazadas de localidad.** "BUENOS AIRES" agrupaba
-  425 sucursales repartidas en 555 km. Se excluyen por dispersión geográfica y
-  no por lista de nombres: una localidad real es compacta.
-- **La misma ciudad venía escrita de dos formas** ("Salta" y "SALTA"), lo que la
-  partía en dos y le daba la mitad de las muestras a cada una.
-- **Una cadena entera puede informar mal un precio.** FANTA Zero 1,75 L figuraba
-  a $309 en HiperChangomás (31 sucursales) y $369 en Changomás (53), mientras
-  SuperChangomás —la misma empresa— y las otras diez cadenas la informaban entre
-  $4.939 y $5.190. "El mismo producto" lo publicaba como 1.579% de diferencia, y
-  revisados los 12 destacados de ese día, **los 12 eran errores de la fuente**.
-  Las guardas que había miraban la coherencia de cada cadena consigo misma, que
-  es justo lo que este error no rompe: los $309 salían de 31 sucursales. Ahora
-  cada precio se contrasta contra la mediana **entre empresas** y el que se
-  aparta no entra en la brecha, pero se muestra tachado en vez de desaparecer.
-- **La marca puede venir en otro campo.** Dia manda "REPELENT NARANJ AERO" con la
-  marca "BONTE" aparte: en una zona de CABA, sus 40 promos tenían marca y
-  ninguna la repetía en la descripción. La página la usaba solo para poner
-  mayúsculas y la descartaba, así que "vino tinto" no decía de qué bodega.
-  Ahora se agrega cuando la descripción no la trae.
-- **Cada cadena declara un tamaño distinto para el mismo código de barras.**
-  FANTA 1,75 L: 1750 cc para unas, "1,7 cc" para Cencosud —litros cargados como
-  centímetros cúbicos— y "1 unidad" para Carrefour, que es lo que se carga
-  cuando no se informa el peso. Se vota un tamaño por producto, **por empresas y
-  no por banderas**: contando banderas, el error de Cencosud valía tres votos.
-
-Auditando ese hallazgo apareció un patrón que vale más que el caso: **lo que
-agrega resiste, lo que titula con el extremo no**. Con el mismo filtro aplicado
-a "Más barato", sólo 56 de 48.152 victorias cambian de dueño y **ninguna de las
-63 categorías cambia de líder**, porque cada categoría promedia miles de
-comparaciones. El índice de inflación ya recortaba los relativos fuera de
-`[0,5, 2]`, y la canasta más barata está a 0,86 de la mediana entre localidades:
-sana. La sección vulnerable era la única que publica un extremo individual como
-titular.
-
-### La IA interpreta, el código cuenta
-
-Tu canasta le pasaba a Gemini las cantidades del INDEC y le pedía que armara la
-canasta ajustándolas. Armaba sólo lo que el usuario nombraba: "vivo solo, como
-mucha carne y muchos huevos, y tomo mate" salía con carne, huevos y yerba, y
-nada más. Reforzar la regla en el prompt lo arreglaba en una corrida y fallaba
-en la siguiente. Y cuando sí ajustaba, erraba la cuenta: "tomamos mucha leche"
-salía con menos leche que la base de ese hogar.
-
-Ahora el modelo devuelve sólo lo que depende del texto —cuántos adultos
-equivalentes son, qué no consumen y qué sube o baja, como un factor— y la
-canasta la arma el código: la base del INDEC multiplicada por el hogar, con un
-test que la compara contra la tabla del INDEC de la seed `composicion_canasta`. Los seis
-ejemplos de la página dan la misma canasta en corridas sucesivas.
-
-### Una sección que se retiró
-
-Hubo una sexta sección, **Canasta básica**: el costo de la canasta alimentaria
-del INDEC en cada localidad. Buena parte de las decisiones de arriba salieron de
-ella, y aun así se sacó el 2026-10-08. Medido ese día, 75 de las 89 localidades
-eran de CABA o de la provincia de Buenos Aires, no había ninguna del norte, y
-Chubut salía más barato que CABA, cuando la Patagonia es la región más cara de
-la canasta oficial. No era un error de cálculo sino un límite de la fuente: SEPA
-informa cadenas grandes, que fijan precios casi iguales en todo el país, y lo
-que encarece una región (el almacén, la verdulería, la carnicería del barrio)
-no está en SEPA. La pregunta que prometía la sección, cuánto cuesta comer en
-cada lugar, el dato no la puede responder, y un número que no convence le resta
-credibilidad al resto. La canasta del INDEC sigue como punto de partida de Tu
-canasta, donde sí sirve.
-
-### Geografía
-
-Las cadenas reportan toda CABA como "Capital Federal". El barrio real se
-resuelve por **point-in-polygon** contra la geometría oficial del GCBA,
-respetando el barrio cuando la cadena sí lo informa bien.
-
----
+Hay ocho casos más del mismo tipo (comparar cosas que no son comparables) y
+también la historia de una sección que se retiró porque el dato no podía
+responder lo que prometía: [DECISIONES.md](docs/DECISIONES.md).
 
 ## Calidad
 
-**24 modelos y 94 tests de dbt**, que corren en cada ejecución del pipeline,
-más 8 tests unitarios de dbt con filas de prueba y 150 tests unitarios en Python sobre la API y la ingesta que no necesitan
-BigQuery.
-Además de los genéricos, hay tests singulares para las cosas que sólo se
-detectan mirando el resultado agregado: que Carne vacuna y Pollo no mezclen
-otras carnes, que la canasta económica no salga más cara que la gama media, que la gama esté ordenada por precio por unidad, que el
-mapeo de unidades siga cubriendo el catálogo, que la categorización no se
-degrade a "Otros", que los históricos hayan capturado la última fecha, y que el
-crudo no se haya quedado atrás respecto del calendario.
-
-Ese último se compara contra `CURRENT_DATE` y no contra otra tabla, a propósito:
-un pipeline no puede notar su propio atraso midiéndose contra sí mismo.
-
-Los tests sobre `stg_productos` miran sólo la última fecha: la transformación es
-la misma para todas, así que cada fecha se validó el día en que fue la última.
-No se resolvió con `where` en el YAML porque esa config se renderiza al parsear,
-cuando la macro de fecha todavía no consultó nada: el test pasaría siempre sin
-mirar un dato.
-
-Los tests corren **después** de `dbt run` y no como `dbt build`, a propósito: si
-un test falla a mitad del DAG, `build` saltea los modelos de abajo y ese día no
-entra a los históricos. Como el crudo retiene 3 días, esa fecha se volvería
-irrecuperable. Se prefiere capturar el dato y que la falla avise.
-
-**El frontend tiene sus propios tests** (Vitest, 51): formato de importes y
-fechas, la regla de quién lidera Más barato, la canasta compartida por URL y la
-lista guardada en el navegador. La regla del líder se compara contra un oráculo
-escrito aparte sobre 200 tablas generadas con semilla fija, con empates
-forzados, que es donde una cuenta así se equivoca. Y los tests se validaron al
-revés: se metieron 20 errores a propósito en el código y cada uno hizo fallar
-al menos un test. Un test que nunca falló no demuestra nada.
-
-**Auditoría con agentes.** `/auditar` en Claude Code lanza en paralelo tres
-auditores (datos, coherencia entre secciones, frontend) y después un cuarto que
-intenta refutar cada hallazgo grave antes de que llegue al informe. Comparten un
-protocolo ([`.claude/auditoria/protocolo.md`](.claude/auditoria/protocolo.md)):
-sólo cuenta lo que tiene evidencia, y ninguna consulta a BigQuery corre sin un
-dry run previo ni sin tope de bytes.
-
----
+- **dbt:** 94 tests (genéricos y singulares) que corren después de cada
+  transformación, más 8 tests unitarios con filas de prueba. Los singulares
+  cubren lo que sólo se ve en el resultado agregado: que la carne no mezcle
+  otras carnes, que la gama económica no salga más cara que la media, que el
+  crudo no se atrase respecto del calendario.
+- **Python:** 150 tests sobre la API y la ingesta, sin BigQuery.
+- **Frontend:** 51 tests (Vitest). Se validaron metiendo 20 errores a propósito
+  en el código: cada uno hizo fallar al menos un test.
+- **CI:** todo lo que no necesita BigQuery corre en cada push.
+- **Auditoría con agentes:** `/auditar` en Claude Code lanza tres auditores en
+  paralelo (datos, coherencia entre secciones, frontend) y un cuarto que
+  intenta refutar cada hallazgo grave antes del informe. Comparten un
+  [protocolo](.claude/auditoria/protocolo.md): sólo cuenta lo que tiene
+  evidencia, y ninguna consulta a BigQuery corre sin dry run ni tope de bytes.
 
 ## Costo
 
-Todo corre dentro del nivel gratuito de BigQuery, y eso condicionó el diseño más
-de una vez.
+Todo corre dentro del nivel gratuito de BigQuery.
 
 | | Uso | Límite gratuito |
 |---|---|---|
 | Procesamiento | ~11 GiB/día (~340 GiB/mes) | 1 TiB/mes |
 | Almacenamiento | 6,9 GB | 10 GB |
 
-Decisiones que salieron de ahí:
-
-- El crudo retiene **3 días** en régimen. No es sólo costo de consulta: pesa
-  ~1,5 GB por día, así que una ventana de 4 días llevaría el almacenamiento a
-  8,7 GB. La ingesta la abre sola cuando hay una fecha recuperada esperando a
-  que dbt la capture, y la vuelve a cerrar en cuanto los históricos se ponen al
-  día: una recuperación puntual no sube el piso.
-- Los marts recalculan **sólo las fechas que faltan** en el histórico, no las
-  tres de la ventana. Bajó la corrida diaria de 15,6 a 12,25 GB.
-- El crudo se carga con un **load job directo a la partición del día**, que no
-  consume cuota, en vez de reconstruir la tabla entera con `CREATE OR REPLACE`
-  para sumar un día: 4,07 → 0 GiB. Antes de activarlo se cargó la misma fecha
-  por los dos caminos y se comparó comercio por comercio: mismas filas y misma
-  huella de todas las columnas.
-- `stg_productos` es **incremental** y reemplaza particiones con copy jobs, que
-  no consumen cuota: 2,14 → 0,85 GiB por corrida.
-- La categorización y los tests de staging leen **sólo la última fecha**:
-  2,23 → 0,86 GiB y ~2,1 → ~1,1 GiB.
-- Cada ahorro se midió con dry run o contra `INFORMATION_SCHEMA.JOBS`, no se
-  estimó. Leer una partición no cuesta un tercio de la tabla: `id_producto` de
-  una fecha cuesta 0,30 GiB y de las tres, 0,60.
-- El índice encadenado se calculó **dentro** de un modelo existente en vez de
-  agregar uno nuevo: BigQuery cobra por bytes leídos, no por agregar, así que
-  costó 0 GB extra frente a los +63 GB/mes de un modelo aparte.
-- Cuando dos marts necesitan el mismo cálculo, se hace **una vez** en un modelo
-  intermedio. El precio de cada producto en cada cadena lo usan "Supermercado
-  más barato" y "El mismo producto": leerlo dos veces por separado costaría dos
-  veces los 1,5 GiB que pesa escanear los precios por sucursal.
-- **Buscar no consulta la base.** Cada texto tipeado en un buscador era una
-  consulta nueva, porque cada búsqueda distinta es una entrada distinta de la
-  caché. Las páginas que caben en memoria (94 localidades, ~800 filas de quién
-  gana, el catálogo de productos comparables) se traen una vez y filtran en el
-  navegador.
-- La API cachea 6 horas. El mapa de promos escanea 212 MB por request y se
-  dispara en cada movimiento del mapa.
-- Hay una **cuota dura** a nivel proyecto: es lo único que garantiza que un bot
-  no genere un cargo. Se calcula como lo que queda del TiB gratuito dividido
-  por los días que faltan del mes, y no mirando un día típico: todos los días
-  pueden quedar bajo un techo razonable y el mes igual terminar pagando.
-- La API corre en **512 MiB** en vez de 1 GiB. Con los dos índices en memoria
-  el proceso llegaba a 726 MB, y no por los índices, que retienen 143 MB, sino
-  por el pico al leerlos: `list_rows` sin `page_size` trae páginas enormes. Con
-  páginas de 5.000 filas el pico al leer 200 mil baja de 508 a 57 MB, y el
-  proceso completo queda en 347 MB.
-- **La primera visita no espera un minuto.** Cloud Run apaga la instancia sin
-  tráfico, y la siguiente visita a El mismo producto esperaba ~55 s mientras
-  se leían 200 mil filas por `list_rows`. Ahora los marts se leen con la
-  Storage Read API, en columnas (Arrow) y en paralelo: 3,6 s y menos memoria.
-  Tampoco usa la cuota de consultas: se factura aparte, con 300 TiB gratis
-  por mes, y cada carga lee unas decenas de MB. Si falla al arrancar, vuelve
-  a `list_rows`.
-
----
+Las decisiones que lo hacen posible: el crudo se carga con load jobs y las
+particiones se copian con copy jobs, que no consumen cuota. Los marts recalculan
+sólo las fechas que faltan, y los buscadores filtran en el navegador en vez de
+consultar la base. Una cuota dura a nivel proyecto garantiza que nada genere un
+cargo. Cada ahorro, medido: [costo](docs/DECISIONES.md#costo).
 
 ## Correrlo
 
 Ver [DEPLOY.md](DEPLOY.md) para el despliegue. Para desarrollo:
 
 ```bash
-# API
-cd api && ./venv/Scripts/uvicorn.exe main:app --port 8000
+# API (lee BigQuery: necesita credenciales, ver DEPLOY.md)
+cd api && python -m uvicorn main:app --port 8000
 
 # Frontend
 cd frontend && npm run dev
 
-# Transformaciones
-dbt build
+# Tests
+cd frontend && npm test
+cd api && SIN_BIGQUERY=1 python -m unittest discover -p "test_*.py"
 ```
 
----
+Las transformaciones (`dbt run` y después `dbt test`) leen BigQuery y consumen
+cuota: corren en el pipeline, no hace falta correrlas a mano.
 
 ## Limitaciones conocidas
 
-- **La cobertura fuera de CABA es más fina.** El point-in-polygon divide CABA en
-  71 barrios con 13,2 sucursales promedio; el resto del país son 459 localidades
-  con 3,4. Con precio estrictamente local sólo 16 localidades completan la
-  canasta; con la imputación provincial (ver arriba) son ~96.
+- **La cobertura fuera de CABA es más fina.** CABA tiene 71 barrios con 13,2
+  sucursales promedio; el resto del país, 459 localidades con 3,4. Cuando una
+  categoría no tiene precio local se usa la mediana provincial, y el sitio lo
+  marca.
 - **La clasificación la hace un modelo de lenguaje** y falla donde hace falta
-  conocer la marca: "Bondiola LÁBRATTO PZA", una bondiola curada, cae en Cerdo en
-  vez de Fiambres. Un test vigila que Carne vacuna y Pollo no tengan más de 2% de
-  productos con marcadores ajenos.
-- **Los históricos arrancan el 2026-09-07.** La fecha anterior se había calculado
-  con la taxonomía vieja y ya no estaba en el crudo para recalcularla con las
-  carnes depuradas, así que se borró en vez de dejar una serie que mezcla dos
-  definiciones de "Carne vacuna".
-- **Algunas combinaciones cadena × categoría tienen precios sistemáticamente
-  fuera de mercado** (Dia en Gaseosas, por ejemplo), replicados en cientos de
-  sucursales. Parece un error del maestro de precios de esa cadena y no se puede
-  verificar sin acceso a la fuente original. Se documenta en el modelo en vez de
-  presentarlo como dato confiable.
-- **El histórico es corto.** Empezó a acumularse hace pocos días, así que las
-  variaciones todavía no representan inflación mensual real.
-
----
+  conocer la marca: "Bondiola LÁBRATTO PZA", un fiambre, cae en Cerdo. Un test
+  vigila que Carne vacuna y Pollo no tengan más de 2% de productos ajenos.
+- **Algunas cadenas tienen precios sistemáticamente fuera de mercado en una
+  categoría** (Dia en Gaseosas, por ejemplo), replicados en cientos de
+  sucursales. Parece un error del maestro de precios de la cadena; se documenta
+  en vez de presentarlo como dato confiable.
+- **El histórico es corto.** Arranca el 7 de septiembre de 2026: son semanas, no
+  meses, así que las variaciones todavía no representan inflación mensual.
 
 ## Stack
 
