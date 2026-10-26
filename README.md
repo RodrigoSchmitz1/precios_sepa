@@ -403,6 +403,21 @@ un test falla a mitad del DAG, `build` saltea los modelos de abajo y ese día no
 entra a los históricos. Como el crudo retiene 3 días, esa fecha se volvería
 irrecuperable. Se prefiere capturar el dato y que la falla avise.
 
+**El frontend tiene sus propios tests** (Vitest, 51): formato de importes y
+fechas, la regla de quién lidera Más barato, la canasta compartida por URL y la
+lista guardada en el navegador. La regla del líder se compara contra un oráculo
+escrito aparte sobre 200 tablas generadas con semilla fija, con empates
+forzados, que es donde una cuenta así se equivoca. Y los tests se validaron al
+revés: se metieron 20 errores a propósito en el código y cada uno hizo fallar
+al menos un test. Un test que nunca falló no demuestra nada.
+
+**Auditoría con agentes.** `/auditar` en Claude Code lanza en paralelo tres
+auditores (datos, coherencia entre secciones, frontend) y después un cuarto que
+intenta refutar cada hallazgo grave antes de que llegue al informe. Comparten un
+protocolo ([`.claude/auditoria/protocolo.md`](.claude/auditoria/protocolo.md)):
+sólo cuenta lo que tiene evidencia, y ninguna consulta a BigQuery corre sin un
+dry run previo ni sin tope de bytes.
+
 ---
 
 ## Costo
