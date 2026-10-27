@@ -22,8 +22,8 @@ Comercio.
 - **Números que resisten una segunda mirada.** El dato de origen tiene trampas
   que dan un número publicado equivocado sin que nada falle. Abajo están las
   principales; el detalle de cada una, en [DECISIONES.md](docs/DECISIONES.md).
-- **Calidad verificable.** 24 modelos y 102 tests de dbt, más 150 tests en
-  Python y 51 en el frontend: [calidad](#calidad).
+- **Calidad verificable.** 24 modelos y 103 tests de dbt, más 154 tests en
+  Python y 53 en el frontend: [calidad](#calidad).
 - **Costo cero, por diseño.** Todo entra en los niveles gratuitos, con una
   cuota dura que impide pasarse: [costo](#costo).
 
@@ -70,6 +70,10 @@ sin que ningún precio se moviera. Se pasó a un índice encadenado sobre los
 productos presentes en ambas fechas. El primer estimador, la mediana, daba
 0,00% en 563 de 564 series, porque el 97,9% de los productos no cambia de un
 día al otro. Con la media geométrica (Jevons) son 201 series con variación real.
+Y el índice no medía los básicos: exigía 20 productos de la gama económica por
+cadena, y azúcar, aceite o leche tienen pocos. Ahora usa todas las gamas, pide
+10 productos y se publica por mes; la canasta pasó de 24 a 32 categorías con
+índice, y un test avisa si vuelve a bajar.
 
 **Se perdieron datos con el pipeline en verde.** La ingesta dejó de correr cinco
 días y el test que debía avisar comparaba los históricos contra los marts, que
@@ -94,13 +98,13 @@ responder lo que prometía: [DECISIONES.md](docs/DECISIONES.md).
 
 ## Calidad
 
-- **dbt:** 94 tests (genéricos y singulares) que corren después de cada
+- **dbt:** 95 tests (genéricos y singulares) que corren después de cada
   transformación, más 8 tests unitarios con filas de prueba. Los singulares
   cubren lo que sólo se ve en el resultado agregado: que la carne no mezcle
   otras carnes, que la gama económica no salga más cara que la media, que el
   crudo no se atrase respecto del calendario.
-- **Python:** 150 tests sobre la API y la ingesta, sin BigQuery.
-- **Frontend:** 51 tests (Vitest). Se validaron metiendo 20 errores a propósito
+- **Python:** 154 tests sobre la API y la ingesta, sin BigQuery.
+- **Frontend:** 53 tests (Vitest). Se validaron metiendo 20 errores a propósito
   en el código: cada uno hizo fallar al menos un test.
 - **CI:** todo lo que no necesita BigQuery corre en cada push.
 - **Auditoría con agentes:** `/auditar` en Claude Code lanza tres auditores en

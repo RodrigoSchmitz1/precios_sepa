@@ -14,12 +14,12 @@ import type { Inflacion } from "../types";
 
 type Estado = { categoria: string; filas?: Inflacion[]; error?: string };
 
-function DetalleInflacionCadenas({ categoria }: { categoria: string }) {
+function DetalleInflacionCadenas({ categoria, mes }: { categoria: string; mes?: string }) {
   const [estado, setEstado] = useState<Estado | null>(null);
 
   useEffect(() => {
     let cancelado = false;
-    obtenerInflacion(categoria)
+    obtenerInflacion(categoria, mes)
       .then((filas) => {
         if (!cancelado) setEstado({ categoria, filas });
       })
@@ -29,7 +29,7 @@ function DetalleInflacionCadenas({ categoria }: { categoria: string }) {
     return () => {
       cancelado = true;
     };
-  }, [categoria]);
+  }, [categoria, mes]);
 
   const vigente = estado?.categoria === categoria ? estado : null;
 
@@ -49,7 +49,8 @@ function DetalleInflacionCadenas({ categoria }: { categoria: string }) {
   if (filas.length === 0) {
     return (
       <p className="text-xs text-tinta-suave py-2">
-        Ninguna cadena de esta categoría tiene la cadena de factores completa en el periodo.
+        Ninguna cadena tiene datos todos los días del mes. La variación de la categoría se arma día a día con las
+        cadenas que sí tienen datos ese día.
       </p>
     );
   }
@@ -71,7 +72,12 @@ function DetalleInflacionCadenas({ categoria }: { categoria: string }) {
         {filas.map((r) => {
           const subio = r.variacion_pct > 0;
           const bajo = r.variacion_pct < 0;
-          const nivel = precioPorUnidad(r.precio_actual, r.unidad_normalizada);
+          // Sin nivel cuando la cadena no llega al minimo de la gama economica
+          // (el indice usa todas las gamas): se muestra la variacion igual.
+          const nivel =
+            r.precio_actual === null
+              ? { texto: "—", unidad: r.unidad_normalizada }
+              : precioPorUnidad(r.precio_actual, r.unidad_normalizada);
           return (
             <div
               key={`${r.cadena}-${r.unidad_normalizada}`}

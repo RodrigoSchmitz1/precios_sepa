@@ -9,7 +9,7 @@ import {
   obtenerProductosDestacados,
   obtenerQuienGana,
 } from "../api/client";
-import { fechaEnPalabras, formatearPesos, formatearVariacion, tamanoQueFalta } from "../utils/formato";
+import { fechaEnPalabras, formatearPesos, formatearVariacion, mesEnPalabras, tamanoQueFalta } from "../utils/formato";
 import { liderEn } from "../utils/liderazgo";
 import { nombreCategoria } from "../utils/nombres";
 import { nombreLegible } from "../utils/texto";
@@ -354,7 +354,7 @@ function Presentacion() {
     cifras.push({
       etiqueta: "Lo que más subió",
       valor: formatearVariacion(masSubio.variacion_pct, 1),
-      detalle: `${nombreCategoria(masSubio.categoria)}, desde el ${fechaEnPalabras(masSubio.fecha_inicio)}`,
+      detalle: `${nombreCategoria(masSubio.categoria)}, en lo que va de ${mesEnPalabras(masSubio.mes)}`,
       chip: "▲ el que más subió",
       chipClase: "bg-alerta-tenue text-alerta",
     });

@@ -90,7 +90,13 @@ export type InflacionResumen = {
   /** Sobre cuantas series y cuantas cadenas se calculo. Se muestran para que el
    *  lector pueda pesar un -2,9% sobre 7 cadenas contra uno sobre 14. */
   series: number;
+  /** Cadenas del dia con menos cobertura: "al menos N cadenas todos los dias". */
   cadenas: number;
+  /** La variacion es de un mes calendario (2026-10-27). Primer dia del mes. */
+  mes: string;
+  /** Falso si un hueco en los datos corto la serie despues del primero del
+   *  mes: entonces el periodo arranca en fecha_inicio y no en el mes anterior. */
+  desde_inicio_de_mes: boolean;
   fecha_inicio: string;
   fecha_fin: string;
 };
@@ -104,7 +110,7 @@ export type Inflacion = {
   /** Nivel de precios observado en la fecha final. Es un dato de contexto: no
    *  guarda relacion aritmetica con variacion_pct, que se mide encadenando los
    *  cambios diarios sobre productos pareados y no restando dos niveles. */
-  precio_actual: number;
+  precio_actual: number | null;
   variacion_pct: number;
   fecha_inicio: string;
   fecha_fin: string;

@@ -80,6 +80,10 @@ vars:
   # DEPLOY.md). Medido el 2026-10-08: seis fechas juntas costaron 29,5 GiB; con
   # cuatro queda margen para el sitio y para trabajar. Ver fechas_a_calcular.
   maximo_fechas_por_corrida: 4
+  # Productos distintos pareados que necesita el factor diario de una cadena en
+  # una categoria (indice de inflacion). Bajo de 20 a 10 el 2026-10-27, junto con
+  # pasar a todas las gamas; ver mart_precios_cadena_categoria.
+  indice_minimo_productos_pareados: 10
   # Categorias que se cotizan por pieza y donde las cadenas suelen cargar el
   # paquete entero como "1 unidad". Ver el macro piezas_por_envase.
   categorias_por_pieza: ["Huevos", "Panales", "Higiene bebe", "Descartables"]

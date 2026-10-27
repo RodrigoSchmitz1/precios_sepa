@@ -82,15 +82,19 @@ models:
   - name: mart_precios_cadena_categoria
     description: >
       Nivel de precios por cadena y categoria, una fila por fecha. Base para
-      comparar cadenas entre si y para calcular inflacion al vuelo restando
-      dos fechas del historico.
+      comparar cadenas entre si (nivel, gama economica) y para calcular
+      inflacion encadenando factor_vs_base (todas las gamas).
     tests:
       - dbt_utils.unique_combination_of_columns:
           combination_of_columns: [fecha_datos, categoria, cadena, unidad_normalizada]
       - dbt_utils.expression_is_true:
           expression: "precio_mediano_unidad > 0"
+      # Las filas sin nivel (solo factor, ver el FULL JOIN del modelo) no tienen
+      # muestras economicas.
       - dbt_utils.expression_is_true:
           expression: "muestras >= 20"
+          config:
+            where: "precio_mediano_unidad IS NOT NULL"
       # El factor es un cociente de precios: cero o negativo significa que algo
       # se rompio aguas arriba, no un precio que bajo.
       - dbt_utils.expression_is_true:
@@ -98,7 +102,7 @@ models:
           config:
             where: "factor_vs_base IS NOT NULL"
       - dbt_utils.expression_is_true:
-          expression: "muestras_pareadas >= 20"
+          expression: "muestras_pareadas >= {{ var('indice_minimo_productos_pareados') }}"
           config:
             where: "factor_vs_base IS NOT NULL"
       # La fecha contra la que se compara tiene que ser anterior. Si un cambio

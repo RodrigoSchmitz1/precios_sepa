@@ -155,6 +155,34 @@ los factores de todas sus series) y la apertura por cadena es el segundo click.
 Sólo entran las categorías cubiertas por al menos 3 cadenas: con una sola, el
 número no es el mercado, es un supermercado.
 
+**El índice no medía los básicos (2026-10-27).** Al calcular cuánto aporta cada
+categoría a la inflación de la canasta apareció que el 48% de las series (599
+de 1.238) no tenía factor ningún día. El factor se calculaba sólo sobre la gama
+económica y pedía 20 productos distintos pareados por cadena, y los básicos
+tienen pocos: el tercio económico de aceite, azúcar o papa son 3 a 5 productos
+por cadena. Azúcar, manteca y papa no tenían índice en ninguna cadena; leche,
+arroz y pan, en 1 o 2. La página no los mostraba y ningún test lo veía, porque
+cada serie que sí tenía factor estaba bien calculada: lo que faltaba eran series.
+
+Se midió antes de cambiar nada. Contando productos distintos por cadena, con
+todas las gamas y un mínimo de 10 la canasta tiene índice en 32 de 32
+categorías (99,8% de su peso) y el sitio en 119 de 177, contra 24 y 72. El
+costo en ruido es chico: el desvío diario del factor de una cadena es 0,73% con
+~22 productos y 0,47% con ~83. Usar todas las gamas es además lo correcto: el
+IPC releva todas las variedades, y como cada relativo es de un producto contra
+sí mismo, mezclar gamas no mezcla niveles de precio. El cambio no lee un byte
+más (dry run: 1,308 GiB antes y después).
+
+Con el cambio, el período pasó a ser **un mes calendario**, encadenado a nivel
+mercado: cada día la categoría es la media geométrica de las series que tienen
+dato ese día (con al menos 3 cadenas), y el mes encadena esos días. Antes cada
+serie tenía que estar completa desde el 15 de septiembre, así que una cadena
+que faltaba un día quedaba afuera para siempre y la cobertura empeoraba al
+crecer la historia. Un mes, además, se puede comparar con el IPC. Octubre quedó
+con el método anterior, porque el crudo ya había vencido; noviembre es el
+primer mes entero con el nuevo. Un test (`indice_cubre_la_canasta`) falla si
+menos de 30 de las 32 categorías de la canasta tienen índice.
+
 ---
 
 ## Destacar sin inventar un umbral

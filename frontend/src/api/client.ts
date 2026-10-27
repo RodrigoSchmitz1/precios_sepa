@@ -133,15 +133,19 @@ export async function obtenerComposicionCanasta(): Promise<GrupoComposicion[]> {
   return leerJson(respuesta);
 }
 
-export async function obtenerInflacionResumen(): Promise<InflacionResumen[]> {
-  const respuesta = await fetch(`${API_BASE}/inflacion/resumen`);
+/** mes: "AAAA-MM"; sin mes, el ultimo con datos. */
+export async function obtenerInflacionResumen(mes?: string): Promise<InflacionResumen[]> {
+  const params = new URLSearchParams();
+  if (mes) params.set("mes", mes);
+  const respuesta = await fetch(`${API_BASE}/inflacion/resumen?${params.toString()}`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer el resumen");
   return leerJson(respuesta);
 }
 
-export async function obtenerInflacion(categoria: string): Promise<Inflacion[]> {
+export async function obtenerInflacion(categoria: string, mes?: string): Promise<Inflacion[]> {
   const params = new URLSearchParams();
   if (categoria) params.set("categoria", categoria);
+  if (mes) params.set("mes", mes);
   const respuesta = await fetch(`${API_BASE}/inflacion?${params.toString()}`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer inflación");
   return leerJson(respuesta);

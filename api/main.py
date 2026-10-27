@@ -531,22 +531,26 @@ def obtener_composicion_canasta():
     return _composicion_canasta()
 
 
-def _ctes_cadena_contigua(tabla: str) -> str:
-    """Subconsultas que definen el periodo y el factor encadenado de cada serie.
+def _ctes_periodo_mensual(tabla: str) -> str:
+    """Subconsultas que definen el periodo (un mes) y su cadena de eslabones.
 
     Las usan los dos endpoints de inflacion. Estaban copiadas en cada uno, y dos
-    copias de la misma definicion terminan diciendo cosas distintas.
+    copias de la misma definicion terminan diciendo cosas distintas. Esperan el
+    parametro @mes (DATE, primer dia del mes, o NULL para el mes de la ultima
+    fecha cargada).
 
-    EL PERIODO ES LA CADENA CONTIGUA MAS RECIENTE (2026-09-23). Antes iba del
-    primer eslabon no nulo al ultimo, y el control de "cadena completa" contaba
-    solo eslabones no nulos. Con nulos en el medio -el historico perdia uno por
-    dia, ver su modelo- se multiplicaban fechas sueltas y se publicaban como un
-    periodo continuo: la pagina decia "del 10 al 22 de septiembre" con 5 de los
-    12 cambios diarios adentro.
+    EL PERIODO ES UN MES CALENDARIO (2026-10-27). Hasta esa fecha era la cadena
+    contigua mas reciente, que arrancaba el 15-09 y crecia un dia por vez. Una
+    serie que fallaba un solo dia quedaba afuera para siempre, asi que la
+    cobertura se achicaba a medida que se acumulaba historia; y un periodo de 42
+    dias no se puede comparar con nada publicado. Un mes se compara con el IPC.
 
-    Ahora se recorre hacia atras desde la ultima fecha siguiendo fecha_base, y la
-    cadena se corta en el primer hueco. Si queda un solo eslabon el periodo es de
-    un dia, y la pagina lo dice; es menos pero es cierto.
+    La cadena se recorre hacia atras desde la ultima fecha del mes siguiendo
+    fecha_base, y se corta al llegar al mes anterior: el primer eslabon compara
+    el primer dia del mes contra el ultimo del mes anterior, como un indice
+    mensual. Si un hueco la corta antes, el periodo arranca despues del hueco y
+    desde_inicio_de_mes lo dice: es menos pero es cierto. Nunca se multiplica
+    salteando un eslabon que falta.
 
     Devuelve las CTE sin el WITH: quien la usa arranca con "WITH RECURSIVE".
     """
@@ -556,49 +560,72 @@ def _ctes_cadena_contigua(tabla: str) -> str:
             FROM `{tabla}`
             WHERE factor_vs_base IS NOT NULL
         ),
+        limites AS (
+            SELECT ultima, DATE_TRUNC(ultima, MONTH) AS inicio_mes
+            FROM (
+                SELECT MAX(fecha_datos) AS ultima
+                FROM eslabones
+                WHERE @mes IS NULL OR DATE_TRUNC(fecha_datos, MONTH) = @mes
+            )
+        ),
         cadena AS (
-            SELECT fecha_datos, fecha_base
-            FROM eslabones
-            WHERE fecha_datos = (SELECT MAX(fecha_datos) FROM eslabones)
+            SELECT e.fecha_datos, e.fecha_base
+            FROM eslabones AS e
+            JOIN limites AS l ON e.fecha_datos = l.ultima
             UNION ALL
+            -- El eslabon anterior entra solo si su fecha final sigue dentro del
+            -- mes: el que termina en el mes anterior es la base, no un eslabon.
             SELECT e.fecha_datos, e.fecha_base
             FROM eslabones AS e
             JOIN cadena AS c ON e.fecha_datos = c.fecha_base
+            JOIN limites AS l ON c.fecha_base >= l.inicio_mes
         ),
         periodo AS (
             SELECT
-                MIN(fecha_base) AS fecha_inicio,
-                MAX(fecha_datos) AS fecha_fin,
-                COUNT(DISTINCT fecha_datos) AS eslabones_esperados
-            FROM cadena
+                MIN(c.fecha_base) AS fecha_inicio,
+                MAX(c.fecha_datos) AS fecha_fin,
+                COUNT(DISTINCT c.fecha_datos) AS eslabones_esperados,
+                ANY_VALUE(l.inicio_mes) AS mes,
+                MIN(c.fecha_base) < ANY_VALUE(l.inicio_mes) AS desde_inicio_de_mes
+            FROM cadena AS c, limites AS l
         ),
         encadenado AS (
             SELECT
-                categoria,
-                cadena,
-                unidad_normalizada,
+                h.categoria,
+                h.cadena,
+                h.unidad_normalizada,
                 -- Producto de los factores, via exp(suma de logaritmos).
-                EXP(SUM(LN(factor_vs_base))) AS factor_total,
+                EXP(SUM(LN(h.factor_vs_base))) AS factor_total,
                 COUNT(*) AS eslabones,
-                MIN(fecha_base) AS desde,
-                MAX(fecha_datos) AS hasta
-            FROM `{tabla}`
-            WHERE factor_vs_base IS NOT NULL
-                AND fecha_datos IN (SELECT fecha_datos FROM cadena)
-            GROUP BY categoria, cadena, unidad_normalizada
+                MIN(h.fecha_base) AS desde,
+                MAX(h.fecha_datos) AS hasta
+            FROM `{tabla}` AS h
+            JOIN cadena AS c USING (fecha_datos, fecha_base)
+            WHERE h.factor_vs_base IS NOT NULL
+            GROUP BY h.categoria, h.cadena, h.unidad_normalizada
         )"""
+
+
+def _parametro_mes(mes: Optional[str]) -> bigquery.ScalarQueryParameter:
+    """"2026-10" -> DATE 2026-10-01; None deja que la consulta use el ultimo mes."""
+    fecha = datetime.strptime(mes, "%Y-%m").date() if mes else None
+    return bigquery.ScalarQueryParameter("mes", "DATE", fecha)
+
+
+PATRON_MES = r"^\d{4}-(0[1-9]|1[0-2])$"
 
 
 @api.get("/inflacion")
 @cachear
 def obtener_inflacion(
     categoria: Optional[str] = Query(None, description="Filtrar por categoria exacta"),
+    mes: Optional[str] = Query(None, pattern=PATRON_MES, description="AAAA-MM; por defecto, el ultimo"),
 ):
     condiciones = []
-    parametros = []
+    parametros = [_parametro_mes(mes)]
 
     if categoria:
-        condiciones.append("f.categoria = @categoria")
+        condiciones.append("e.categoria = @categoria")
         parametros.append(bigquery.ScalarQueryParameter("categoria", "STRING", categoria))
 
     where_extra = f"AND {' AND '.join(condiciones)}" if condiciones else ""
@@ -613,7 +640,7 @@ def obtener_inflacion(
     # precio se habia movido. El factor diario se calcula sobre los productos
     # presentes en ambas fechas (ver mart_precios_cadena_categoria).
     query = f"""
-        WITH RECURSIVE {_ctes_cadena_contigua(tabla)},
+        WITH RECURSIVE {_ctes_periodo_mensual(tabla)},
         nivel_actual AS (
             SELECT h.categoria, h.cadena, h.unidad_normalizada, h.precio_mediano_unidad
             FROM `{tabla}` AS h, periodo
@@ -627,34 +654,36 @@ def obtener_inflacion(
             -- se veian dos "Coto" con numeros distintos y sin forma de saber
             -- cual era cual.
             e.unidad_normalizada,
+            -- Puede ser nulo desde el 2026-10-27: el factor usa todas las gamas
+            -- y el nivel solo la economica, que en una cadena chica puede no
+            -- llegar al minimo de muestras.
             n.precio_mediano_unidad AS precio_actual,
             ROUND((e.factor_total - 1) * 100, 2) AS variacion_pct,
             p.fecha_inicio,
             p.fecha_fin
         FROM encadenado AS e
         CROSS JOIN periodo AS p
-        JOIN nivel_actual AS n
+        LEFT JOIN nivel_actual AS n
             USING (categoria, cadena, unidad_normalizada)
-        -- Solo series con la cadena COMPLETA: tiene que tener un eslabon por
-        -- cada fecha del periodo y arrancar y terminar donde arranca y termina
-        -- el periodo. Una serie a la que le falta un dia no se puede encadenar,
-        -- y multiplicar salteando el hueco daria un numero inventado.
+        -- Solo series con la cadena COMPLETA en el mes: un eslabon por cada
+        -- fecha del periodo. Una serie a la que le falta un dia no se puede
+        -- encadenar, y multiplicar salteando el hueco daria un numero inventado.
         WHERE e.eslabones = p.eslabones_esperados
-            AND e.desde = p.fecha_inicio
-            AND e.hasta = p.fecha_fin
-        {where_extra.replace("f.categoria", "e.categoria")}
+        {where_extra}
         ORDER BY e.categoria, variacion_pct DESC
     """
 
-    job_config = bigquery.QueryJobConfig(query_parameters=parametros) if parametros else None
+    job_config = bigquery.QueryJobConfig(query_parameters=parametros)
     resultados = cliente_bq.query(query, job_config=job_config).result()
     return [dict(fila) for fila in resultados]
 
 
 @api.get("/inflacion/resumen")
 @cachear
-def obtener_inflacion_resumen():
-    """Variacion de mercado por categoria, para leer de un vistazo.
+def obtener_inflacion_resumen(
+    mes: Optional[str] = Query(None, pattern=PATRON_MES, description="AAAA-MM; por defecto, el ultimo"),
+):
+    """Variacion de mercado por categoria en un mes, para leer de un vistazo.
 
     La pagina antes obligaba a elegir una categoria y mostraba sus cadenas por
     separado. Eso parte las series en grupos chicos y, como la mayoria de los
@@ -662,44 +691,64 @@ def obtener_inflacion_resumen():
     que adivinar que categoria mirar. Este endpoint responde la pregunta al
     reves, que es la que trae al lector: QUE se movio.
 
-    El indice de una categoria es la media geometrica de los factores encadenados
-    de todas sus series (cadena x unidad) que tienen la cadena completa. Sin
-    datos de volumen de ventas no hay con que ponderar, asi que cada cadena pesa
-    igual; se devuelve la cantidad de series para que se vea sobre cuanto se
-    calculo.
+    SE ENCADENA EL MERCADO, NO CADA SERIE (2026-10-27). Cada dia, el factor de
+    una categoria es la media geometrica de los factores de sus series (cadena x
+    unidad) que tienen dato ESE dia, y el del mes encadena esos factores
+    diarios. Antes se encadenaba cada serie por separado y solo entraban las que
+    tenian todos los dias: una cadena que faltaba un dia sacaba su serie entera,
+    y una categoria sin 3 series completas desaparecia. Asi trabajan los indices
+    de precios: el agregado elemental de cada periodo se calcula sobre la
+    muestra que hay en ese periodo.
+
+    Sin datos de volumen de ventas no hay con que ponderar, asi que cada serie
+    pesa igual. Cada dia la categoria necesita 3 cadenas: con menos, el numero
+    no es el mercado sino un supermercado, y ese dia falta el eslabon.
     """
     tabla = f"{PROYECTO}.dbt_precios.historico_precios_cadena_categoria"
     query = f"""
-        WITH RECURSIVE {_ctes_cadena_contigua(tabla)},
-        completas AS (
-            -- Solo series con la cadena entera: a una que le falta un eslabon no
-            -- se la puede encadenar, y multiplicar salteando el hueco daria un
-            -- numero inventado.
-            SELECT e.*
-            FROM encadenado AS e, periodo AS p
-            WHERE e.eslabones = p.eslabones_esperados
-                AND e.desde = p.fecha_inicio
-                AND e.hasta = p.fecha_fin
+        WITH RECURSIVE {_ctes_periodo_mensual(tabla)},
+        diario AS (
+            SELECT
+                h.categoria,
+                h.fecha_datos,
+                EXP(AVG(LN(h.factor_vs_base))) AS factor,
+                COUNT(*) AS series,
+                COUNT(DISTINCT h.cadena) AS cadenas
+            FROM `{tabla}` AS h
+            JOIN cadena AS c USING (fecha_datos, fecha_base)
+            WHERE h.factor_vs_base IS NOT NULL
+            GROUP BY h.categoria, h.fecha_datos
+            HAVING COUNT(DISTINCT h.cadena) >= 3
+        ),
+        por_categoria AS (
+            SELECT
+                categoria,
+                EXP(SUM(LN(factor))) AS factor_total,
+                COUNT(*) AS eslabones,
+                CAST(ROUND(AVG(series)) AS INT64) AS series,
+                -- El dia mas flaco: "al menos N cadenas todos los dias".
+                MIN(cadenas) AS cadenas
+            FROM diario
+            GROUP BY categoria
         )
         SELECT
             c.categoria,
-            ROUND((EXP(AVG(LN(c.factor_total))) - 1) * 100, 2) AS variacion_pct,
-            COUNT(*) AS series,
-            COUNT(DISTINCT c.cadena) AS cadenas,
+            ROUND((c.factor_total - 1) * 100, 2) AS variacion_pct,
+            c.series,
+            c.cadenas,
             p.fecha_inicio,
-            p.fecha_fin
-        FROM completas AS c
+            p.fecha_fin,
+            p.mes,
+            p.desde_inicio_de_mes
+        FROM por_categoria AS c
         CROSS JOIN periodo AS p
-        GROUP BY c.categoria, p.fecha_inicio, p.fecha_fin
-        -- Una categoria cubierta por una sola cadena no es "el mercado": es un
-        -- supermercado. Publicarla en un ranking de variacion del mercado seria
-        -- darle a un dato suelto la autoridad de un agregado. Con el corte en 3
-        -- cadenas hoy queda afuera 1 categoria de 54 (Leche en polvo, con 1);
-        -- 41 de las 54 tienen 8 cadenas o mas.
-        HAVING COUNT(DISTINCT c.cadena) >= 3
+        -- Un eslabon por cada fecha del periodo: una categoria a la que le
+        -- falta un dia (menos de 3 cadenas ese dia) no se puede encadenar.
+        WHERE c.eslabones = p.eslabones_esperados
         ORDER BY variacion_pct DESC
     """
-    return [dict(fila) for fila in cliente_bq.query(query).result()]
+    job_config = bigquery.QueryJobConfig(query_parameters=[_parametro_mes(mes)])
+    return [dict(fila) for fila in cliente_bq.query(query, job_config=job_config).result()]
 
 
 class DescripcionCanasta(BaseModel):

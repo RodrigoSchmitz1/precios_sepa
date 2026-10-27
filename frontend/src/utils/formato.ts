@@ -37,6 +37,11 @@ export function fechaEnPalabras(iso: string | null | undefined): string {
   return `${dia} de ${MESES[mes - 1]}`;
 }
 
+/** "2026-10-01" (o cualquier dia del mes) -> "octubre". Vacio si no es fecha. */
+export function mesEnPalabras(iso: string | null | undefined): string {
+  return MESES[Number((iso ?? "").split("-")[1]) - 1] ?? "";
+}
+
 /*
   Porcentaje de variacion con signo explicito y coma decimal.
 

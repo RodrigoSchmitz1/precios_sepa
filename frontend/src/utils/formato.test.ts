@@ -11,6 +11,7 @@ import {
   formatearPesos,
   formatearTamano,
   formatearVariacion,
+  mesEnPalabras,
   precioPorUnidad,
   tamanoQueFalta,
 } from "./formato";
@@ -56,6 +57,20 @@ describe("fechaEnPalabras", () => {
   it("sin fecha valida devuelve vacio en vez de romper la pagina", () => {
     for (const malo of [null, undefined, "", "2026", "2026-13-01", "2026-00-10", "hoy", "2026-09-xx"]) {
       expect(fechaEnPalabras(malo)).toBe("");
+    }
+  });
+});
+
+describe("mesEnPalabras", () => {
+  it("toma el mes de cualquier fecha del mes", () => {
+    expect(mesEnPalabras("2026-10-01")).toBe("octubre");
+    expect(mesEnPalabras("2026-01-31")).toBe("enero");
+    expect(mesEnPalabras("2026-12")).toBe("diciembre");
+  });
+
+  it("vacio si no hay mes valido", () => {
+    for (const malo of [null, undefined, "", "2026", "2026-13-01", "2026-00-01"]) {
+      expect(mesEnPalabras(malo)).toBe("");
     }
   });
 });

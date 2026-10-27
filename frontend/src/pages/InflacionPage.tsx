@@ -3,7 +3,7 @@ import { obtenerInflacionResumen } from "../api/client";
 import DetalleInflacionCadenas from "../components/DetalleInflacionCadenas";
 import Titular, { Resaltado } from "../components/Titular";
 import FilaDeCifras from "../components/FilaDeCifras";
-import { fechaEnPalabras, formatearVariacion } from "../utils/formato";
+import { fechaEnPalabras, formatearVariacion, mesEnPalabras } from "../utils/formato";
 import type { InflacionResumen } from "../types";
 import { nombreCategoria } from "../utils/nombres";
 
@@ -32,27 +32,42 @@ function diasEntre(desde: string, hasta: string): number {
   return Math.round((aNumero(hasta) - aNumero(desde)) / 86400000);
 }
 
-type Estado = { filas?: InflacionResumen[]; error?: string };
+/** "2026-10-01" -> "2026-09": el mes anterior, en el formato que pide la API. */
+function mesAnterior(iso: string): string {
+  const [a, m] = iso.split("-").map(Number);
+  return m === 1 ? `${a - 1}-12` : `${a}-${String(m - 1).padStart(2, "0")}`;
+}
+
+type Estado = { mes: string | null; filas?: InflacionResumen[]; error?: string };
 
 function InflacionPage() {
   const [estado, setEstado] = useState<Estado | null>(null);
   const [abierta, setAbierta] = useState<string | null>(null);
+  // null = el ultimo mes con datos, que es lo que la API devuelve sin parametro.
+  const [mes, setMes] = useState<string | null>(null);
+  // El ultimo mes se conoce recien con la primera respuesta.
+  const [ultimoMes, setUltimoMes] = useState<string | null>(null);
 
   useEffect(() => {
     let cancelado = false;
-    obtenerInflacionResumen()
+    obtenerInflacionResumen(mes ?? undefined)
       .then((filas) => {
-        if (!cancelado) setEstado({ filas });
+        if (cancelado) return;
+        setEstado({ mes, filas });
+        if (mes === null && filas[0]) setUltimoMes(filas[0].mes);
       })
       .catch((err) => {
-        if (!cancelado) setEstado({ error: err.message });
+        if (!cancelado) setEstado({ mes, error: err.message });
       });
     return () => {
       cancelado = true;
     };
-  }, []);
+  }, [mes]);
 
-  const filas = useMemo(() => estado?.filas ?? [], [estado]);
+  const vigente = estado?.mes === mes ? estado : null;
+  const filas = useMemo(() => vigente?.filas ?? [], [vigente]);
+  const esElUltimo = mes === null;
+  const nombreMes = filas[0] ? mesEnPalabras(filas[0].mes) : "";
 
   const resumen = useMemo(() => {
     if (filas.length === 0) return null;
@@ -106,9 +121,7 @@ function InflacionPage() {
     <div className="max-w-4xl mx-auto">
       <Titular
         antetitulo={
-          filas.length > 0
-            ? `Inflación · ${fechaEnPalabras(filas[0].fecha_inicio)} al ${fechaEnPalabras(filas[0].fecha_fin)}`
-            : "Inflación"
+          filas.length > 0 ? `Inflación de ${nombreMes} · hasta el ${fechaEnPalabras(filas[0].fecha_fin)}` : "Inflación"
         }
         bajada={
           <>
@@ -119,11 +132,31 @@ function InflacionPage() {
             </p>
             {resumen && (
               <p className="mt-2 text-sm text-sobre-oscuro-aviso">
-                {resumen.dias === 1
-                  ? "Es el movimiento de un solo día, no de un mes: por eso son décimas y no puntos."
-                  : `Es el movimiento acumulado de ${resumen.dias} días, no de un mes.`}{" "}
-                El histórico recién empezó a acumularse y suma un eslabón por día.
+                {filas[0].desde_inicio_de_mes
+                  ? `${esElUltimo ? "Es lo que va" : "Es lo que fue"} de ${nombreMes}: ${resumen.dias} ${resumen.dias === 1 ? "día" : "días"} contra el cierre del mes anterior.`
+                  : `Arranca el ${fechaEnPalabras(filas[0].fecha_inicio)}: antes faltan datos para encadenar, así que son ${resumen.dias} ${resumen.dias === 1 ? "día" : "días"} y no el mes entero.`}
               </p>
+            )}
+            {ultimoMes && (
+              <div className="mt-3 flex gap-2" role="group" aria-label="Mes">
+                {[mesAnterior(ultimoMes), null].map((opcion) => {
+                  const elegido = opcion === mes;
+                  return (
+                    <button
+                      key={opcion ?? "ultimo"}
+                      type="button"
+                      onClick={() => setMes(opcion)}
+                      aria-pressed={elegido}
+                      className={[
+                        "text-sm rounded-full px-3 py-1 border transition-colors",
+                        elegido ? "bg-papel text-tinta border-papel" : "border-sobre-oscuro-aviso/40 hover:bg-papel/10",
+                      ].join(" ")}
+                    >
+                      {mesEnPalabras(opcion ?? ultimoMes)}
+                    </button>
+                  );
+                })}
+              </div>
             )}
           </>
         }
@@ -134,22 +167,22 @@ function InflacionPage() {
             <Resaltado tono={resumen.general >= 0 ? undefined : "barato"}>
               {formatearVariacion(Math.abs(resumen.general)).replace("+", "")}
             </Resaltado>{" "}
-            en {resumen.dias} {resumen.dias === 1 ? "día" : "días"}
+            {esElUltimo ? `en lo que va de ${nombreMes}` : `en ${nombreMes}`}
           </>
         ) : (
           "Qué categorías subieron y cuáles bajaron"
         )}
       </Titular>
 
-      {estado?.error && (
+      {vigente?.error && (
         <p className="text-sm text-alerta bg-alerta-tenue border border-alerta/20 rounded-lg px-3 py-2">
-          No se pudo cargar: {estado.error}
+          No se pudo cargar: {vigente.error}
         </p>
       )}
 
-      {estado === null && <p className="text-sm text-tinta-suave">Cargando…</p>}
+      {vigente === null && <p className="text-sm text-tinta-suave">Cargando…</p>}
 
-      {estado?.filas && filas.length === 0 && (
+      {vigente?.filas && filas.length === 0 && (
         <p className="text-sm text-tinta-suave">Todavía no hay dos fechas encadenables en el histórico.</p>
       )}
 
@@ -171,7 +204,7 @@ function InflacionPage() {
                 {
                   etiqueta: "Periodo",
                   valor: `${resumen.dias} ${resumen.dias === 1 ? "día" : "días"}`,
-                  detalle: `hasta el ${fechaEnPalabras(filas[0].fecha_fin)}`,
+                  detalle: `de ${nombreMes}, hasta el ${fechaEnPalabras(filas[0].fecha_fin)}`,
                 },
                 {
                   etiqueta: "Mayor movimiento",
@@ -227,7 +260,7 @@ function InflacionPage() {
                           */}
                           <span
                             className="numero text-[11px] text-tinta-suave"
-                            title={`Calculado sobre ${f.series} series de precios en ${f.cadenas} cadenas`}
+                            title={`Unas ${f.series} series de precios por día, y al menos ${f.cadenas} cadenas todos los días`}
                           >
                             {f.cadenas} cadenas
                           </span>
@@ -270,7 +303,7 @@ function InflacionPage() {
 
                     {estaAbierta && (
                       <div className="mt-2 mb-3">
-                        <DetalleInflacionCadenas categoria={f.categoria} />
+                        <DetalleInflacionCadenas categoria={f.categoria} mes={mes ?? undefined} />
                       </div>
                     )}
                   </li>
@@ -279,10 +312,11 @@ function InflacionPage() {
             </ul>
 
             <p className="text-[11px] text-tinta-suave mt-4 pt-3 border-t border-linea leading-relaxed">
-              La variación de una categoría es la media geométrica de los factores encadenados de todas sus series de
-              precios; sin datos de volumen de ventas no hay con qué ponderar, así que cada cadena pesa igual. Solo
-              entran las series con la cadena de factores completa y las categorías cubiertas por al menos 3 cadenas:
-              con una sola cadena el número no es el mercado, es un supermercado.
+              Cada día, la variación de una categoría es la media geométrica de los cambios de todas sus series de
+              precios (cadena × unidad) que tienen datos ese día, y la del mes encadena esos cambios diarios. Sin datos
+              de volumen de ventas no hay con qué ponderar, así que cada serie pesa igual. Solo entran las categorías
+              con al menos 3 cadenas todos los días: con una sola cadena el número no es el mercado, es un
+              supermercado.
             </p>
           </div>
         </>
