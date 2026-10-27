@@ -22,7 +22,7 @@ Comercio.
 - **Números que resisten una segunda mirada.** El dato de origen tiene trampas
   que dan un número publicado equivocado sin que nada falle. Abajo están las
   principales; el detalle de cada una, en [DECISIONES.md](docs/DECISIONES.md).
-- **Calidad verificable.** 24 modelos y 103 tests de dbt, más 154 tests en
+- **Calidad verificable.** 24 modelos y 103 tests de dbt, más 159 tests en
   Python y 53 en el frontend: [calidad](#calidad).
 - **Costo cero, por diseño.** Todo entra en los niveles gratuitos, con una
   cuota dura que impide pasarse: [costo](#costo).
@@ -35,7 +35,7 @@ Comercio.
 | **Tu canasta** | Describís en lenguaje natural qué consumís, una IA arma tu canasta y se cotiza con precios reales de tu zona |
 | **Supermercado más barato** | Qué cadena tiene el precio más bajo, comparando productos idénticos, categoría por categoría |
 | **El mismo producto** | Cuánto cuesta el mismo código de barras en cada cadena. Con **Tu lista** sumás lo que comprás siempre y te dice dónde sale más barata la compra entera |
-| **Inflación** | Ranking de todas las categorías por variación de precio, con apertura por cadena |
+| **Inflación** | Cuánto subió la canasta básica en el mes y cuántos puntos aporta cada categoría, más el ranking de todas las categorías con apertura por cadena |
 
 ## Arquitectura
 
@@ -103,7 +103,7 @@ responder lo que prometía: [DECISIONES.md](docs/DECISIONES.md).
   cubren lo que sólo se ve en el resultado agregado: que la carne no mezcle
   otras carnes, que la gama económica no salga más cara que la media, que el
   crudo no se atrase respecto del calendario.
-- **Python:** 154 tests sobre la API y la ingesta, sin BigQuery.
+- **Python:** 159 tests sobre la API y la ingesta, sin BigQuery.
 - **Frontend:** 53 tests (Vitest). Se validaron metiendo 20 errores a propósito
   en el código: cada uno hizo fallar al menos un test.
 - **CI:** todo lo que no necesita BigQuery corre en cada push.

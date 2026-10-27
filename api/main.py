@@ -606,6 +606,97 @@ def _ctes_periodo_mensual(tabla: str) -> str:
         )"""
 
 
+def _ctes_mercado(tabla: str) -> str:
+    """El indice de MERCADO de cada categoria en el periodo: diario y del mes.
+
+    Lo usan el resumen y la incidencia, que tienen que decir lo mismo de cada
+    categoria. Cada dia, la categoria es la media geometrica de los factores de
+    sus series (cadena x unidad) que tienen dato ese dia, con al menos 3
+    cadenas; el mes encadena esos factores diarios (ver obtener_inflacion_resumen).
+
+    Entran todas las unidades. La incidencia las filtraba a la unidad de la
+    canasta y la misma pagina mostraba Verduras +4,48% en el ranking y +7,25% en
+    la cascada (2026-10-27). La unidad importa para el peso, que es un precio
+    por kilo o por litro, pero no para la variacion: cada relativo es de un
+    producto contra si mismo.
+
+    Espera las CTE de _ctes_periodo_mensual antes. Devuelve diario y
+    por_categoria, sin coma final.
+    """
+    return f"""
+        diario AS (
+            SELECT
+                h.categoria,
+                h.fecha_datos,
+                EXP(AVG(LN(h.factor_vs_base))) AS factor,
+                COUNT(*) AS series,
+                COUNT(DISTINCT h.cadena) AS cadenas
+            FROM `{tabla}` AS h
+            JOIN cadena AS c USING (fecha_datos, fecha_base)
+            WHERE h.factor_vs_base IS NOT NULL
+            GROUP BY h.categoria, h.fecha_datos
+            HAVING COUNT(DISTINCT h.cadena) >= 3
+        ),
+        por_categoria AS (
+            SELECT
+                categoria,
+                EXP(SUM(LN(factor))) AS factor_total,
+                COUNT(*) AS eslabones,
+                CAST(ROUND(AVG(series)) AS INT64) AS series,
+                -- El dia mas flaco: "al menos N cadenas todos los dias".
+                MIN(cadenas) AS cadenas
+            FROM diario
+            GROUP BY categoria
+        )"""
+
+
+def armar_incidencia(filas: list[dict]) -> dict:
+    """Cuanto aporta cada categoria a la variacion de la canasta del mes.
+
+    Cada fila es una categoria de la canasta con `gasto` (cantidad del INDEC x
+    precio al cierre del mes anterior; None si no hay precio) y `factor` (el
+    indice de mercado del mes; None si la categoria no se pudo encadenar).
+
+    La canasta es un indice de Laspeyres sobre esas categorias: pesa cada una
+    por lo que se gastaba en ella al empezar el mes. La incidencia de una
+    categoria es su peso por su variacion, y las incidencias SUMAN exactamente
+    la variacion de la canasta: es lo que permite leerla como una cascada.
+
+    Las categorias sin indice no se inventan: quedan afuera, los pesos se
+    reparten entre las que si tienen, y la cobertura dice cuanto del gasto se
+    midio. Una variacion sobre el 60% del gasto no es la de la canasta.
+    """
+    con_gasto = [f for f in filas if f["gasto"]]
+    gasto_total = sum(f["gasto"] for f in con_gasto)
+    medidas = [f for f in con_gasto if f["factor"] is not None]
+    gasto_medido = sum(f["gasto"] for f in medidas)
+    if not medidas:
+        return {"variacion_canasta_pct": None, "cobertura_pct": 0.0, "categorias": [], "sin_indice": sorted(f["categoria"] for f in filas)}
+
+    categorias = []
+    for f in medidas:
+        peso = f["gasto"] / gasto_medido
+        variacion = (f["factor"] - 1) * 100
+        categorias.append(
+            {
+                "categoria": f["categoria"],
+                "peso_pct": round(peso * 100, 2),
+                "variacion_pct": round(variacion, 2),
+                # Puntos porcentuales de la variacion de la canasta.
+                "incidencia_pp": round(peso * variacion, 4),
+                "cadenas": f["cadenas"],
+            }
+        )
+    categorias.sort(key=lambda c: c["incidencia_pp"], reverse=True)
+    variacion_canasta = sum(f["gasto"] / gasto_medido * (f["factor"] - 1) * 100 for f in medidas)
+    return {
+        "variacion_canasta_pct": round(variacion_canasta, 2),
+        "cobertura_pct": round(gasto_medido / gasto_total * 100, 1),
+        "categorias": categorias,
+        "sin_indice": sorted(f["categoria"] for f in filas if f not in medidas),
+    }
+
+
 def _parametro_mes(mes: Optional[str]) -> bigquery.ScalarQueryParameter:
     """"2026-10" -> DATE 2026-10-01; None deja que la consulta use el ultimo mes."""
     fecha = datetime.strptime(mes, "%Y-%m").date() if mes else None
@@ -707,30 +798,7 @@ def obtener_inflacion_resumen(
     tabla = f"{PROYECTO}.dbt_precios.historico_precios_cadena_categoria"
     query = f"""
         WITH RECURSIVE {_ctes_periodo_mensual(tabla)},
-        diario AS (
-            SELECT
-                h.categoria,
-                h.fecha_datos,
-                EXP(AVG(LN(h.factor_vs_base))) AS factor,
-                COUNT(*) AS series,
-                COUNT(DISTINCT h.cadena) AS cadenas
-            FROM `{tabla}` AS h
-            JOIN cadena AS c USING (fecha_datos, fecha_base)
-            WHERE h.factor_vs_base IS NOT NULL
-            GROUP BY h.categoria, h.fecha_datos
-            HAVING COUNT(DISTINCT h.cadena) >= 3
-        ),
-        por_categoria AS (
-            SELECT
-                categoria,
-                EXP(SUM(LN(factor))) AS factor_total,
-                COUNT(*) AS eslabones,
-                CAST(ROUND(AVG(series)) AS INT64) AS series,
-                -- El dia mas flaco: "al menos N cadenas todos los dias".
-                MIN(cadenas) AS cadenas
-            FROM diario
-            GROUP BY categoria
-        )
+        {_ctes_mercado(tabla)}
         SELECT
             c.categoria,
             ROUND((c.factor_total - 1) * 100, 2) AS variacion_pct,
@@ -749,6 +817,64 @@ def obtener_inflacion_resumen(
     """
     job_config = bigquery.QueryJobConfig(query_parameters=[_parametro_mes(mes)])
     return [dict(fila) for fila in cliente_bq.query(query, job_config=job_config).result()]
+
+
+@api.get("/inflacion/incidencia")
+@cachear
+def obtener_inflacion_incidencia(
+    mes: Optional[str] = Query(None, pattern=PATRON_MES, description="AAAA-MM; por defecto, el ultimo"),
+):
+    """Cuanto subio la canasta basica en el mes y cuanto aporto cada categoria.
+
+    El ranking de categorias dice que se movio, pero no cuanto pesa: Sal +4% y
+    Carne +1% no se pueden sumar. La incidencia los pone en la misma escala,
+    puntos de la canasta, ponderando cada categoria por lo que se gasta en ella
+    con las cantidades del INDEC (seed composicion_canasta). Es la forma en que
+    el INDEC explica el IPC.
+
+    El precio que da el peso es el del cierre del mes anterior (fecha_inicio),
+    mediana entre cadenas del nivel de la gama economica, que es la que usa la
+    canasta. El indice de cada categoria es el mismo del resumen, con todas sus
+    unidades. Lee el historico (unos MB).
+    """
+    tabla = f"{PROYECTO}.dbt_precios.historico_precios_cadena_categoria"
+    canasta = f"{PROYECTO}.dbt_precios.composicion_canasta"
+    query = f"""
+        WITH RECURSIVE {_ctes_periodo_mensual(tabla)},
+        {_ctes_mercado(tabla)},
+        precio_base AS (
+            SELECT
+                h.categoria,
+                h.unidad_normalizada,
+                APPROX_QUANTILES(h.precio_mediano_unidad, 2)[OFFSET(1)] AS precio
+            FROM `{tabla}` AS h, periodo AS p
+            WHERE h.fecha_datos = p.fecha_inicio
+                AND h.precio_mediano_unidad IS NOT NULL
+            GROUP BY h.categoria, h.unidad_normalizada
+        )
+        SELECT
+            s.categoria,
+            s.cantidad * b.precio AS gasto,
+            -- Solo con la cadena entera del mes; si no, la categoria no se mide.
+            IF(m.eslabones = p.eslabones_esperados, m.factor_total, NULL) AS factor,
+            m.cadenas,
+            p.fecha_inicio,
+            p.fecha_fin,
+            p.mes,
+            p.desde_inicio_de_mes
+        FROM `{canasta}` AS s
+        CROSS JOIN periodo AS p
+        LEFT JOIN precio_base AS b
+            ON b.categoria = s.categoria AND b.unidad_normalizada = s.unidad
+        LEFT JOIN por_categoria AS m
+            ON m.categoria = s.categoria
+    """
+    job_config = bigquery.QueryJobConfig(query_parameters=[_parametro_mes(mes)])
+    filas = [dict(fila) for fila in cliente_bq.query(query, job_config=job_config).result()]
+    if not filas:
+        return None
+    periodo = {k: filas[0][k] for k in ("fecha_inicio", "fecha_fin", "mes", "desde_inicio_de_mes")}
+    return {**periodo, **armar_incidencia(filas)}
 
 
 class DescripcionCanasta(BaseModel):

@@ -34,6 +34,51 @@ class TestParametroMes(unittest.TestCase):
         self.assertIn("c.fecha_base >= l.inicio_mes", sql)
 
 
+def fila(categoria, gasto, factor, cadenas=5):
+    return {"categoria": categoria, "gasto": gasto, "factor": factor, "cadenas": cadenas}
+
+
+class TestIncidencia(unittest.TestCase):
+    def test_un_ejemplo_a_mano(self):
+        # Carne pesa 3/4 y sube 4%; pan pesa 1/4 y baja 2%: la canasta sube 2,5%.
+        r = main.armar_incidencia([fila("Carne", 300, 1.04), fila("Pan", 100, 0.98)])
+        self.assertAlmostEqual(r["variacion_canasta_pct"], 2.5)
+        por = {c["categoria"]: c for c in r["categorias"]}
+        self.assertAlmostEqual(por["Carne"]["incidencia_pp"], 3.0)
+        self.assertAlmostEqual(por["Pan"]["incidencia_pp"], -0.5)
+        self.assertEqual([c["categoria"] for c in r["categorias"]], ["Carne", "Pan"])
+
+    def test_las_incidencias_suman_la_variacion(self):
+        # Es lo que permite dibujarla como cascada. Se prueba sobre tablas al azar
+        # con semilla fija, con subas y bajas mezcladas.
+        import random
+
+        azar = random.Random(20261027)
+        for _ in range(200):
+            filas = [fila(f"C{i}", azar.uniform(1, 1000), azar.uniform(0.9, 1.15)) for i in range(azar.randint(1, 32))]
+            r = main.armar_incidencia(filas)
+            suma = sum(c["incidencia_pp"] for c in r["categorias"])
+            self.assertAlmostEqual(suma, r["variacion_canasta_pct"], delta=0.005 + 0.0001 * len(filas))
+
+    def test_sin_indice_no_se_inventa_y_baja_la_cobertura(self):
+        r = main.armar_incidencia([fila("Carne", 300, 1.04), fila("Aceite", 100, None)])
+        self.assertEqual(r["sin_indice"], ["Aceite"])
+        self.assertAlmostEqual(r["cobertura_pct"], 75.0)
+        # Los pesos se reparten entre las medidas: la canasta es la carne sola.
+        self.assertAlmostEqual(r["variacion_canasta_pct"], 4.0)
+        self.assertEqual(r["categorias"][0]["peso_pct"], 100.0)
+
+    def test_sin_precio_no_tiene_peso(self):
+        r = main.armar_incidencia([fila("Carne", 300, 1.04), fila("Hielo", None, 1.5)])
+        self.assertEqual([c["categoria"] for c in r["categorias"]], ["Carne"])
+        self.assertIn("Hielo", r["sin_indice"])
+
+    def test_sin_nada_medido(self):
+        r = main.armar_incidencia([fila("Carne", 300, None)])
+        self.assertIsNone(r["variacion_canasta_pct"])
+        self.assertEqual(r["categorias"], [])
+
+
 class TestMesMalEscrito(unittest.TestCase):
     def setUp(self):
         self.cliente = TestClient(main.app)
@@ -41,7 +86,7 @@ class TestMesMalEscrito(unittest.TestCase):
     def test_se_rechaza_antes_de_consultar(self):
         with mock.patch.object(main.cliente_bq, "query") as consulta:
             for malo in ("2026-13", "2026-1", "octubre", "2026-10-01", "2026-00"):
-                for ruta in ("/api/inflacion/resumen", "/api/inflacion"):
+                for ruta in ("/api/inflacion/resumen", "/api/inflacion", "/api/inflacion/incidencia"):
                     respuesta = self.cliente.get(ruta, params={"mes": malo})
                     self.assertEqual(respuesta.status_code, 422, (ruta, malo))
             consulta.assert_not_called()

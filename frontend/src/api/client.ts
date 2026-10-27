@@ -7,6 +7,7 @@ import type {
   GrupoComposicion,
   Inflacion,
   InflacionResumen,
+  IncidenciaCanasta,
   ItemCanastaIA,
   ResultadoCanastaPersonalizada,
   LocalidadOpcion,
@@ -139,6 +140,15 @@ export async function obtenerInflacionResumen(mes?: string): Promise<InflacionRe
   if (mes) params.set("mes", mes);
   const respuesta = await fetch(`${API_BASE}/inflacion/resumen?${params.toString()}`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer el resumen");
+  return leerJson(respuesta);
+}
+
+/** mes: "AAAA-MM"; sin mes, el ultimo con datos. Null si no hay periodo. */
+export async function obtenerIncidenciaCanasta(mes?: string): Promise<IncidenciaCanasta | null> {
+  const params = new URLSearchParams();
+  if (mes) params.set("mes", mes);
+  const respuesta = await fetch(`${API_BASE}/inflacion/incidencia?${params.toString()}`);
+  if (!respuesta.ok) await fallar(respuesta, "Error al traer la incidencia");
   return leerJson(respuesta);
 }
 

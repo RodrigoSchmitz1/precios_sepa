@@ -101,6 +101,28 @@ export type InflacionResumen = {
   fecha_fin: string;
 };
 
+/** Cuanto aporta cada categoria de la canasta basica a su variacion en el mes. */
+export type IncidenciaCanasta = {
+  mes: string;
+  fecha_inicio: string;
+  fecha_fin: string;
+  desde_inicio_de_mes: boolean;
+  /** Nula si ninguna categoria de la canasta se pudo encadenar en el mes. */
+  variacion_canasta_pct: number | null;
+  /** Que parte del gasto de la canasta tiene indice. Bajo 100, la variacion es
+   *  la de esa parte, no la de la canasta entera. */
+  cobertura_pct: number;
+  categorias: {
+    categoria: string;
+    peso_pct: number;
+    variacion_pct: number;
+    /** Puntos de la variacion de la canasta; suman variacion_canasta_pct. */
+    incidencia_pp: number;
+    cadenas: number;
+  }[];
+  sin_indice: string[];
+};
+
 export type Inflacion = {
   categoria: string;
   cadena: string;

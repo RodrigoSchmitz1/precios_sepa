@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from "react";
-import { obtenerInflacionResumen } from "../api/client";
+import { obtenerIncidenciaCanasta, obtenerInflacionResumen } from "../api/client";
+import CascadaCanasta from "../components/CascadaCanasta";
 import DetalleInflacionCadenas from "../components/DetalleInflacionCadenas";
 import Titular, { Resaltado } from "../components/Titular";
 import FilaDeCifras from "../components/FilaDeCifras";
 import { fechaEnPalabras, formatearVariacion, mesEnPalabras } from "../utils/formato";
-import type { InflacionResumen } from "../types";
+import type { IncidenciaCanasta, InflacionResumen } from "../types";
 import { nombreCategoria } from "../utils/nombres";
 
 /*
@@ -63,6 +64,23 @@ function InflacionPage() {
       cancelado = true;
     };
   }, [mes]);
+
+  // La cascada va aparte: si falla, el ranking se muestra igual.
+  const [incidencia, setIncidencia] = useState<{ mes: string | null; datos: IncidenciaCanasta | null } | null>(null);
+  useEffect(() => {
+    let cancelado = false;
+    obtenerIncidenciaCanasta(mes ?? undefined)
+      .then((datos) => {
+        if (!cancelado) setIncidencia({ mes, datos });
+      })
+      .catch(() => {
+        if (!cancelado) setIncidencia({ mes, datos: null });
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [mes]);
+  const cascada = incidencia?.mes === mes ? incidencia.datos : null;
 
   const vigente = estado?.mes === mes ? estado : null;
   const filas = useMemo(() => vigente?.filas ?? [], [vigente]);
@@ -214,6 +232,8 @@ function InflacionPage() {
               ]}
             />
           </div>
+
+          {cascada && <CascadaCanasta datos={cascada} esElUltimo={esElUltimo} />}
 
           <div className="tarjeta p-4 sm:p-6">
             <div className="flex items-baseline justify-between gap-3 pb-3 border-b border-linea mb-2">

@@ -164,9 +164,11 @@ por cadena. Azúcar, manteca y papa no tenían índice en ninguna cadena; leche,
 arroz y pan, en 1 o 2. La página no los mostraba y ningún test lo veía, porque
 cada serie que sí tenía factor estaba bien calculada: lo que faltaba eran series.
 
-Se midió antes de cambiar nada. Contando productos distintos por cadena, con
-todas las gamas y un mínimo de 10 la canasta tiene índice en 32 de 32
-categorías (99,8% de su peso) y el sitio en 119 de 177, contra 24 y 72. El
+Se midió antes de cambiar nada: contando productos distintos por cadena, con
+todas las gamas y un mínimo de 10 la canasta tendría índice en 32 de 32
+categorías (99,8% de su peso), contra 24. La primera corrida lo confirmó: el
+26-10 la canasta tiene 32 de 32 (leche y aceite, en 14 cadenas) y el sitio 67
+de sus 69 categorías con al menos 3 cadenas, contra 52 el día anterior. El
 costo en ruido es chico: el desvío diario del factor de una cadena es 0,73% con
 ~22 productos y 0,47% con ~83. Usar todas las gamas es además lo correcto: el
 IPC releva todas las variedades, y como cada relativo es de un producto contra
@@ -182,6 +184,22 @@ crecer la historia. Un mes, además, se puede comparar con el IPC. Octubre qued�
 con el método anterior, porque el crudo ya había vencido; noviembre es el
 primer mes entero con el nuevo. Un test (`indice_cubre_la_canasta`) falla si
 menos de 30 de las 32 categorías de la canasta tienen índice.
+
+**Cuánto aporta cada categoría.** El ranking dice qué se movió, pero no cuánto
+pesa: un +4% en sal y un +1% en carne no se pueden comparar, porque en la
+canasta se gasta cientos de veces más en carne. La página abre con la
+variación de la canasta básica del mes, como un índice de Laspeyres: cada
+categoría pesa lo que cuesta su cantidad del INDEC al precio del cierre del mes
+anterior, y su incidencia es ese peso por su variación. Las incidencias suman
+exactamente la variación de la canasta, y por eso se dibujan como cascada (un
+test lo verifica sobre 200 tablas al azar). Las categorías sin índice no se
+inventan: quedan afuera y la página dice sobre qué parte del gasto se midió.
+
+La primera versión tomaba el índice de cada categoría sólo en la unidad en que
+la canasta la pide, y la misma página mostraba Verduras +4,48% en el ranking y
++7,25% en la cascada. La unidad importa para el peso (un precio por kilo), no
+para la variación, que es de cada producto contra sí mismo: las dos secciones
+usan ahora el mismo índice, calculado en un solo lugar de la API.
 
 ---
 
