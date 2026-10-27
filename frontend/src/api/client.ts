@@ -8,6 +8,7 @@ import type {
   Inflacion,
   InflacionResumen,
   IncidenciaCanasta,
+  AhorroPorCategoria,
   ItemCanastaIA,
   ResultadoCanastaPersonalizada,
   LocalidadOpcion,
@@ -140,6 +141,12 @@ export async function obtenerInflacionResumen(mes?: string): Promise<InflacionRe
   if (mes) params.set("mes", mes);
   const respuesta = await fetch(`${API_BASE}/inflacion/resumen?${params.toString()}`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer el resumen");
+  return leerJson(respuesta);
+}
+
+export async function obtenerAhorroPorCategoria(): Promise<AhorroPorCategoria> {
+  const respuesta = await fetch(`${API_BASE}/mismo-producto/ahorro`);
+  if (!respuesta.ok) await fallar(respuesta, "Error al traer el ahorro por categoría");
   return leerJson(respuesta);
 }
 

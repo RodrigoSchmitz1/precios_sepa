@@ -8,6 +8,7 @@ resolvió y qué test lo cubre ahora.
 2. [Comparar cosas que no son comparables](#comparar-cosas-que-no-son-comparables)
 3. [El índice de precios](#el-índice-de-precios)
 4. [Destacar sin inventar un umbral](#destacar-sin-inventar-un-umbral)
+   y [cuánto conviene comparar](#cuánto-conviene-comparar)
 5. [Datos que se pierden en silencio](#datos-que-se-pierden-en-silencio)
 6. [Cuando falta el dato](#cuando-falta-el-dato)
 7. [Ruido de la fuente](#ruido-de-la-fuente)
@@ -223,6 +224,40 @@ El criterio que lo reemplazó es pedir **respaldo**, no fijar un techo:
 - En el mapa de categorías × cadenas, la celda vacía significa **"no llega a 20
   productos comparables"**, que no es lo mismo que ganar 0%. Pintarlas igual
   sería afirmar algo que el dato no dice.
+
+---
+
+## Cuánto conviene comparar
+
+La pregunta es simple: si comparo antes de comprar, ¿cuánto ahorro? Por
+producto, el ahorro es cuánto más barato es el precio más bajo que el precio
+típico (la mediana entre empresas). Por categoría se publica la **mediana** de
+ese ahorro, no el máximo, por la misma razón que en los destacados: lo que
+titula con el extremo no resiste los errores de la fuente. Entran sólo los
+productos que venden 3 o más empresas, con los extremos respaldados por 3 o más
+sucursales. El 26-10 eran 9.501, con un ahorro típico de 5,6%.
+
+**Muchas categorías daban exactamente 5,0%**: perfumería, yogur, cerveza,
+pañales. Una mediana clavada en un número redondo en categorías tan distintas no
+es dispersión de mercado, así que se investigó antes de publicar. No era un error
+de la fuente sino **reglas de precio**:
+
+| | Productos que venden las dos | Más cara | Igual | Más barata | Escalones |
+|---|---|---|---|---|---|
+| Maxi frente a Carrefour | 14.638 | 4,5% | 38% | 58% | 5% (21% de los productos), 10% (11%), 15% (2%) |
+| SuperChangomás frente a Changomás | 25.309 | 0,4% | 37% | 63% | 5% (31%), 4% (29%) |
+
+Son banderas de la misma empresa que cobran lo mismo que su hermana o un escalón
+fijo menos. Entre las dos tienen el precio más bajo en el 64% de los productos
+comparables, y sin Maxi el ahorro típico baja de 5,6% a 4,0%. La sección lo dice
+con todas las letras: publicado sin esto, "conviene comparar" se leería como
+dispersión del mercado cuando en buena parte es "andá a esa bandera".
+
+Las reglas no están escritas a mano: la API las detecta cada día comparando cada
+cadena que suele tener el precio más bajo con sus hermanas de la misma empresa
+(la seed `mapeo_cadenas`). Si mañana una bandera cambia su política, la página lo
+refleja sola. Todo sale del índice de El mismo producto que la API ya tiene en
+memoria: no consulta BigQuery.
 
 ---
 

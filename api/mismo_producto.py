@@ -325,3 +325,151 @@ def cotizar_lista(indice: dict, items: list[dict]) -> dict:
         "combinando_cadenas": combinada,
         "fecha_datos": next((indice[p["id_producto"]]["fecha_datos"] for p in productos), None),
     }
+
+
+# ---------------------------------------------------------------------------
+# Cuanto conviene comparar (2026-10-27)
+#
+# Por producto, el ahorro de comprar donde esta mas barato frente al precio
+# tipico, que es la mediana entre empresas del mart. Por categoria se publica la
+# MEDIANA de ese ahorro y no el maximo: lo que titula con el extremo no resiste
+# los errores de la fuente (ver destacados). Entran los mismos productos que los
+# destacados: vendidos por 3 empresas o mas y con los extremos respaldados.
+#
+# Medido ese dia, el precio mas bajo lo tenia Maxi en 3.935 de 9.501 productos y
+# SuperChangomas en 2.155, y muchas categorias daban un ahorro de exactamente
+# 5,0%. No era un error de la fuente sino una regla de precios: las dos
+# banderas cobran lo mismo que su hermana de la misma empresa o un escalon fijo
+# menos (5%, 10%, 15% en Maxi; 4% o 5% en SuperChangomas), casi nunca mas. Esa
+# regla explica buena parte del "ahorro por comparar", asi que se mide y se
+# publica junto con el, en vez de dejar que el numero la esconda.
+# ---------------------------------------------------------------------------
+
+MINIMO_PRODUCTOS_CATEGORIA = 20
+# Para medir la regla entre dos banderas hermanas hacen falta productos en comun.
+MINIMO_PRODUCTOS_REGLA = 100
+# Una bandera "tiene regla" si es mas barata que su hermana en la mayoria de
+# los productos que comparten y casi nunca mas cara.
+MINIMO_MAS_BARATA_REGLA = 0.5
+MAXIMO_MAS_CARA_REGLA = 0.05
+# Un precio "igual" al de la hermana admite el redondeo a pesos.
+TOLERANCIA_IGUAL = 0.003
+
+
+def _mediana(valores: list[float]) -> float:
+    ordenados = sorted(valores)
+    mitad = len(ordenados) // 2
+    return ordenados[mitad] if len(ordenados) % 2 else (ordenados[mitad - 1] + ordenados[mitad]) / 2
+
+
+def _precios_creibles(producto: dict) -> dict:
+    return {p["cadena"]: p["precio_mediano"] for p in producto["precios"] if p["precio_creible"] and p["precio_mediano"]}
+
+
+def _regla_entre(indice: dict, cadena: str, hermana: str) -> dict | None:
+    """Como fija `cadena` sus precios respecto de `hermana`, sobre TODOS los
+    productos que venden las dos (no solo los comparables entre empresas)."""
+    cocientes = []
+    for producto in indice.values():
+        precios = _precios_creibles(producto)
+        if cadena in precios and hermana in precios:
+            cocientes.append(precios[cadena] / precios[hermana])
+    if len(cocientes) < MINIMO_PRODUCTOS_REGLA:
+        return None
+    n = len(cocientes)
+    mas_barata = [c for c in cocientes if c < 1 - TOLERANCIA_IGUAL]
+    escalones: dict = {}
+    for c in mas_barata:
+        descuento = round((1 - c) * 100)
+        escalones[descuento] = escalones.get(descuento, 0) + 1
+    return {
+        "cadena": cadena,
+        "referencia": hermana,
+        "productos": n,
+        "pct_mas_barata": round(len(mas_barata) / n * 100, 1),
+        "pct_igual": round(sum(abs(c - 1) <= TOLERANCIA_IGUAL for c in cocientes) / n * 100, 1),
+        "pct_mas_cara": round(sum(c > 1 + TOLERANCIA_IGUAL for c in cocientes) / n * 100, 1),
+        # Los descuentos mas comunes, en puntos enteros, sobre todos los productos.
+        "escalones": [
+            {"descuento_pct": d, "pct_productos": round(k / n * 100, 1)}
+            for d, k in sorted(escalones.items(), key=lambda e: -e[1])[:3]
+        ],
+    }
+
+
+def ahorro_por_categoria(indice: dict, empresa_de: dict, limite_cadenas: int = 5) -> dict:
+    """Cuanto se ahorra comprando donde esta mas barato, por categoria; quien
+    tiene el precio mas bajo; y las reglas de precio que lo explican.
+
+    `empresa_de` mapea cada cadena a su empresa (seed mapeo_cadenas): las reglas
+    se buscan entre banderas de la misma empresa, que es donde aparecen.
+
+    Un producto con el minimo empatado cuenta para todas las cadenas empatadas,
+    como en Mas barato: forzar un desempate seria inventar una diferencia. Por
+    eso los porcentajes de "quien tiene el precio mas bajo" pueden sumar mas de
+    100.
+    """
+    comparables = [
+        p
+        for p in indice.values()
+        if p["empresas"] >= EMPRESAS_MINIMAS_DESTACADO and p["extremos_respaldados"] and p["precio_referencia"]
+    ]
+    if not comparables:
+        return {"productos": 0, "ahorro_mediano_pct": None, "categorias": [], "mas_baratas": [], "reglas": []}
+
+    ahorros: dict = {}
+    ganadas: dict = {}
+    ganadas_por_categoria: dict = {}
+    for producto in comparables:
+        ahorro = 1 - producto["precio_mas_bajo"] / producto["precio_referencia"]
+        ahorros.setdefault(producto["categoria"], []).append(ahorro)
+        precios = _precios_creibles(producto)
+        for cadena, precio in precios.items():
+            if precio == producto["precio_mas_bajo"]:
+                ganadas[cadena] = ganadas.get(cadena, 0) + 1
+                por_cadena = ganadas_por_categoria.setdefault(producto["categoria"], {})
+                por_cadena[cadena] = por_cadena.get(cadena, 0) + 1
+
+    total = len(comparables)
+    categorias = []
+    for categoria, valores in ahorros.items():
+        if len(valores) < MINIMO_PRODUCTOS_CATEGORIA:
+            continue
+        cadena, veces = max(ganadas_por_categoria[categoria].items(), key=lambda e: (e[1], e[0]))
+        categorias.append(
+            {
+                "categoria": categoria,
+                "productos": len(valores),
+                "ahorro_mediano_pct": round(_mediana(valores) * 100, 1),
+                "cadena_mas_barata": cadena,
+                "pct_mas_barata": round(veces / len(valores) * 100, 1),
+            }
+        )
+    categorias.sort(key=lambda c: (-c["ahorro_mediano_pct"], c["categoria"]))
+
+    mas_baratas = [
+        {"cadena": cadena, "productos": veces, "pct": round(veces / total * 100, 1)}
+        for cadena, veces in sorted(ganadas.items(), key=lambda e: (-e[1], e[0]))[:limite_cadenas]
+    ]
+
+    # Para cada cadena que suele tener el precio mas bajo, la regla contra la
+    # hermana de su empresa con la que comparte mas productos.
+    reglas = []
+    for fila in mas_baratas:
+        cadena = fila["cadena"]
+        hermanas = [h for h, e in empresa_de.items() if e == empresa_de.get(cadena) and h != cadena]
+        candidatas = [r for r in (_regla_entre(indice, cadena, h) for h in hermanas) if r]
+        if not candidatas:
+            continue
+        regla = max(candidatas, key=lambda r: r["productos"])
+        if regla["pct_mas_barata"] >= MINIMO_MAS_BARATA_REGLA * 100 and regla["pct_mas_cara"] <= MAXIMO_MAS_CARA_REGLA * 100:
+            reglas.append(regla)
+
+    return {
+        "productos": total,
+        "ahorro_mediano_pct": round(_mediana([a for v in ahorros.values() for a in v]) * 100, 1),
+        "categorias": categorias,
+        "mas_baratas": mas_baratas,
+        "reglas": reglas,
+        "fecha_datos": comparables[0]["fecha_datos"],
+    }

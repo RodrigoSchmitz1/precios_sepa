@@ -1122,6 +1122,30 @@ def obtener_productos_destacados(limite: int = Query(12, ge=1, le=30)):
     return mismo_producto.destacados(_indice_mismo_producto(), limite)
 
 
+@cachear
+def _empresa_de_cada_cadena() -> dict:
+    """Cadena -> empresa, de la seed mapeo_cadenas (las banderas de una misma
+    empresa comparten id_comercio). list_rows no consume la cuota."""
+    return {
+        f["nombre_comercial"]: f["id_comercio"]
+        for f in cliente_bq.list_rows(f"{PROYECTO}.dbt_precios.mapeo_cadenas")
+    }
+
+
+@cachear
+def _ahorro_por_categoria():
+    # Recorre el indice entero (medio segundo con 45 mil productos): se calcula
+    # una vez por refresco y no en cada visita.
+    return mismo_producto.ahorro_por_categoria(_indice_mismo_producto(), _empresa_de_cada_cadena())
+
+
+@api.get("/mismo-producto/ahorro")
+def obtener_ahorro_por_categoria():
+    """Cuanto conviene comparar en cada categoria, quien tiene el precio mas bajo
+    y las reglas de precio que lo explican. Ver ahorro_por_categoria."""
+    return _ahorro_por_categoria()
+
+
 @api.get("/mismo-producto/{id_producto}")
 def obtener_mismo_producto(id_producto: str):
     resultado = mismo_producto.detalle(_indice_mismo_producto(), id_producto)

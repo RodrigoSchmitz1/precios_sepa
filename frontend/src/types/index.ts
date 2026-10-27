@@ -101,6 +101,36 @@ export type InflacionResumen = {
   fecha_fin: string;
 };
 
+/** Como fija sus precios una bandera respecto de su hermana de la misma empresa. */
+export type ReglaDePrecio = {
+  cadena: string;
+  referencia: string;
+  /** Productos que venden las dos. */
+  productos: number;
+  pct_mas_barata: number;
+  pct_igual: number;
+  pct_mas_cara: number;
+  /** Los descuentos mas comunes, en puntos enteros, sobre todos los productos. */
+  escalones: { descuento_pct: number; pct_productos: number }[];
+};
+
+/** Cuanto conviene comparar: ahorro tipico por categoria y quien es mas barato. */
+export type AhorroPorCategoria = {
+  productos: number;
+  /** Mediana del ahorro contra el precio tipico; null si no hay comparables. */
+  ahorro_mediano_pct: number | null;
+  categorias: {
+    categoria: string;
+    productos: number;
+    ahorro_mediano_pct: number;
+    cadena_mas_barata: string;
+    pct_mas_barata: number;
+  }[];
+  mas_baratas: { cadena: string; productos: number; pct: number }[];
+  reglas: ReglaDePrecio[];
+  fecha_datos?: string;
+};
+
 /** Cuanto aporta cada categoria de la canasta basica a su variacion en el mes. */
 export type IncidenciaCanasta = {
   mes: string;

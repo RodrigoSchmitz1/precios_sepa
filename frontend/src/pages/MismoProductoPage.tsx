@@ -5,6 +5,7 @@ import Titular, { Resaltado } from "../components/Titular";
 import FilaDeCifras from "../components/FilaDeCifras";
 import TiraDePuntos from "../components/TiraDePuntos";
 import TuLista from "../components/TuLista";
+import CuantoConvieneComparar from "../components/CuantoConvieneComparar";
 import DeTuCanasta from "../components/DeTuCanasta";
 import { leerDelNavegador } from "../utils/canastaGuardada";
 import { fechaEnPalabras, formatearNumero, formatearPesos, tamanoQueFalta } from "../utils/formato";
@@ -644,6 +645,8 @@ function MismoProductoPage() {
           ))}
         </section>
       )}
+
+      {!id && consulta.length < 2 && <CuantoConvieneComparar />}
 
       {!id && consulta.length < 2 && (
         <section aria-labelledby="titulo-destacados">
