@@ -275,14 +275,16 @@ function InflacionPage() {
                         <div className="flex items-baseline gap-2.5 shrink-0">
                           {/*
                             La cobertura es lo que permite pesar cada linea: un
-                            -2,87% sobre 7 cadenas no vale lo mismo que un
-                            +0,34% sobre 14, aunque las dos ocupen una fila.
+                            -2,87% sobre 3 empresas no vale lo mismo que un
+                            +0,34% sobre 7, aunque las dos ocupen una fila. Se
+                            muestran empresas y no cadenas (2026-10-28): Carne
+                            vacuna tenia "7 cadenas" y son 3 empresas.
                           */}
                           <span
                             className="numero text-[11px] text-tinta-suave"
-                            title={`Unas ${f.series} series de precios por día, y al menos ${f.cadenas} cadenas todos los días`}
+                            title={`Unas ${f.series} series de precios por día, de al menos ${f.empresas} empresas (${f.cadenas} cadenas) todos los días`}
                           >
-                            {f.cadenas} cadenas
+                            {f.empresas} empresas
                           </span>
                           <span
                             className={[
@@ -335,8 +337,8 @@ function InflacionPage() {
               Cada día, la variación de una categoría es la media geométrica de los cambios de todas sus series de
               precios (cadena × unidad) que tienen datos ese día, y la del mes encadena esos cambios diarios. Sin datos
               de volumen de ventas no hay con qué ponderar, así que cada serie pesa igual. Solo entran las categorías
-              con al menos 3 cadenas todos los días: con una sola cadena el número no es el mercado, es un
-              supermercado.
+              con al menos 3 empresas todos los días, y las cadenas de una misma empresa (Carrefour, Market, Express y
+              Maxi) cuentan como una: con una sola, el número no es el mercado, es un supermercado.
             </p>
           </div>
         </>

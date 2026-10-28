@@ -41,6 +41,7 @@ api.add_middleware(
 )
 
 PROYECTO = "proyecto-precios-504221"
+MAPEO_CADENAS = f"{PROYECTO}.dbt_precios.mapeo_cadenas"
 
 
 def _crear_cliente_bq() -> bigquery.Client:
@@ -620,6 +621,14 @@ def _ctes_mercado(tabla: str) -> str:
     por kilo o por litro, pero no para la variacion: cada relativo es de un
     producto contra si mismo.
 
+    El minimo es de 3 EMPRESAS, no 3 cadenas (2026-10-28). Market, Express y
+    Maxi son banderas de Carrefour y fijan precios juntas: Verduras se midio 16
+    de los 27 dias de octubre con Carrefour, Market, Maxi y Coto, "4 cadenas" que
+    son 2 empresas. Es la misma regla que ya usaban los destacados de El mismo
+    producto. La empresa sale de la seed mapeo_cadenas (las banderas de una
+    empresa comparten id_comercio); una cadena que no esta en la seed cuenta
+    como empresa propia.
+
     Espera las CTE de _ctes_periodo_mensual antes. Devuelve diario y
     por_categoria, sin coma final.
     """
@@ -630,12 +639,14 @@ def _ctes_mercado(tabla: str) -> str:
                 h.fecha_datos,
                 EXP(AVG(LN(h.factor_vs_base))) AS factor,
                 COUNT(*) AS series,
-                COUNT(DISTINCT h.cadena) AS cadenas
+                COUNT(DISTINCT h.cadena) AS cadenas,
+                COUNT(DISTINCT COALESCE(CAST(e.id_comercio AS STRING), h.cadena)) AS empresas
             FROM `{tabla}` AS h
             JOIN cadena AS c USING (fecha_datos, fecha_base)
+            LEFT JOIN `{MAPEO_CADENAS}` AS e ON e.nombre_comercial = h.cadena
             WHERE h.factor_vs_base IS NOT NULL
             GROUP BY h.categoria, h.fecha_datos
-            HAVING COUNT(DISTINCT h.cadena) >= 3
+            HAVING empresas >= 3
         ),
         por_categoria AS (
             SELECT
@@ -643,8 +654,10 @@ def _ctes_mercado(tabla: str) -> str:
                 EXP(SUM(LN(factor))) AS factor_total,
                 COUNT(*) AS eslabones,
                 CAST(ROUND(AVG(series)) AS INT64) AS series,
-                -- El dia mas flaco: "al menos N cadenas todos los dias".
-                MIN(cadenas) AS cadenas
+                -- El dia mas flaco: "al menos N empresas todos los dias". Las
+                -- cadenas quedan como dato; el minimo se cuenta en empresas.
+                MIN(cadenas) AS cadenas,
+                MIN(empresas) AS empresas
             FROM diario
             GROUP BY categoria
         )"""
@@ -792,7 +805,7 @@ def obtener_inflacion_resumen(
     muestra que hay en ese periodo.
 
     Sin datos de volumen de ventas no hay con que ponderar, asi que cada serie
-    pesa igual. Cada dia la categoria necesita 3 cadenas: con menos, el numero
+    pesa igual. Cada dia la categoria necesita 3 empresas: con menos, el numero
     no es el mercado sino un supermercado, y ese dia falta el eslabon.
     """
     tabla = f"{PROYECTO}.dbt_precios.historico_precios_cadena_categoria"
@@ -804,6 +817,7 @@ def obtener_inflacion_resumen(
             ROUND((c.factor_total - 1) * 100, 2) AS variacion_pct,
             c.series,
             c.cadenas,
+            c.empresas,
             p.fecha_inicio,
             p.fecha_fin,
             p.mes,
@@ -811,7 +825,7 @@ def obtener_inflacion_resumen(
         FROM por_categoria AS c
         CROSS JOIN periodo AS p
         -- Un eslabon por cada fecha del periodo: una categoria a la que le
-        -- falta un dia (menos de 3 cadenas ese dia) no se puede encadenar.
+        -- falta un dia (menos de 3 empresas ese dia) no se puede encadenar.
         WHERE c.eslabones = p.eslabones_esperados
         ORDER BY variacion_pct DESC
     """
@@ -1138,7 +1152,7 @@ def _empresa_de_cada_cadena() -> dict:
     empresa comparten id_comercio). list_rows no consume la cuota."""
     return {
         f["nombre_comercial"]: f["id_comercio"]
-        for f in cliente_bq.list_rows(f"{PROYECTO}.dbt_precios.mapeo_cadenas")
+        for f in cliente_bq.list_rows(MAPEO_CADENAS)
     }
 
 

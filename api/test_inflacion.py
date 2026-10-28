@@ -34,6 +34,26 @@ class TestParametroMes(unittest.TestCase):
         self.assertIn("c.fecha_base >= l.inicio_mes", sql)
 
 
+class TestMinimoDeEmpresas(unittest.TestCase):
+    """El indice de mercado pide 3 EMPRESAS por dia, no 3 cadenas (auditoria
+    2026-10-28): Verduras se media con Carrefour, Market, Maxi y Coto, que son
+    2 empresas. La consulta se valido contra el historico real; aca se fija que
+    el minimo no vuelva a contar banderas."""
+
+    def setUp(self):
+        self.sql = " ".join(main._ctes_mercado("p.d.t").split())
+
+    def test_la_empresa_sale_de_la_seed(self):
+        self.assertIn(f"LEFT JOIN `{main.MAPEO_CADENAS}` AS e ON e.nombre_comercial = h.cadena", self.sql)
+
+    def test_una_cadena_fuera_de_la_seed_cuenta_como_empresa_propia(self):
+        self.assertIn("COUNT(DISTINCT COALESCE(CAST(e.id_comercio AS STRING), h.cadena)) AS empresas", self.sql)
+
+    def test_el_minimo_es_de_empresas(self):
+        self.assertIn("HAVING empresas >= 3", self.sql)
+        self.assertNotIn("HAVING COUNT(DISTINCT h.cadena)", self.sql)
+
+
 def fila(categoria, gasto, factor, cadenas=5):
     return {"categoria": categoria, "gasto": gasto, "factor": factor, "cadenas": cadenas}
 

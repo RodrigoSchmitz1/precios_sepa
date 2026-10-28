@@ -1,6 +1,9 @@
 -- El indice de inflacion tiene que medir los basicos. Falla si, en la ultima
 -- fecha del historico, menos de 30 de las 32 categorias de la canasta tienen
--- factor en al menos 3 cadenas (lo que pide la API para publicar una categoria).
+-- factor en al menos 3 empresas (lo que pide la API para publicar una
+-- categoria). Hasta el 2026-10-28 contaba cadenas, y las cuatro banderas de
+-- Carrefour sumaban como cuatro; la API paso a pedir empresas y el test con
+-- ella. Medido ese dia: 31 de 32 con empresas, 32 con cadenas.
 --
 -- Es el test que faltaba el 2026-10-27: con el factor solo sobre la gama
 -- economica y 20 productos pareados, azucar, manteca y papa no tenian indice en
@@ -12,7 +15,7 @@
 -- Se mide en la ultima fecha y no en todo el periodo: un dia sin factor es un
 -- problema de ese dia, y este test corre todos los dias.
 --
--- Lee una particion del historico y la seed: unos pocos MB.
+-- Lee una particion del historico y dos seeds: unos pocos MB.
 
 {% set minimo_categorias = 30 %}
 
@@ -26,10 +29,14 @@ con_indice AS (
     JOIN {{ ref("historico_precios_cadena_categoria") }} AS h
         ON h.categoria = s.categoria
         AND h.unidad_normalizada = s.unidad
+    -- Las banderas de una empresa comparten id_comercio; una cadena que no
+    -- esta en la seed cuenta como empresa propia (igual que en la API).
+    LEFT JOIN {{ ref("mapeo_cadenas") }} AS e
+        ON e.nombre_comercial = h.cadena
     WHERE h.fecha_datos = (SELECT fecha FROM ultima)
         AND h.factor_vs_base IS NOT NULL
     GROUP BY s.categoria
-    HAVING COUNT(DISTINCT h.cadena) >= 3
+    HAVING COUNT(DISTINCT COALESCE(CAST(e.id_comercio AS STRING), h.cadena)) >= 3
 )
 
 SELECT

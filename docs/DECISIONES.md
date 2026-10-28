@@ -170,8 +170,8 @@ de un día al otro, cualquier categoría daba una pantalla de ceros, y encontrar
 la que sí se había movido era recorrer más de 50 a mano. La página ahora abre
 con **el ranking completo del mercado** (una categoría es la media geométrica de
 los factores de todas sus series) y la apertura por cadena es el segundo click.
-Sólo entran las categorías cubiertas por al menos 3 cadenas: con una sola, el
-número no es el mercado, es un supermercado.
+Sólo entran las categorías cubiertas por al menos 3 empresas (ver más abajo):
+con una sola, el número no es el mercado, es un supermercado.
 
 **El índice no medía los básicos (2026-10-27).** Al calcular cuánto aporta cada
 categoría a la inflación de la canasta apareció que el 48% de las series (599
@@ -195,13 +195,29 @@ más (dry run: 1,308 GiB antes y después).
 
 Con el cambio, el período pasó a ser **un mes calendario**, encadenado a nivel
 mercado: cada día la categoría es la media geométrica de las series que tienen
-dato ese día (con al menos 3 cadenas), y el mes encadena esos días. Antes cada
+dato ese día (con al menos 3 empresas), y el mes encadena esos días. Antes cada
 serie tenía que estar completa desde el 15 de septiembre, así que una cadena
 que faltaba un día quedaba afuera para siempre y la cobertura empeoraba al
 crecer la historia. Un mes, además, se puede comparar con el IPC. Octubre quedó
 con el método anterior, porque el crudo ya había vencido; noviembre es el
 primer mes entero con el nuevo. Un test (`indice_cubre_la_canasta`) falla si
 menos de 30 de las 32 categorías de la canasta tienen índice.
+
+**Tres empresas, no tres cadenas (2026-10-28).** El mínimo diario contaba
+banderas. Carrefour tiene cuatro (Carrefour, Market, Express y Maxi) que fijan
+precios juntas, así que "4 cadenas" podían ser 2 empresas: Verduras, la
+categoría que más aportaba a la cascada, se midió así 16 de los 27 días de
+octubre, con Carrefour y Coto. Era la misma trampa que ya se había evitado en
+los destacados de El mismo producto, y lo encontró la auditoría. Ahora la
+empresa sale de la seed `mapeo_cadenas` y se piden 3. El costo es real: en
+octubre la canasta pasó de +1,80% a +0,95%, lo medido del gasto de 73,5% a
+58,1%, y Verduras, Frutas, Legumbres y Vinagre salieron de la cascada (el
+ranking pasó de 46 a 37 categorías). Las que quedaron no cambiaron su
+variación. Se prefirió un número sobre menos gasto a uno que llama "mercado" a
+dos supermercados. La pérdida es sobre todo de octubre, que se encadena con el
+índice viejo (sólo la gama económica) hasta el 25: con el nuevo, desde el
+26-10 la canasta tiene 31 de 32 categorías con 3 empresas (falta Pollo), y el
+test `indice_cubre_la_canasta` pasó a contar empresas sin bajar su mínimo.
 
 **Cuánto aporta cada categoría.** El ranking dice qué se movió, pero no cuánto
 pesa: un +4% en sal y un +1% en carne no se pueden comparar, porque en la

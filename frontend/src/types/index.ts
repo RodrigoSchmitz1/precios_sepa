@@ -90,8 +90,12 @@ export type InflacionResumen = {
   /** Sobre cuantas series y cuantas cadenas se calculo. Se muestran para que el
    *  lector pueda pesar un -2,9% sobre 7 cadenas contra uno sobre 14. */
   series: number;
-  /** Cadenas del dia con menos cobertura: "al menos N cadenas todos los dias". */
+  /** Cadenas (banderas) del dia con menos cobertura. Informativo: el minimo
+   *  para entrar se cuenta en empresas. */
   cadenas: number;
+  /** Empresas del dia con menos cobertura; el minimo para entrar es 3
+   *  (2026-10-28): las banderas de una empresa cuentan una vez. */
+  empresas: number;
   /** La variacion es de un mes calendario (2026-10-27). Primer dia del mes. */
   mes: string;
   /** Falso si un hueco en los datos corto la serie despues del primero del

@@ -72,7 +72,7 @@ const SECCIONES: Seccion[] = [
     nombre: "Inflación",
     parrafos: [
       "Cada día se compara contra el anterior usando solo los productos que están en las dos fechas, y los días se encadenan. Así, que una cadena agregue o saque productos no se confunde con una suba o una baja.",
-      "La variación de una categoría es la media geométrica de las de sus productos, que es como lo calculan los índices oficiales. Solo aparecen las categorías que venden al menos 3 cadenas.",
+      "La variación de una categoría es la media geométrica de las de sus productos, que es como lo calculan los índices oficiales. Solo aparecen las categorías que venden al menos 3 empresas distintas todos los días del mes: Carrefour, Market, Express y Maxi cuentan como una.",
     ],
   },
 ];

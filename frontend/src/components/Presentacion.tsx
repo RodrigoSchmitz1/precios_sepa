@@ -10,6 +10,7 @@ import {
   obtenerQuienGana,
 } from "../api/client";
 import { fechaEnPalabras, formatearPesos, formatearVariacion, mesEnPalabras, tamanoQueFalta } from "../utils/formato";
+import { ahorroEnCadenas } from "../utils/ahorroCanasta";
 import { liderEn } from "../utils/liderazgo";
 import { nombreCategoria } from "../utils/nombres";
 import { nombreLegible } from "../utils/texto";
@@ -266,7 +267,6 @@ function Presentacion() {
     (mayor, f) => (!mayor || f.variacion_pct > mayor.variacion_pct ? f : mayor),
     undefined
   );
-  const canastaEnCadenas = datos.canastaPorCadena?.cadenas ?? [];
 
   /*
     Cuantas categorias lidera cada cadena, de mayor a menor.
@@ -360,21 +360,16 @@ function Presentacion() {
     });
   }
   // Reemplaza a "productos comparados", que mostraba el trabajo del sitio y no
-  // algo que le sirva a quien compra. La lista viene ordenada de la mas barata
-  // a la mas cara, sobre las categorias que venden todas.
-  if (canastaEnCadenas.length > 1) {
-    const barata = canastaEnCadenas[0];
-    const cara = canastaEnCadenas[canastaEnCadenas.length - 1];
-    const ahorro = Math.round((1 - barata.total / cara.total) * 100);
-    if (ahorro > 0) {
-      cifras.push({
-        etiqueta: "Cuánto ahorrás eligiendo dónde",
-        valor: `${ahorro}%`,
-        detalle: `la canasta básica: ${formatearPesos(barata.total)} en ${barata.cadena} y ${formatearPesos(cara.total)} en ${cara.cadena}`,
-        chip: "💰 canasta básica",
-        chipClase: "bg-ahorro-tenue text-ahorro",
-      });
-    }
+  // algo que le sirva a quien compra.
+  const ahorroCanasta = ahorroEnCadenas(datos.canastaPorCadena);
+  if (ahorroCanasta) {
+    cifras.push({
+      etiqueta: "Cuánto ahorrás eligiendo dónde",
+      valor: `${ahorroCanasta.pct}%`,
+      detalle: ahorroCanasta.detalle,
+      chip: "💰 canasta básica",
+      chipClase: "bg-ahorro-tenue text-ahorro",
+    });
   }
 
   const buscar = (e: FormEvent) => {
