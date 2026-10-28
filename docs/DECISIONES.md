@@ -434,6 +434,22 @@ Las cadenas reportan toda CABA como "Capital Federal". El barrio real se
 resuelve por **point-in-polygon** contra la geometría oficial del GCBA,
 respetando el barrio cuando la cadena sí lo informa bien.
 
+Hasta el 2026-10-28 eso no le pasaba a Carrefour. La lista de nombres
+genéricos ("CIUDAD AUTONOMA DE BUENOS AIRES") se comparaba sin normalizar
+tildes, y Carrefour escribe "Autónoma": sus 360 sucursales de la ciudad (326
+Express, 25 Market, 8 Carrefour y 1 Maxi) quedaban en una localidad genérica,
+fuera de todos los barrios. Quien elegía Palermo en Tu canasta veía Dia, Coto,
+Disco y Jumbo, pero ninguna cadena de Carrefour. Se encontró midiendo cuánta
+competencia hay en cada localidad: una "localidad" de CABA tenía sólo cadenas
+de una empresa. Ahora se compara sin tildes y un test
+(`caba_sin_localidad_generica`) falla si una sucursal que cae dentro de un
+barrio vuelve a quedar con un nombre genérico.
+
+Queda otro problema, más chico y sin resolver: 34 sucursales informadas con la
+provincia de CABA están en otra parte (20 en la ciudad de Córdoba, una en
+Mendoza, otras en el conurbano y en Chubut). Las coordenadas lo delatan, pero
+corregirlo pide deducir la provincia correcta, no sólo descartar la cargada.
+
 ---
 
 ## Tests

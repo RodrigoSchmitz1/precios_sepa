@@ -22,7 +22,7 @@ Comercio.
 - **Números que resisten una segunda mirada.** El dato de origen tiene trampas
   que dan un número publicado equivocado sin que nada falle. Abajo están las
   principales; el detalle de cada una, en [DECISIONES.md](docs/DECISIONES.md).
-- **Calidad verificable.** 24 modelos y 103 tests de dbt, más 175 tests en
+- **Calidad verificable.** 24 modelos y 104 tests de dbt, más 175 tests en
   Python y 53 en el frontend: [calidad](#calidad).
 - **Costo cero, por diseño.** Todo entra en los niveles gratuitos, con una
   cuota dura que impide pasarse: [costo](#costo).
@@ -98,7 +98,7 @@ responder lo que prometía: [DECISIONES.md](docs/DECISIONES.md).
 
 ## Calidad
 
-- **dbt:** 95 tests (genéricos y singulares) que corren después de cada
+- **dbt:** 96 tests (genéricos y singulares) que corren después de cada
   transformación, más 8 tests unitarios con filas de prueba. Los singulares
   cubren lo que sólo se ve en el resultado agregado: que la carne no mezcle
   otras carnes, que la gama económica no salga más cara que la media, que el

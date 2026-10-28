@@ -12,11 +12,16 @@ con_localidad_cruda AS (
         sb.calle,
         sb.numero,
         sb.barrio,
+        -- Sin tildes y en minusculas antes de comparar (2026-10-28). Con UPPER a
+        -- secas, "Ciudad Autónoma de Buenos Aires" -como la escribe Carrefour-
+        -- no era "CIUDAD AUTONOMA DE BUENOS AIRES": sus 360 sucursales de CABA
+        -- quedaban en una localidad generica, sin barrio, y quien elegia
+        -- Palermo en Tu canasta no veia ninguna cadena de Carrefour.
         CASE
-            WHEN sb.provincia = "AR-C" AND UPPER(sb.localidad) IN (
-                "CAPITAL FEDERAL", "CIUDAD AUTONOMA DE BUENOS AIRES",
-                "CIUDAD AUTONOMA BUENOS AIRES", "CIUDAD AUTONOMA DE BS AS",
-                "CABA", "BUENOS AIRES"
+            WHEN sb.provincia = "AR-C" AND REGEXP_REPLACE(NORMALIZE_AND_CASEFOLD(sb.localidad, NFD), r"\p{Mn}", "") IN (
+                "capital federal", "ciudad autonoma de buenos aires",
+                "ciudad autonoma buenos aires", "ciudad autonoma de bs as",
+                "caba", "buenos aires"
             ) THEN COALESCE(barrio_geo.barrio_calculado, sb.localidad)
             ELSE sb.localidad
         END AS localidad_cruda,
