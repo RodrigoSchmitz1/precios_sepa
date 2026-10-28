@@ -8,11 +8,11 @@ Comercio.
 
 ### [Ver el sitio →](https://precios-sepa-api-803135877045.us-central1.run.app)
 
-[![Changuito: las promos de hoy en el mapa](docs/img/changuito-promos.png)](https://precios-sepa-api-803135877045.us-central1.run.app)
+[![Changuito: la portada con las cifras del día](docs/img/changuito-portada.png)](https://precios-sepa-api-803135877045.us-central1.run.app)
 
-| Tu canasta, cotizada | Tu lista: dónde te conviene la compra | Inflación por categoría |
+| Más barato: el mapa del mercado | Mismo producto, todas las cadenas | Inflación: cuánto aporta cada categoría |
 |---|---|---|
-| [![Tu canasta](docs/img/changuito-tu-canasta.png)](https://precios-sepa-api-803135877045.us-central1.run.app/canasta-personalizada) | [![Tu lista](docs/img/changuito-tu-lista.png)](https://precios-sepa-api-803135877045.us-central1.run.app/mismo-producto) | [![Inflación](docs/img/changuito-inflacion.png)](https://precios-sepa-api-803135877045.us-central1.run.app/inflacion) |
+| [![Más barato](docs/img/changuito-mas-barato.png)](https://precios-sepa-api-803135877045.us-central1.run.app/quien-gana) | [![Mismo producto](docs/img/changuito-mismo-producto.png)](https://precios-sepa-api-803135877045.us-central1.run.app/mismo-producto) | [![Inflación](docs/img/changuito-inflacion.png)](https://precios-sepa-api-803135877045.us-central1.run.app/inflacion) |
 
 ## En 30 segundos
 
