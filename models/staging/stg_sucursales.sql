@@ -2,6 +2,36 @@ WITH sucursales_base AS (
     {{ limpiar_sucursales(source("sepa", "sucursales")) }}
 ),
 
+-- PROVINCIA MAL CARGADA (2026-10-28). 34 sucursales venian con la provincia de
+-- CABA (AR-C) y coordenadas en otra parte: 20 en la ciudad de Cordoba, una en
+-- Mendoza, otras en el conurbano y en Chubut. Aparecian como localidades de
+-- CABA ("Cordoba, CABA") y la de verdad quedaba partida en dos. Las coordenadas
+-- lo delatan: no caen en ningun barrio. Se les asigna la provincia de la
+-- sucursal mas cercana de otra provincia, si esta a menos de 50 km; si no hay
+-- ninguna, se deja la cargada, porque no hay con que deducirla.
+fuera_de_caba AS (
+    SELECT sb.id_comercio, sb.id_sucursal, ST_GEOGPOINT(sb.longitud, sb.latitud) AS punto
+    FROM sucursales_base AS sb
+    JOIN {{ ref("stg_sucursales_barrio") }} AS b
+        ON sb.id_comercio = b.id_comercio
+        AND sb.id_sucursal = b.id_sucursal
+    WHERE b.barrio_calculado IS NULL
+),
+
+provincia_corregida AS (
+    SELECT
+        f.id_comercio,
+        f.id_sucursal,
+        ARRAY_AGG(v.provincia ORDER BY ST_DISTANCE(f.punto, ST_GEOGPOINT(v.longitud, v.latitud)) LIMIT 1)[OFFSET(0)] AS provincia
+    FROM fuera_de_caba AS f
+    CROSS JOIN sucursales_base AS v
+    WHERE v.provincia != "AR-C"
+        AND v.latitud IS NOT NULL
+        AND v.longitud IS NOT NULL
+        AND ST_DWITHIN(f.punto, ST_GEOGPOINT(v.longitud, v.latitud), 50000)
+    GROUP BY f.id_comercio, f.id_sucursal
+),
+
 con_localidad_cruda AS (
     SELECT
         sb.id_comercio,
@@ -25,7 +55,7 @@ con_localidad_cruda AS (
             ) THEN COALESCE(barrio_geo.barrio_calculado, sb.localidad)
             ELSE sb.localidad
         END AS localidad_cruda,
-        sb.provincia,
+        COALESCE(pc.provincia, sb.provincia) AS provincia,
         sb.codigo_postal,
         sb.latitud,
         sb.longitud
@@ -33,6 +63,9 @@ con_localidad_cruda AS (
     LEFT JOIN {{ ref("stg_sucursales_barrio") }} AS barrio_geo
         ON sb.id_comercio = barrio_geo.id_comercio
         AND sb.id_sucursal = barrio_geo.id_sucursal
+    LEFT JOIN provincia_corregida AS pc
+        ON sb.id_comercio = pc.id_comercio
+        AND sb.id_sucursal = pc.id_sucursal
 ),
 
 forma_canonica AS (

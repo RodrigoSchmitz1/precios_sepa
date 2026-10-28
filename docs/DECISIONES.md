@@ -445,10 +445,16 @@ de una empresa. Ahora se compara sin tildes y un test
 (`caba_sin_localidad_generica`) falla si una sucursal que cae dentro de un
 barrio vuelve a quedar con un nombre genérico.
 
-Queda otro problema, más chico y sin resolver: 34 sucursales informadas con la
-provincia de CABA están en otra parte (20 en la ciudad de Córdoba, una en
-Mendoza, otras en el conurbano y en Chubut). Las coordenadas lo delatan, pero
-corregirlo pide deducir la provincia correcta, no sólo descartar la cargada.
+El mismo día apareció otro: 34 sucursales informadas con la provincia de CABA
+estaban en otra parte (22 en la ciudad de Córdoba, otras en el conurbano, en
+Chubut y en San Luis), y aparecían como localidades de CABA. Las coordenadas lo
+delatan: no caen en ningún barrio. Ahora se les asigna la provincia de la
+sucursal más cercana de otra provincia, si está a menos de 50 km, y un test
+avisa (sin cortar la corrida) si queda alguna. En 3 el texto y las coordenadas
+se contradicen —una "Córdoba" con coordenadas en Mendoza, "Cacheuta" con
+coordenadas en Córdoba, una "Capital Federal" justo afuera del límite— y manda
+la coordenada: no hay forma de saber cuál de los dos datos de la cadena es el
+bueno.
 
 ---
 

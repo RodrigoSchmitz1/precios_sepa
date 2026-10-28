@@ -141,7 +141,9 @@ nivel_por_fecha AS (
 -- mas barato: el IPC tambien releva todas las variedades. Y como el relativo es
 -- de cada producto contra si mismo, mezclar gamas no mezcla niveles de precio.
 -- Con todas las gamas y 10 productos la canasta tiene indice en 32 de 32
--- categorias y el sitio en 119 de 177 (con economica y 20, 24 y 72).
+-- categorias (con economica y 20, 24). Confirmado en la primera corrida, el
+-- 26-10: la canasta 32 de 32 y el sitio 67 de sus 69 categorias con al menos
+-- 3 cadenas, contra 52 el dia anterior.
 --
 -- Menos productos es mas ruido, pero poco: el desvio diario del factor de una
 -- cadena es 0,73% con ~22 productos y 0,47% con ~83, y la API promedia varias
