@@ -228,6 +228,10 @@ anterior, y su incidencia es ese peso por su variación. Las incidencias suman
 exactamente la variación de la canasta, y por eso se dibujan como cascada (un
 test lo verifica sobre 200 tablas al azar). Las categorías sin índice no se
 inventan: quedan afuera y la página dice sobre qué parte del gasto se midió.
+Cuando no es toda la canasta, el titular lo dice ("Las 17 categorías medidas
+… subieron 0,95%", no "La canasta básica subió"), y las categorías sin precio
+se listan aparte, porque ni siquiera entran en el denominador de la cobertura
+(auditoría del 28-10).
 
 La primera versión tomaba el índice de cada categoría sólo en la unidad en que
 la canasta la pide, y la misma página mostraba Verduras +4,48% en el ranking y
@@ -268,7 +272,8 @@ típico (la mediana entre empresas). Por categoría se publica la **mediana** de
 ese ahorro, no el máximo, por la misma razón que en los destacados: lo que
 titula con el extremo no resiste los errores de la fuente. Entran sólo los
 productos que venden 3 o más empresas, con los extremos respaldados por 3 o más
-sucursales. El 26-10 eran 9.501, con un ahorro típico de 5,6%.
+sucursales. El 26-10 eran 9.501, con un ahorro típico de 5,6%; con la mediana
+exacta (ver abajo), 6,7%.
 
 **Muchas categorías daban exactamente 5,0%**: perfumería, yogur, cerveza,
 pañales. Una mediana clavada en un número redondo en categorías tan distintas no
@@ -282,9 +287,21 @@ de la fuente sino **reglas de precio**:
 
 Son banderas de la misma empresa que cobran lo mismo que su hermana o un escalón
 fijo menos. Entre las dos tienen el precio más bajo en el 64% de los productos
-comparables, y sin Maxi el ahorro típico baja de 5,6% a 4,0%. La sección lo dice
+comparables, y sin Maxi el ahorro típico baja de 6,7% a 4,2%. La sección lo dice
 con todas las letras: publicado sin esto, "conviene comparar" se leería como
 dispersión del mercado cuando en buena parte es "andá a esa bandera".
+
+**La pista era en parte un artefacto (2026-10-28).** La auditoría encontró que
+el precio típico no era la mediana: `APPROX_QUANTILES(x, 2)[OFFSET(1)]` devuelve
+el valor de abajo cuando hay una cantidad par, así que con 4 empresas la
+referencia era la segunda más barata, y una empresa con dos banderas valía lo de
+la más barata. Esa referencia caía seguido en el precio de Carrefour, con Maxi
+un escalón de 5% justo debajo: de ahí tantas categorías en 5,0% exacto. Con la
+mediana exacta (macro `mediana`, que promedia los dos del medio) son 2 de 51 y no
+11, el ahorro típico sube de 5,6% a 6,7% (cambia la referencia de 2.365 de
+10.389 productos) y los niveles de Tu canasta en cada cadena no se mueven más de
+0,2%. Las reglas siguen en pie, porque se miden bandera contra hermana sin pasar
+por la referencia: la pista que llevó a ellas estaba sesgada, el hallazgo no.
 
 Las reglas no están escritas a mano: la API las detecta cada día comparando cada
 cadena que suele tener el precio más bajo con sus hermanas de la misma empresa

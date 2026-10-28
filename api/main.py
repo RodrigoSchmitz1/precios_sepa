@@ -678,13 +678,20 @@ def armar_incidencia(filas: list[dict]) -> dict:
     Las categorias sin indice no se inventan: quedan afuera, los pesos se
     reparten entre las que si tienen, y la cobertura dice cuanto del gasto se
     midio. Una variacion sobre el 60% del gasto no es la de la canasta.
+
+    Una categoria SIN PRECIO no se puede pesar, asi que tampoco entra en el
+    denominador de la cobertura: va en `sin_precio`, separada de `sin_indice`
+    (auditoria 2026-10-28; antes las dos iban juntas y la cobertura parecia
+    sobre toda la canasta).
     """
     con_gasto = [f for f in filas if f["gasto"]]
     gasto_total = sum(f["gasto"] for f in con_gasto)
     medidas = [f for f in con_gasto if f["factor"] is not None]
     gasto_medido = sum(f["gasto"] for f in medidas)
+    sin_precio = sorted(f["categoria"] for f in filas if not f["gasto"])
+    sin_indice = sorted(f["categoria"] for f in con_gasto if f["factor"] is None)
     if not medidas:
-        return {"variacion_canasta_pct": None, "cobertura_pct": 0.0, "categorias": [], "sin_indice": sorted(f["categoria"] for f in filas)}
+        return {"variacion_canasta_pct": None, "cobertura_pct": 0.0, "categorias": [], "sin_indice": sin_indice, "sin_precio": sin_precio}
 
     categorias = []
     for f in medidas:
@@ -706,7 +713,8 @@ def armar_incidencia(filas: list[dict]) -> dict:
         "variacion_canasta_pct": round(variacion_canasta, 2),
         "cobertura_pct": round(gasto_medido / gasto_total * 100, 1),
         "categorias": categorias,
-        "sin_indice": sorted(f["categoria"] for f in filas if f not in medidas),
+        "sin_indice": sin_indice,
+        "sin_precio": sin_precio,
     }
 
 

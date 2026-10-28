@@ -1,5 +1,6 @@
 import { formatearVariacion } from "../utils/formato";
 import { nombreCategoria } from "../utils/nombres";
+import { textosCascada } from "../utils/textoCascada";
 import type { IncidenciaCanasta } from "../types";
 
 /*
@@ -59,24 +60,17 @@ function CascadaCanasta({ datos, esElUltimo }: { datos: IncidenciaCanasta; esElU
   const puntos = (v: number) =>
     `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-  const parcial = datos.cobertura_pct < 99.5;
+  const textos = textosCascada(datos, esElUltimo);
 
   return (
     <div className="tarjeta p-4 sm:p-6 mb-8">
       <div className="pb-3 border-b border-linea mb-3">
-        <h2 className="font-display text-xl text-tinta">
-          La canasta básica {total >= 0 ? "subió" : "bajó"} {formatearVariacion(Math.abs(total)).replace("+", "")}
-        </h2>
+        <h2 className="font-display text-xl text-tinta">{textos.titulo}</h2>
         <p className="text-sm text-tinta-suave mt-1">
           Cuántos puntos aporta cada categoría, según lo que pesa en la canasta del INDEC
-          {esElUltimo ? " en lo que va del mes" : ""}. Cada barra arranca donde termina la anterior.
+          {textos.periodo}. Cada barra arranca donde termina la anterior.
         </p>
-        {parcial && (
-          <p className="text-xs text-aviso mt-2">
-            Medida sobre el {datos.cobertura_pct.toLocaleString("es-AR")}% del gasto de la canasta. Sin índice este mes:{" "}
-            {datos.sin_indice.map(nombreCategoria).join(", ")}.
-          </p>
-        )}
+        {textos.aviso && <p className="text-xs text-aviso mt-2">{textos.aviso}</p>}
       </div>
 
       <ul className="space-y-1.5">
@@ -104,7 +98,7 @@ function CascadaCanasta({ datos, esElUltimo }: { datos: IncidenciaCanasta; esElU
         })}
         <li className="pt-2 mt-2 border-t border-linea">
           <div className="flex items-baseline justify-between gap-3 text-sm">
-            <span className="font-semibold text-tinta">Canasta básica</span>
+            <span className="font-semibold text-tinta">{textos.etiquetaTotal}</span>
             <span className="numero font-semibold text-tinta shrink-0">{formatearVariacion(total)}</span>
           </div>
           <div className="relative h-2 bg-papel-hundido rounded-full mt-0.5">

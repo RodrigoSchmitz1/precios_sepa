@@ -344,6 +344,12 @@ def cotizar_lista(indice: dict, items: list[dict]) -> dict:
 # menos (5%, 10%, 15% en Maxi; 4% o 5% en SuperChangomas), casi nunca mas. Esa
 # regla explica buena parte del "ahorro por comparar", asi que se mide y se
 # publica junto con el, en vez de dejar que el numero la esconda.
+#
+# El "5,0% exacto" era en parte un artefacto (2026-10-28): la referencia del
+# mart era el valor de abajo con empresas pares y solia caer en Carrefour, asi
+# que Maxi quedaba un escalon justo por debajo. Con la mediana exacta son 2 de
+# 51 categorias en 5,0% y no 11. La regla no depende de eso: se mide bandera
+# contra hermana, sin la referencia.
 # ---------------------------------------------------------------------------
 
 MINIMO_PRODUCTOS_CATEGORIA = 20

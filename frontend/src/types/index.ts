@@ -154,7 +154,11 @@ export type IncidenciaCanasta = {
     incidencia_pp: number;
     cadenas: number;
   }[];
+  /** Con precio pero sin indice en el mes: estan en el denominador de la cobertura. */
   sin_indice: string[];
+  /** Sin precio para pesarlas: no entran ni en la cobertura (2026-10-28).
+   *  Opcional mientras la API desplegada sea anterior. */
+  sin_precio?: string[];
 };
 
 export type Inflacion = {

@@ -91,7 +91,20 @@ class TestIncidencia(unittest.TestCase):
     def test_sin_precio_no_tiene_peso(self):
         r = main.armar_incidencia([fila("Carne", 300, 1.04), fila("Hielo", None, 1.5)])
         self.assertEqual([c["categoria"] for c in r["categorias"]], ["Carne"])
-        self.assertIn("Hielo", r["sin_indice"])
+
+    def test_sin_precio_se_separa_de_sin_indice(self):
+        # Auditoria 2026-10-28: una categoria sin precio no se puede pesar, asi
+        # que tampoco entra en el denominador de la cobertura. Decirla "sin
+        # indice" escondia que la cobertura es sobre el gasto que se pudo pesar.
+        r = main.armar_incidencia([fila("Carne", 300, 1.04), fila("Aceite", 100, None), fila("Hielo", None, 1.5)])
+        self.assertEqual(r["sin_indice"], ["Aceite"])
+        self.assertEqual(r["sin_precio"], ["Hielo"])
+        self.assertAlmostEqual(r["cobertura_pct"], 75.0)
+
+    def test_sin_nada_medido_tambien_separa(self):
+        r = main.armar_incidencia([fila("Carne", 300, None), fila("Hielo", None, None)])
+        self.assertEqual(r["sin_indice"], ["Carne"])
+        self.assertEqual(r["sin_precio"], ["Hielo"])
 
     def test_sin_nada_medido(self):
         r = main.armar_incidencia([fila("Carne", 300, None)])

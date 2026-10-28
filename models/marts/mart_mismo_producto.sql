@@ -59,25 +59,43 @@ WITH precios AS (
 -- Un precio por empresa antes de sacar la referencia. Sin este paso, una
 -- empresa con cuatro banderas aporta cuatro valores y la "mediana del mercado"
 -- termina siendo la mediana de esa empresa.
-por_empresa AS (
+--
+-- Las dos medianas son exactas desde el 2026-10-28 (macro mediana). Con
+-- APPROX_QUANTILES, una cantidad par de valores daba el de abajo: una empresa
+-- con dos banderas valia lo de la mas barata, y con 4 empresas la referencia era
+-- la segunda. El ahorro "contra el precio tipico" quedaba subestimado.
+precios_por_empresa AS (
     SELECT
         id_producto,
         empresa,
-        APPROX_QUANTILES(precio_mediano, 2)[OFFSET(1)] AS precio_empresa
+        ARRAY_AGG(precio_mediano IGNORE NULLS ORDER BY precio_mediano) AS precios
     FROM precios
     GROUP BY id_producto, empresa
+),
+
+por_empresa AS (
+    SELECT id_producto, empresa, {{ mediana("precios") }} AS precio_empresa
+    FROM precios_por_empresa
+),
+
+precios_del_mercado AS (
+    SELECT
+        id_producto,
+        COUNT(*) AS empresas_con_precio,
+        ARRAY_AGG(precio_empresa IGNORE NULLS ORDER BY precio_empresa) AS precios
+    FROM por_empresa
+    GROUP BY id_producto
 ),
 
 referencia AS (
     SELECT
         id_producto,
-        COUNT(*) AS empresas_con_precio,
+        empresas_con_precio,
         -- Con menos de 3 empresas no hay mercado contra el cual contrastar: con
         -- dos, la mediana es el promedio de las dos y cualquiera de ellas puede
         -- ser la equivocada. En ese caso no se juzga a nadie (referencia NULL).
-        IF(COUNT(*) >= 3, APPROX_QUANTILES(precio_empresa, 2)[OFFSET(1)], NULL) AS precio_referencia
-    FROM por_empresa
-    GROUP BY id_producto
+        IF(empresas_con_precio >= 3, {{ mediana("precios") }}, NULL) AS precio_referencia
+    FROM precios_del_mercado
 ),
 
 en_rango AS (
