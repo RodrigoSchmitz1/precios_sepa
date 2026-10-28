@@ -14,6 +14,7 @@ resolvió y qué test lo cubre ahora.
 7. [Ruido de la fuente](#ruido-de-la-fuente)
 8. [La IA interpreta, el código cuenta](#la-ia-interpreta-el-código-cuenta)
 9. [Una sección que se retiró](#una-sección-que-se-retiró)
+   y [lo que se midió y no se publicó](#lo-que-se-midió-y-no-se-publicó)
 10. [Geografía](#geografía)
 11. [Tests](#tests)
 12. [Costo](#costo)
@@ -425,6 +426,41 @@ no está en SEPA. La pregunta que prometía la sección, cuánto cuesta comer en
 cada lugar, el dato no la puede responder, y un número que no convence le resta
 credibilidad al resto. La canasta del INDEC sigue como punto de partida de Tu
 canasta, donde sí sirve.
+
+---
+
+## Lo que se midió y no se publicó
+
+Dos preguntas que parecían buenas secciones y que el dato no sostiene. Se
+dejan escritas porque un resultado nulo bien medido evita volver a construir
+lo mismo.
+
+**¿Una cadena cobra más donde tiene menos competencia?** No. Se comparó cada
+sucursal contra la mediana nacional de su propia cadena, en las mismas
+categorías y gamas, para no confundir competencia con qué cadenas hay en cada
+lugar (2.451 sucursales en 431 localidades, el 26-10). Según cuántas empresas
+hay en la localidad, la diferencia fue −0,26% con una, +0,22% con dos, +0,16%
+con tres y +1,32% con seis o más: nada, o levemente al revés, probablemente por
+costos de las ciudades grandes. Las cadenas fijan casi el mismo precio en todo
+el país: entre su 5% de sucursales más baratas y su 5% más caras, Dia va de
+−0,4% a +2,1% y Coto de −4,7% a +2,9%.
+
+Lo que sí pesa es **qué cadenas hay cerca**. Con la canasta comparada en
+productos idénticos, la mejor opción disponible en la localidad típica cuesta
+9,3% más que la más barata del país, y 13,5% más en la Patagonia, donde la
+única cadena es La Anónima. Ese número se va a recalcular con los barrios y
+las provincias corregidos (ver [Geografía](#geografía)).
+
+**¿Qué parte de los productos tiene cada cadena?** No se puede saber con SEPA.
+Por catálogo daba Carrefour 82%, Coto 80%, Maxi 59% y Dia 26% de los productos
+que venden 3 o más empresas, pero Changomás, SuperChangomás e HiperChangomás
+informan exactamente el mismo catálogo: es la lista de la empresa, no lo que
+tiene cada bandera. Por sucursal, la probabilidad de encontrar los productos
+más difundidos dependía de cómo se eligieran: ordenados por sucursales, Dia
+salía primera porque tiene 971 y cualquier producto suyo queda entre "los más
+difundidos"; ordenados por cadenas, el grupo Changomás salía con 100% porque
+informa su catálogo entero en cada sucursal. SEPA es una lista de precios
+vigentes, no de stock, y un ranking de surtido premiaría a quien informa más.
 
 ---
 
