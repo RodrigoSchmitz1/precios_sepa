@@ -18,12 +18,14 @@ Comercio.
 
 - **Qué es.** Un pipeline diario que toma unos 14 millones de precios, los
   transforma con dbt sobre BigQuery y los publica en un sitio con cinco
-  secciones. Corre solo todos los días.
+  secciones. La descarga corre en una máquina de casa y dispara sola la
+  transformación en GitHub Actions.
 - **Números que resisten una segunda mirada.** El dato de origen tiene trampas
   que dan un número publicado equivocado sin que nada falle. Abajo están las
   principales; el detalle de cada una, en [DECISIONES.md](docs/DECISIONES.md).
-- **Calidad verificable.** 24 modelos y 105 tests de dbt, más 175 tests en
-  Python y 53 en el frontend: [calidad](#calidad).
+- **Calidad verificable.** Tests en dbt, Python y el frontend, y una auditoría
+  con agentes que recalcula lo publicado e intenta refutar cada hallazgo:
+  [calidad](#calidad).
 - **Costo cero, por diseño.** Todo entra en los niveles gratuitos, con una
   cuota dura que impide pasarse: [costo](#costo).
 
@@ -99,12 +101,12 @@ responder lo que prometía: [DECISIONES.md](docs/DECISIONES.md).
 ## Calidad
 
 - **dbt:** 97 tests (genéricos y singulares) que corren después de cada
-  transformación, más 8 tests unitarios con filas de prueba. Los singulares
+  transformación, más 9 tests unitarios con filas de prueba. Los singulares
   cubren lo que sólo se ve en el resultado agregado: que la carne no mezcle
   otras carnes, que la gama económica no salga más cara que la media, que el
   crudo no se atrase respecto del calendario.
-- **Python:** 175 tests sobre la API y la ingesta, sin BigQuery.
-- **Frontend:** 53 tests (Vitest). Se validaron metiendo 20 errores a propósito
+- **Python:** 180 tests sobre la API y la ingesta, sin BigQuery.
+- **Frontend:** 61 tests (Vitest). Se validaron metiendo 20 errores a propósito
   en el código: cada uno hizo fallar al menos un test.
 - **CI:** todo lo que no necesita BigQuery corre en cada push.
 - **Auditoría con agentes:** `/auditar` en Claude Code lanza tres auditores en
@@ -112,6 +114,9 @@ responder lo que prometía: [DECISIONES.md](docs/DECISIONES.md).
   intenta refutar cada hallazgo grave antes del informe. Comparten un
   [protocolo](.claude/auditoria/protocolo.md): sólo cuenta lo que tiene
   evidencia, y ninguna consulta a BigQuery corre sin dry run ni tope de bytes.
+  La [primera](docs/auditorias/INFORME_2026-10-28.md) encontró que el índice de
+  inflación contaba como mercado a dos empresas con cuatro banderas, y que el
+  "precio típico" no era la mediana.
 
 ## Costo
 
