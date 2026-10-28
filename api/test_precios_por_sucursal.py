@@ -180,3 +180,53 @@ class TestCanastaPorCadena(unittest.TestCase):
         self.assertEqual(r["ambito"], "zona")
         r = self.calcular(self.indice, self.items, [{"localidad": "Rosario", "provincia": "AR-S"}])
         self.assertEqual(r["ambito"], "pais")
+
+
+class TestCanastaPorCadenaProductosIdenticos(unittest.TestCase):
+    """Con niveles, las cadenas se comparan en productos identicos (2026-10-28)."""
+
+    def setUp(self):
+        from precios_por_sucursal import canasta_por_cadena
+
+        self.calcular = canasta_por_cadena
+        # El caso de Jumbo: su "carne economica" son los cortes mas baratos del
+        # mercado (mediana 7), la de Maxi un surtido mas amplio (mediana 13).
+        filas = []
+        for cadena, carne, arroz in (("Jumbo", 7.0, 2.2), ("Maxi", 13.0, 1.8), ("Dia", 10.0, 2.0)):
+            filas += [
+                fila(cadena, "Carne", "economico", carne, cadena=cadena),
+                fila(cadena, "Arroz", "economico", arroz, cadena=cadena),
+                fila(cadena, "Sal", "economico", 0.5, cadena=cadena),
+            ]
+        self.indice = armar_indice(filas)
+        self.items = canasta("Carne", "Arroz", "Sal")
+        # En productos identicos Jumbo es 10% mas cara y Maxi 10% mas barata.
+        # Carne no tiene productos identicos: va el nivel general.
+        self.niveles = {
+            "por_categoria": {("Jumbo", "Arroz"): 1.1, ("Maxi", "Arroz"): 0.9, ("Dia", "Arroz"): 1.0},
+            "general": {"Jumbo": 1.1, "Maxi": 0.9, "Dia": 1.0},
+        }
+
+    def test_la_mediana_de_la_gama_favorece_al_que_tiene_menos_surtido(self):
+        r = self.calcular(self.indice, self.items)
+        self.assertEqual(r["metodo"], "mediana_de_la_gama")
+        self.assertEqual(r["cadenas"][0]["cadena"], "Jumbo")
+
+    def test_con_productos_identicos_ordena_por_nivel(self):
+        r = self.calcular(self.indice, self.items, niveles=self.niveles)
+        self.assertEqual(r["metodo"], "productos_identicos")
+        self.assertEqual([c["cadena"] for c in r["cadenas"]], ["Maxi", "Dia", "Jumbo"])
+        # Cada item vale la mediana entre cadenas por el nivel de la cadena.
+        dia = next(c for c in r["cadenas"] if c["cadena"] == "Dia")
+        self.assertAlmostEqual(dia["total"], (10.0 + 2.0 + 0.5) * 1000)
+
+    def test_sin_identicos_en_la_categoria_usa_el_nivel_general_y_lo_cuenta(self):
+        r = self.calcular(self.indice, self.items, niveles=self.niveles)
+        # Carne y Sal no tienen nivel propio: dos categorias con el general.
+        self.assertTrue(all(c["con_nivel_general"] == 2 for c in r["cadenas"]))
+
+    def test_sin_ningun_nivel_usa_su_propio_precio(self):
+        niveles = {"por_categoria": {}, "general": {"Maxi": 0.9, "Dia": 1.0}}
+        r = self.calcular(self.indice, self.items, niveles=niveles)
+        jumbo = next(c for c in r["cadenas"] if c["cadena"] == "Jumbo")
+        self.assertAlmostEqual(jumbo["total"], (7.0 + 2.2 + 0.5) * 1000)

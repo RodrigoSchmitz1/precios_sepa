@@ -982,6 +982,8 @@ def canasta_por_cadena(datos: CanastaPorCadenaRequest):
     """Tu canasta en cada cadena: cuanto sale la compra entera en cada una.
 
     Sale del mismo indice en memoria que "Donde comprarla": no consulta BigQuery.
+    Las cadenas se comparan por su nivel de precios en productos identicos, que
+    sale del indice de El mismo producto (ver canasta_por_cadena).
     """
     if not datos.items:
         return JSONResponse(status_code=422, content={"detail": "La canasta está vacía."})
@@ -992,7 +994,9 @@ def canasta_por_cadena(datos: CanastaPorCadenaRequest):
         )
     items = [i for i in datos.items if isinstance(i, dict)]
     localidades = [l for l in datos.localidades if isinstance(l, dict)][:3]
-    return precios_por_sucursal.canasta_por_cadena(_indice_sucursales(), items, localidades)
+    return precios_por_sucursal.canasta_por_cadena(
+        _indice_sucursales(), items, localidades, niveles=_niveles_por_cadena()
+    )
 
 
 # Una localidad se ofrece si tiene precio en al menos esta cantidad de
@@ -1120,6 +1124,12 @@ def sugerir_productos_por_categoria(datos: CategoriasDeTuCanasta):
 @api.get("/mismo-producto/destacados")
 def obtener_productos_destacados(limite: int = Query(12, ge=1, le=30)):
     return mismo_producto.destacados(_indice_mismo_producto(), limite)
+
+
+@cachear
+def _niveles_por_cadena() -> dict:
+    # Una pasada por el indice de El mismo producto; se calcula una vez por refresco.
+    return mismo_producto.niveles_por_cadena(_indice_mismo_producto())
 
 
 @cachear

@@ -328,9 +328,13 @@ export type ItemLista = {
 
 /** Tu canasta en cada cadena (POST /canasta-personalizada/por-cadena). */
 export type CanastaPorCadena = {
+  /** Como se comparan las cadenas: por su nivel en productos identicos (desde
+   *  2026-10-28) o por la mediana de la gama en sus sucursales (si la API no
+   *  pudo cargar El mismo producto). */
+  metodo?: "productos_identicos" | "mediana_de_la_gama";
   /** "zona" si se usaron solo las sucursales de las localidades elegidas. */
   ambito: "zona" | "pais";
-  cadenas: { cadena: string; total: number; con_otra_gama: number; sucursales: number }[];
+  cadenas: { cadena: string; total: number; con_otra_gama: number; sucursales: number; con_nivel_general?: number }[];
   /** Las categorias que venden todas las cadenas comparadas: sobre ellas se suma. */
   categorias_comparadas: string[];
   categorias_afuera: string[];

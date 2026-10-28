@@ -9,6 +9,7 @@ Este modulo no conoce BigQuery: recibe filas y devuelve diccionarios, para
 poder testearlo sin credenciales.
 """
 
+import math
 import re
 import unicodedata
 
@@ -473,3 +474,41 @@ def ahorro_por_categoria(indice: dict, empresa_de: dict, limite_cadenas: int = 5
         "reglas": reglas,
         "fecha_datos": comparables[0]["fecha_datos"],
     }
+
+
+# Nivel de precios de cada cadena en productos identicos (2026-10-28). Lo usa
+# Tu canasta en cada cadena (precios_por_sucursal.canasta_por_cadena) para
+# comparar cadenas sin el efecto de composicion de la gama. Con menos de estos
+# productos en una categoria se usa el nivel general de la cadena.
+MINIMO_PRODUCTOS_NIVEL = 5
+
+
+def niveles_por_cadena(indice: dict) -> dict:
+    """Cuanto mas cara o mas barata es cada cadena que el precio tipico del
+    mercado (la mediana entre empresas), en los productos que vende: media
+    geometrica de los cocientes, por categoria y en general.
+
+    La media geometrica porque es un indice de precios (Jevons): un producto al
+    doble y otro a la mitad se compensan. Entran los productos de 2 o mas
+    empresas, con precio de referencia, y solo los precios creibles.
+    """
+    logs: dict = {}
+    for producto in indice.values():
+        referencia = producto.get("precio_referencia")
+        if not referencia or producto["empresas"] < 2:
+            continue
+        for cadena, precio in _precios_creibles(producto).items():
+            valor = math.log(precio / referencia)
+            for clave in ((cadena, producto["categoria"]), (cadena, None)):
+                suma, n = logs.get(clave, (0.0, 0))
+                logs[clave] = (suma + valor, n + 1)
+    niveles = {"por_categoria": {}, "general": {}}
+    for (cadena, categoria), (suma, n) in logs.items():
+        if n < MINIMO_PRODUCTOS_NIVEL:
+            continue
+        nivel = math.exp(suma / n)
+        if categoria is None:
+            niveles["general"][cadena] = nivel
+        else:
+            niveles["por_categoria"][(cadena, categoria)] = nivel
+    return niveles

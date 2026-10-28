@@ -52,7 +52,7 @@ no llega en 3 días, falla y GitHub avisa por mail.
 
 ## Comparar cosas que no son comparables
 
-El error recurrente, en ocho formas distintas:
+El error recurrente, en nueve formas distintas:
 
 - **La canasta básica** (una sección que ya se
   [retiró](#una-sección-que-se-retiró)) sumaba las categorías que cada
@@ -130,6 +130,22 @@ El error recurrente, en ocho formas distintas:
   precio por pieza, y no se inventa. La lectura se revisó sobre los 1.519
   productos de las cuatro categorías para que no tome medidas como "25X25 CM"
   o "45 X 55". La toallita económica pasó a $62 y el huevo premium a $450.
+
+- **Jumbo salía la canasta más barata del país.** La portada lo publicaba
+  ("$160.079 en Jumbo y $213.084 en La Anónima") cuando, en productos
+  idénticos, Jumbo es 13,7% más cara que Maxi y entre 6% y 7% más cara que
+  Dia, Coto y Carrefour. Era un efecto de composición: la gama económica corta
+  el tercio barato con un umbral de todo el mercado y cada cadena quedaba con
+  la mediana de lo que tenía debajo. En carne, Jumbo tenía sólo puchero y dos
+  picadas comunes ($7.165 el kilo); Maxi, muchos cortes, varios más baratos que
+  esos pero también otros cerca del corte ($12.995 de mediana). Tener más
+  surtido barato subía la mediana, y con 4,44 kg de carne en la canasta esa
+  sola línea le daba a Jumbo $25.885 de ventaja. Hoy cada categoría vale lo
+  mismo en todas las cadenas y se ajusta por el nivel de cada una en productos
+  idénticos, como en Más barato. Donde no hay productos idénticos (la carne
+  fresca: cada cadena codifica sus cortes) va el nivel general de la cadena, y
+  la página lo dice. La más barata pasó a ser Maxi, la distancia entre la
+  primera y la última bajó de 25% a 14%, y La Anónima de +33% a +13%.
 
 ---
 

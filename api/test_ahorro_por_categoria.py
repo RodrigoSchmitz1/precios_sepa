@@ -110,3 +110,28 @@ class TestReglas(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestNiveles(unittest.TestCase):
+    def test_media_geometrica_de_los_cocientes(self):
+        from mismo_producto import niveles_por_cadena
+
+        # Coto: una vez al doble y una a la mitad del precio tipico -> nivel 1.
+        filas = [producto(i, {"Coto": 200 if i % 2 else 50, "Dia": 100}, 100, empresas=2) for i in range(6)]
+        n = niveles_por_cadena(indice(*filas))
+        self.assertAlmostEqual(n["general"]["Coto"], 1.0)
+        self.assertAlmostEqual(n["por_categoria"][("Dia", "Yerba")], 1.0)
+
+    def test_pocos_productos_o_una_sola_empresa_no_alcanzan(self):
+        from mismo_producto import MINIMO_PRODUCTOS_NIVEL, niveles_por_cadena
+
+        pocos = [producto(i, {"Coto": 90, "Dia": 100}, 100, empresas=2) for i in range(MINIMO_PRODUCTOS_NIVEL - 1)]
+        una = [producto(100 + i, {"Coto": 90}, 90, empresas=1) for i in range(10)]
+        n = niveles_por_cadena(indice(*pocos, *una))
+        self.assertNotIn("Coto", n["general"])
+
+    def test_un_precio_no_creible_no_cuenta(self):
+        from mismo_producto import niveles_por_cadena
+
+        filas = [producto(i, {"Coto": 10, "Dia": 100}, 100, empresas=2, no_creibles=("Coto",)) for i in range(6)]
+        self.assertNotIn("Coto", niveles_por_cadena(indice(*filas))["general"])

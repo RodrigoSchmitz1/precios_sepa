@@ -22,7 +22,7 @@ Comercio.
 - **Números que resisten una segunda mirada.** El dato de origen tiene trampas
   que dan un número publicado equivocado sin que nada falle. Abajo están las
   principales; el detalle de cada una, en [DECISIONES.md](docs/DECISIONES.md).
-- **Calidad verificable.** 24 modelos y 103 tests de dbt, más 168 tests en
+- **Calidad verificable.** 24 modelos y 103 tests de dbt, más 175 tests en
   Python y 53 en el frontend: [calidad](#calidad).
 - **Costo cero, por diseño.** Todo entra en los niveles gratuitos, con una
   cuota dura que impide pasarse: [costo](#costo).
@@ -92,7 +92,7 @@ modelo sólo devuelve lo que depende del texto (cuántas personas, qué no
 consumen, qué sube o baja) y la canasta la arma el código, con un test contra la
 tabla del INDEC.
 
-Hay ocho casos más del mismo tipo (comparar cosas que no son comparables) y
+Hay nueve casos más del mismo tipo (comparar cosas que no son comparables) y
 también la historia de una sección que se retiró porque el dato no podía
 responder lo que prometía: [DECISIONES.md](docs/DECISIONES.md).
 
@@ -103,7 +103,7 @@ responder lo que prometía: [DECISIONES.md](docs/DECISIONES.md).
   cubren lo que sólo se ve en el resultado agregado: que la carne no mezcle
   otras carnes, que la gama económica no salga más cara que la media, que el
   crudo no se atrase respecto del calendario.
-- **Python:** 168 tests sobre la API y la ingesta, sin BigQuery.
+- **Python:** 175 tests sobre la API y la ingesta, sin BigQuery.
 - **Frontend:** 53 tests (Vitest). Se validaron metiendo 20 errores a propósito
   en el código: cada uno hizo fallar al menos un test.
 - **CI:** todo lo que no necesita BigQuery corre en cada push.

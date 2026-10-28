@@ -173,10 +173,50 @@ def _mediana(valores: list) -> float:
     return ordenados[medio] if n % 2 else (ordenados[medio - 1] + ordenados[medio]) / 2
 
 
-def canasta_por_cadena(indice: dict, items: list, localidades: list | None = None) -> dict:
-    """Cuanto sale la canasta en cada cadena, con el precio mediano de sus
-    sucursales: las de la zona si se eligio una y tiene al menos dos cadenas,
-    las de todo el pais si no."""
+def _total_con_niveles(cadena: str, pedidos: list, comunes: list, tabla: dict, entran: list, niveles: dict) -> tuple:
+    """Total de la canasta en una cadena con el metodo de productos identicos.
+
+    Cada item vale lo mismo para todas las cadenas (la mediana entre ellas de su
+    precio en esa categoria) multiplicado por el NIVEL de la cadena: cuanto mas
+    cara o mas barata es, en productos identicos, que el precio tipico del
+    mercado. Sin productos identicos en la categoria (la carne fresca: cada
+    cadena codifica sus cortes) se usa su nivel general; sin ningun nivel, su
+    propio precio, como antes. Devuelve el total y cuantas categorias usaron el
+    nivel general.
+    """
+    total = 0.0
+    con_nivel_general = 0
+    for j in comunes:
+        referencia = _mediana([tabla[c][j][0] for c in entran])
+        nivel = niveles["por_categoria"].get((cadena, pedidos[j]["categoria"]))
+        if nivel is None:
+            nivel = niveles["general"].get(cadena)
+            con_nivel_general += 1
+        precio = referencia * nivel if nivel is not None else tabla[cadena][j][0]
+        total += precio * pedidos[j]["cantidad"]
+    return round(total, 2), con_nivel_general
+
+
+def canasta_por_cadena(indice: dict, items: list, localidades: list | None = None, niveles: dict | None = None) -> dict:
+    """Cuanto sale la canasta en cada cadena: las sucursales de la zona si se
+    eligio una y tiene al menos dos cadenas, las de todo el pais si no.
+
+    Con `niveles` (mismo_producto.niveles_por_cadena) cada cadena se compara
+    por su precio en productos IDENTICOS; sin ellos, por la mediana de la gama
+    pedida en sus sucursales.
+
+    PRODUCTOS IDENTICOS (2026-10-28). La mediana de la gama economica de cada
+    cadena ponia a Jumbo como la canasta mas barata del pais, cuando en
+    productos identicos es 6 a 14% mas cara que Maxi, Dia, Coto y Carrefour. La
+    gama corta el tercio barato con un umbral del MERCADO, asi que cada cadena
+    queda con distintos productos debajo: en carne, Jumbo tenia solo puchero y
+    dos picadas comunes ($7.165 el kilo) y Maxi muchos cortes, varios mas
+    baratos que esos pero tambien otros cerca del corte ($12.995 de mediana).
+    Tener mas surtido barato subia la mediana. Con 4,44 kg de carne en la
+    canasta, esa sola linea le daba a Jumbo $25.885 de ventaja. Comparar sobre
+    productos identicos es como lo hacen los indices de precios entre comercios
+    y como ya lo hace Mas barato, asi que las dos secciones dicen lo mismo.
+    """
     pedidos = [i for i in items if i.get("cantidad") and i.get("categoria") and i.get("unidad")]
     zona = {(l.get("localidad"), l.get("provincia")) for l in (localidades or [])}
     sucursales = indice["sucursales"]
@@ -229,19 +269,21 @@ def canasta_por_cadena(indice: dict, items: list, localidades: list | None = Non
     if len(comunes) < CATEGORIAS_COMUNES_MINIMAS:
         entran, comunes = [], []
 
-    cadenas = sorted(
-        (
-            {
-                "cadena": c,
-                "total": round(sum(tabla[c][j][0] * pedidos[j]["cantidad"] for j in comunes), 2),
-                "con_otra_gama": sum(tabla[c][j][1] for j in comunes),
-                "sucursales": cuantas[c],
-            }
-            for c in entran
-        ),
-        key=lambda f: (f["total"], f["cadena"]),
-    )
+    filas = []
+    for c in entran:
+        fila = {
+            "cadena": c,
+            "con_otra_gama": sum(tabla[c][j][1] for j in comunes),
+            "sucursales": cuantas[c],
+        }
+        if niveles:
+            fila["total"], fila["con_nivel_general"] = _total_con_niveles(c, pedidos, comunes, tabla, entran, niveles)
+        else:
+            fila["total"] = round(sum(tabla[c][j][0] * pedidos[j]["cantidad"] for j in comunes), 2)
+        filas.append(fila)
+    cadenas = sorted(filas, key=lambda f: (f["total"], f["cadena"]))
     return {
+        "metodo": "productos_identicos" if niveles else "mediana_de_la_gama",
         "ambito": ambito,
         "cadenas": cadenas,
         "categorias_comparadas": [pedidos[j]["categoria"] for j in comunes],

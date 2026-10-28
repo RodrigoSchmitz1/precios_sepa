@@ -130,8 +130,21 @@ function CanastaPorCadena({ items, localidades }: Props) {
       )}
 
       <p className="mt-4 text-xs text-tinta-suave leading-relaxed">
-        Precio mediano de cada cadena{" "}
-        {r.ambito === "zona" ? "en las sucursales de tu zona" : "entre todas sus sucursales del país"}, sumando las{" "}
+        {r.metodo === "productos_identicos" ? (
+          <>
+            Cada categoría vale lo mismo en todas (su precio mediano{" "}
+            {r.ambito === "zona" ? "en las sucursales de tu zona" : "en el país"}), ajustado por cuánto más cara o más
+            barata es cada cadena en los productos idénticos que vende: así se compara precio y no surtido.
+            {r.cadenas.some((c) => (c.con_nivel_general ?? 0) > 0) &&
+              " Donde no hay productos idénticos entre cadenas, como en la carne fresca, va el nivel general de cada una."}{" "}
+            Se suman las{" "}
+          </>
+        ) : (
+          <>
+            Precio mediano de cada cadena{" "}
+            {r.ambito === "zona" ? "en las sucursales de tu zona" : "entre todas sus sucursales del país"}, sumando las{" "}
+          </>
+        )}
         {r.categorias_comparadas.length} de tus {r.total_categorias} categorías que venden todas, para comparar
         parejo.
         {r.categorias_afuera.length > 0 &&
