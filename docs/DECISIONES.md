@@ -480,9 +480,12 @@ el país: entre su 5% de sucursales más baratas y su 5% más caras, Dia va de
 
 Lo que sí pesa es **qué cadenas hay cerca**. Con la canasta comparada en
 productos idénticos, la mejor opción disponible en la localidad típica cuesta
-9,3% más que la más barata del país, y 13,5% más en la Patagonia, donde la
-única cadena es La Anónima. Ese número se va a recalcular con los barrios y
-las provincias corregidos (ver [Geografía](#geografía)).
+9,3% más que la más barata del país (Maxi), y 13,5% más en la Patagonia, donde
+la única cadena es La Anónima. Recalculado el 29-10 con los barrios y las
+provincias corregidos, la mediana no se movió; ponderado por sucursales es
+7,8%. En CABA la mejor opción a mano es casi siempre Dia, a +7,8%: Maxi tiene
+una sola sucursal en la ciudad. Maxi es la más barata
+disponible en sólo 33 de 382 localidades.
 
 **¿Qué parte de los productos tiene cada cadena?** No se puede saber con SEPA.
 Por catálogo daba Carrefour 82%, Coto 80%, Maxi 59% y Dia 26% de los productos
@@ -500,8 +503,8 @@ vigentes, no de stock, y un ranking de surtido premiaría a quien informa más.
 ## Geografía
 
 Las cadenas reportan toda CABA como "Capital Federal". El barrio real se
-resuelve por **point-in-polygon** contra la geometría oficial del GCBA,
-respetando el barrio cuando la cadena sí lo informa bien.
+resuelve por **point-in-polygon** contra la geometría oficial del GCBA, y desde
+el 2026-10-29 manda siempre la coordenada (ver abajo).
 
 Hasta el 2026-10-28 eso no le pasaba a Carrefour. La lista de nombres
 genéricos ("CIUDAD AUTONOMA DE BUENOS AIRES") se comparaba sin normalizar
@@ -524,6 +527,17 @@ se contradicen —una "Córdoba" con coordenadas en Mendoza, "Cacheuta" con
 coordenadas en Córdoba, una "Capital Federal" justo afuera del límite— y manda
 la coordenada: no hay forma de saber cuál de los dos datos de la cadena es el
 bueno.
+
+**En CABA, siempre el barrio de la coordenada (2026-10-29).** Hasta ese día se
+respetaba el barrio cuando la cadena informaba uno, y sólo se reemplazaban los
+nombres genéricos. Al recalcular el costo de no tener opciones aparecieron 58
+"barrios" en una ciudad que tiene 48: 23 sucursales en nombres que no son
+barrios ("Paternal", "Once", "Pompeya", "Barrio Norte", "V Illa Lugano", "Cdad.
+De Bs.As"), cada uno una localidad aparte en Tu canasta, y otras donde la cadena
+dice "Almagro" y la coordenada cae en el barrio de al lado. Una lista de nombres
+nunca iba a cubrir todas las variantes, así que ahora la localidad de una
+sucursal de CABA es el barrio donde cae su coordenada, y el test pide eso
+exactamente. Con el cambio quedan los 48 barrios oficiales.
 
 ---
 

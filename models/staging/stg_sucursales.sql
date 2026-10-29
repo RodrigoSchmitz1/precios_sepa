@@ -42,19 +42,16 @@ con_localidad_cruda AS (
         sb.calle,
         sb.numero,
         sb.barrio,
-        -- Sin tildes y en minusculas antes de comparar (2026-10-28). Con UPPER a
-        -- secas, "Ciudad Autónoma de Buenos Aires" -como la escribe Carrefour-
-        -- no era "CIUDAD AUTONOMA DE BUENOS AIRES": sus 360 sucursales de CABA
-        -- quedaban en una localidad generica, sin barrio, y quien elegia
-        -- Palermo en Tu canasta no veia ninguna cadena de Carrefour.
-        CASE
-            WHEN sb.provincia = "AR-C" AND REGEXP_REPLACE(NORMALIZE_AND_CASEFOLD(sb.localidad, NFD), r"\p{Mn}", "") IN (
-                "capital federal", "ciudad autonoma de buenos aires",
-                "ciudad autonoma buenos aires", "ciudad autonoma de bs as",
-                "caba", "buenos aires"
-            ) THEN COALESCE(barrio_geo.barrio_calculado, sb.localidad)
-            ELSE sb.localidad
-        END AS localidad_cruda,
+        -- En CABA la localidad es el barrio por coordenadas, siempre que caiga
+        -- en uno (2026-10-29). Antes solo se reemplazaban los nombres genericos,
+        -- comparados con una lista: el 28-10 la lista no veia "Autónoma" con
+        -- tilde y 360 sucursales de Carrefour quedaban sin barrio, y despues de
+        -- arreglarlo quedaban 23 en 11 nombres que no son barrios ("Paternal",
+        -- "Once", "Pompeya", "V Illa Lugano", "Cdad. De Bs.As"), cada uno una
+        -- localidad aparte en Tu canasta. Una sucursal de CABA que no cae en
+        -- ningun barrio esta mal cargada: provincia_corregida le busca la suya
+        -- y conserva el nombre de la fuente.
+        IF(sb.provincia = "AR-C", COALESCE(barrio_geo.barrio_calculado, sb.localidad), sb.localidad) AS localidad_cruda,
         COALESCE(pc.provincia, sb.provincia) AS provincia,
         sb.codigo_postal,
         sb.latitud,
