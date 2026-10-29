@@ -5,8 +5,10 @@ import type { QuienGana } from "../types";
   Mas barato, y tienen que decir lo mismo. Todas las cadenas compiten igual
   (2026-10-20): ya no se separa a Maxi como mayorista (ver CanastaPorCadena).
 */
-/** La cadena mas barata en mas categorias, y en cuantas. */
-export function liderEn(filas: QuienGana[], categorias: string[]): [string, number] | undefined {
+/** En cuantas categorias cada cadena tiene el mejor porcentaje. La portada
+ *  dibuja con esto su grafico de lideres; antes lo contaba aparte, con una
+ *  regla que no contaba los empates (auditoria 2026-10-28). */
+export function categoriasGanadas(filas: QuienGana[], categorias: string[]): Map<string, number> {
   const liderazgos = new Map<string, number>();
   for (const categoria of categorias) {
     const deLaCategoria = filas.filter((f) => f.categoria === categoria);
@@ -20,5 +22,10 @@ export function liderEn(filas: QuienGana[], categorias: string[]): [string, numb
       }
     }
   }
-  return [...liderazgos.entries()].sort((a, b) => b[1] - a[1])[0];
+  return liderazgos;
+}
+
+/** La cadena mas barata en mas categorias, y en cuantas. */
+export function liderEn(filas: QuienGana[], categorias: string[]): [string, number] | undefined {
+  return [...categoriasGanadas(filas, categorias).entries()].sort((a, b) => b[1] - a[1])[0];
 }

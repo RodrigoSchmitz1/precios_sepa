@@ -73,7 +73,8 @@ function CascadaCanasta({ datos, esElUltimo }: { datos: IncidenciaCanasta; esElU
         <h2 className="font-display text-xl text-tinta">{textos.titulo}</h2>
         <p className="text-sm text-tinta-suave mt-1">
           Cuántos puntos aporta cada categoría, según lo que pesa en la canasta del INDEC
-          {textos.periodo}. Cada barra arranca donde termina la anterior.
+          {textos.periodo}. Cada barra arranca donde termina la anterior. No es el promedio de arriba: acá cada
+          categoría pesa lo que se gasta en ella.
         </p>
         {textos.aviso && <p className="text-xs text-aviso mt-2">{textos.aviso}</p>}
       </div>

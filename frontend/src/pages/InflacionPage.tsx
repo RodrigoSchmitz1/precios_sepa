@@ -181,7 +181,13 @@ function InflacionPage() {
       >
         {resumen && masExtrema ? (
           <>
-            Los precios {resumen.general >= 0 ? "subieron" : "bajaron"}{" "}
+            {/*
+              "En promedio" (2026-10-29): abajo la cascada dice cuanto subio la
+              canasta, con otro numero (1,01% contra 1,76% el 28-10). Las dos
+              estan bien, pero sin decir que esta es un promedio de todas las
+              series se leian como una contradiccion.
+            */}
+            En promedio, los precios {resumen.general >= 0 ? "subieron" : "bajaron"}{" "}
             <Resaltado tono={resumen.general >= 0 ? undefined : "barato"}>
               {formatearVariacion(Math.abs(resumen.general)).replace("+", "")}
             </Resaltado>{" "}
@@ -212,7 +218,7 @@ function InflacionPage() {
                 {
                   etiqueta: "General",
                   valor: formatearVariacion(resumen.general),
-                  detalle: `promedio de ${resumen.series} series de precios`,
+                  detalle: `promedio de ${resumen.series} series de precios, todas con el mismo peso`,
                 },
                 {
                   etiqueta: "Subieron",

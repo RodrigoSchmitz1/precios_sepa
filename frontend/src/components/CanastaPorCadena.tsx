@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { cotizarCanastaPorCadena } from "../api/client";
 import { formatearPesos, porcentajeEntero } from "../utils/formato";
 import { nombreCategoria } from "../utils/nombres";
+import { listarConY } from "../utils/texto";
 import type { CanastaPorCadena as Resultado, ItemCanastaIA, LocalidadOpcion } from "../types";
 
 /*
@@ -140,9 +141,14 @@ function CanastaPorCadena({ items, localidades }: Props) {
           <>
             Cada categoría vale lo mismo en todas (su precio mediano{" "}
             {r.ambito === "zona" ? "en las sucursales de tu zona" : "en el país"}), ajustado por cuánto más cara o más
-            barata es cada cadena en los productos idénticos que vende: así se compara precio y no surtido.
+            barata es cada cadena en los productos idénticos que vende: así se compara precio y no surtido. Entre
+            cadenas que difieren en menos de 2%, el orden puede cambiar según qué productos se comparen.
             {r.cadenas.some((c) => (c.con_nivel_general ?? 0) > 0) &&
-              " En las categorías sin productos idénticos entre cadenas va el nivel general de cada una."}{" "}
+              " En las categorías sin productos idénticos entre cadenas va el nivel general de cada una."}
+            {r.cadenas.some((c) => (c.con_precio_propio ?? 0) > 0) &&
+              ` ${listarConY(r.cadenas.filter((c) => (c.con_precio_propio ?? 0) > 0).map((c) => c.cadena))} no ${
+                r.cadenas.filter((c) => (c.con_precio_propio ?? 0) > 0).length === 1 ? "tiene" : "tienen"
+              } productos idénticos para medir su nivel: va su propio precio.`}{" "}
             Se suman las{" "}
           </>
         ) : (

@@ -2,30 +2,66 @@ WITH sucursales_base AS (
     {{ limpiar_sucursales(source("sepa", "sucursales")) }}
 ),
 
--- PROVINCIA MAL CARGADA (2026-10-28). 34 sucursales venian con la provincia de
--- CABA (AR-C) y coordenadas en otra parte: 20 en la ciudad de Cordoba, una en
--- Mendoza, otras en el conurbano y en Chubut. Aparecian como localidades de
--- CABA ("Cordoba, CABA") y la de verdad quedaba partida en dos. Las coordenadas
--- lo delatan: no caen en ningun barrio. Se les asigna la provincia de la
--- sucursal mas cercana de otra provincia, si esta a menos de 50 km; si no hay
--- ninguna, se deja la cargada, porque no hay con que deducirla.
-fuera_de_caba AS (
-    SELECT sb.id_comercio, sb.id_sucursal, ST_GEOGPOINT(sb.longitud, sb.latitud) AS punto
+-- PROVINCIA MAL CARGADA (2026-10-28, generalizado el 2026-10-29). La provincia
+-- que informa la cadena no siempre es la de la sucursal, y las coordenadas lo
+-- delatan:
+--   - 34 venian como CABA (AR-C) y no caen en ningun barrio: 20 en la ciudad
+--     de Cordoba, una en Mendoza, otras en el conurbano y en Chubut.
+--   - 6 de Dia en Jujuy venian con el codigo de San Juan (AR-J), una Maxi de
+--     Jujuy como Salta, y las Maxi de Santa Rosa y de Neuquen como Buenos
+--     Aires: la localidad nombra otra provincia.
+--   - Una de Dia en Palermo traia "Buenos Aires" en vez de un codigo.
+-- Una sospechosa toma la provincia de la sucursal no sospechosa mas cercana,
+-- si esta a menos de 50 km (prefiriendo la provincia que nombra su localidad,
+-- si nombra una); si no hay ninguna, se deja la cargada, porque no hay con que
+-- deducirla. Una que cae dentro de un barrio de CABA es de CABA.
+sospechosas AS (
+    SELECT
+        sb.id_comercio,
+        sb.id_sucursal,
+        ST_GEOGPOINT(sb.longitud, sb.latitud) AS punto,
+        -- La provincia que nombra la localidad, si nombra una distinta de la
+        -- cargada ("JUJUY" en una Dia cargada como San Juan). Manda sobre las
+        -- vecinas: las otras Dia de Jujuy son sospechosas tambien, y la vecina
+        -- limpia mas cercana de una de Perico estaba en Salta.
+        IF(n.provincia != sb.provincia, n.provincia, NULL) AS provincia_nombrada
     FROM sucursales_base AS sb
-    JOIN {{ ref("stg_sucursales_barrio") }} AS b
+    LEFT JOIN {{ ref("stg_sucursales_barrio") }} AS b
         ON sb.id_comercio = b.id_comercio
         AND sb.id_sucursal = b.id_sucursal
-    WHERE b.barrio_calculado IS NULL
+    LEFT JOIN {{ nombres_de_provincia() }} AS n
+        ON n.nombre = REGEXP_REPLACE(NORMALIZE_AND_CASEFOLD(sb.localidad, NFD), r"\p{Mn}", "")
+    WHERE sb.latitud IS NOT NULL
+        AND sb.longitud IS NOT NULL
+        AND b.barrio_calculado IS NULL
+        AND (
+            sb.provincia = "AR-C"
+            OR NOT REGEXP_CONTAINS(sb.provincia, r"^AR-[A-Z]$")
+            OR n.provincia != sb.provincia
+        )
 ),
 
 provincia_corregida AS (
     SELECT
         f.id_comercio,
         f.id_sucursal,
-        ARRAY_AGG(v.provincia ORDER BY ST_DISTANCE(f.punto, ST_GEOGPOINT(v.longitud, v.latitud)) LIMIT 1)[OFFSET(0)] AS provincia
-    FROM fuera_de_caba AS f
+        ARRAY_AGG(
+            STRUCT(v.provincia, v.localidad)
+            -- Primero las de la provincia que nombra la localidad, si hay alguna
+            -- a menos de 50 km; si no, manda la coordenada (la Express de
+            -- Mendoza que dice "Córdoba" no tiene ninguna de Cordoba cerca).
+            ORDER BY IF(v.provincia = f.provincia_nombrada, 0, 1),
+                ST_DISTANCE(f.punto, ST_GEOGPOINT(v.longitud, v.latitud))
+            LIMIT 1
+        )[OFFSET(0)] AS cercana
+    FROM sospechosas AS f
     CROSS JOIN sucursales_base AS v
-    WHERE v.provincia != "AR-C"
+    LEFT JOIN sospechosas AS otra
+        ON v.id_comercio = otra.id_comercio
+        AND v.id_sucursal = otra.id_sucursal
+    WHERE otra.id_sucursal IS NULL
+        AND v.provincia != "AR-C"
+        AND REGEXP_CONTAINS(v.provincia, r"^AR-[A-Z]$")
         AND v.latitud IS NOT NULL
         AND v.longitud IS NOT NULL
         AND ST_DWITHIN(f.punto, ST_GEOGPOINT(v.longitud, v.latitud), 50000)
@@ -48,11 +84,30 @@ con_localidad_cruda AS (
         -- tilde y 360 sucursales de Carrefour quedaban sin barrio, y despues de
         -- arreglarlo quedaban 23 en 11 nombres que no son barrios ("Paternal",
         -- "Once", "Pompeya", "V Illa Lugano", "Cdad. De Bs.As"), cada uno una
-        -- localidad aparte en Tu canasta. Una sucursal de CABA que no cae en
-        -- ningun barrio esta mal cargada: provincia_corregida le busca la suya
-        -- y conserva el nombre de la fuente.
-        IF(sb.provincia = "AR-C", COALESCE(barrio_geo.barrio_calculado, sb.localidad), sb.localidad) AS localidad_cruda,
-        COALESCE(pc.provincia, sb.provincia) AS provincia,
+        -- localidad aparte en Tu canasta.
+        CASE
+            WHEN barrio_geo.barrio_calculado IS NOT NULL THEN barrio_geo.barrio_calculado
+            -- Una sospechosa toma la localidad de la sucursal mas cercana si la
+            -- suya no dice donde esta: un nombre de provincia o un generico
+            -- (2026-10-29). La Express de San Juan 1128, en Mendoza, venia como
+            -- "Córdoba"; Carrefour usa "Córdoba" para Jesus Maria, Alta Gracia
+            -- o Carlos Paz; Dia, "JUJUY" para toda la provincia. Un nombre
+            -- propio ("Laferrere") se conserva: la mas cercana podia ser un
+            -- generico como "BUENOS AIRES". El mismo nombre escrito distinto
+            -- ("San Luis" y "SAN LUIS") tampoco se reemplaza: solo cambiaria la
+            -- grafia que gana en forma_canonica.
+            WHEN pc.cercana IS NOT NULL
+                AND REGEXP_REPLACE(NORMALIZE_AND_CASEFOLD(sb.localidad, NFD), r"\p{Mn}", "")
+                    IN (SELECT nombre FROM {{ nombres_de_provincia() }})
+                AND REGEXP_REPLACE(NORMALIZE_AND_CASEFOLD(sb.localidad, NFD), r"\p{Mn}", "")
+                    != REGEXP_REPLACE(NORMALIZE_AND_CASEFOLD(pc.cercana.localidad, NFD), r"\p{Mn}", "")
+                THEN pc.cercana.localidad
+            ELSE sb.localidad
+        END AS localidad_cruda,
+        CASE
+            WHEN barrio_geo.barrio_calculado IS NOT NULL THEN "AR-C"
+            ELSE COALESCE(pc.cercana.provincia, sb.provincia)
+        END AS provincia,
         sb.codigo_postal,
         sb.latitud,
         sb.longitud

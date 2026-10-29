@@ -27,7 +27,9 @@ sucursales_caba AS (
         latitud,
         longitud
     FROM sucursales_base
-    WHERE provincia = "AR-C"
+    -- Tambien las que traen una provincia que no es un codigo ("Buenos Aires"
+    -- en una Dia de Palermo, 2026-10-29): si caen en un barrio, son de CABA.
+    WHERE (provincia = "AR-C" OR NOT REGEXP_CONTAINS(provincia, r"^AR-[A-Z]$"))
         AND latitud IS NOT NULL
         AND longitud IS NOT NULL
 )

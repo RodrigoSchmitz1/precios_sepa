@@ -8,7 +8,7 @@
 */
 import { describe, expect, it } from "vitest";
 import type { QuienGana } from "../types";
-import { liderEn } from "./liderazgo";
+import { categoriasGanadas, liderEn } from "./liderazgo";
 
 function fila(categoria: string, cadena: string, pct: number): QuienGana {
   return {
@@ -95,3 +95,12 @@ function generador(semilla: number) {
     return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
   };
 }
+
+describe("categoriasGanadas", () => {
+  it("un empate en el tope cuenta para las dos, igual que liderEn", () => {
+    const filas = [fila("Yerba", "Coto", 60), fila("Yerba", "Dia", 60), fila("Arroz", "Dia", 70), fila("Arroz", "Coto", 30)];
+    const ganadas = categoriasGanadas(filas, ["Yerba", "Arroz"]);
+    expect(Object.fromEntries(ganadas)).toEqual({ Coto: 1, Dia: 2 });
+    expect(liderEn(filas, ["Yerba", "Arroz"])).toEqual(["Dia", 2]);
+  });
+});

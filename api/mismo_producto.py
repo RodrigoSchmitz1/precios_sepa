@@ -442,13 +442,18 @@ def ahorro_por_categoria(indice: dict, empresa_de: dict, limite_cadenas: int = 5
     for categoria, valores in ahorros.items():
         if len(valores) < MINIMO_PRODUCTOS_CATEGORIA:
             continue
-        cadena, veces = max(ganadas_por_categoria[categoria].items(), key=lambda e: (e[1], e[0]))
+        # Las empatadas en el tope van todas: elegir una por orden alfabetico
+        # inventaba una diferencia que no existe (auditoria 2026-10-28).
+        por_cadena = ganadas_por_categoria[categoria]
+        veces = max(por_cadena.values())
+        empatadas = sorted(c for c, v in por_cadena.items() if v == veces)
         categorias.append(
             {
                 "categoria": categoria,
                 "productos": len(valores),
                 "ahorro_mediano_pct": round(_mediana(valores) * 100, 1),
-                "cadena_mas_barata": cadena,
+                "cadena_mas_barata": empatadas[0],
+                "cadenas_mas_baratas": empatadas,
                 "pct_mas_barata": round(veces / len(valores) * 100, 1),
             }
         )

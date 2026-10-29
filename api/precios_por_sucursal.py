@@ -182,19 +182,24 @@ def _total_con_niveles(cadena: str, pedidos: list, comunes: list, tabla: dict, e
     mercado. Sin productos identicos en la categoria (la carne fresca: cada
     cadena codifica sus cortes) se usa su nivel general; sin ningun nivel, su
     propio precio, como antes. Devuelve el total y cuantas categorias usaron el
-    nivel general.
+    nivel general y cuantas el precio propio: van separadas porque la pagina
+    dice "va el nivel general" y antes contaba las dos juntas (auditoria
+    2026-10-28).
     """
     total = 0.0
-    con_nivel_general = 0
+    con_nivel_general = con_precio_propio = 0
     for j in comunes:
         referencia = _mediana([tabla[c][j][0] for c in entran])
         nivel = niveles["por_categoria"].get((cadena, pedidos[j]["categoria"]))
         if nivel is None:
             nivel = niveles["general"].get(cadena)
-            con_nivel_general += 1
+            if nivel is None:
+                con_precio_propio += 1
+            else:
+                con_nivel_general += 1
         precio = referencia * nivel if nivel is not None else tabla[cadena][j][0]
         total += precio * pedidos[j]["cantidad"]
-    return round(total, 2), con_nivel_general
+    return round(total, 2), con_nivel_general, con_precio_propio
 
 
 def canasta_por_cadena(indice: dict, items: list, localidades: list | None = None, niveles: dict | None = None) -> dict:
@@ -277,7 +282,9 @@ def canasta_por_cadena(indice: dict, items: list, localidades: list | None = Non
             "sucursales": cuantas[c],
         }
         if niveles:
-            fila["total"], fila["con_nivel_general"] = _total_con_niveles(c, pedidos, comunes, tabla, entran, niveles)
+            fila["total"], fila["con_nivel_general"], fila["con_precio_propio"] = _total_con_niveles(
+                c, pedidos, comunes, tabla, entran, niveles
+            )
         else:
             fila["total"] = round(sum(tabla[c][j][0] * pedidos[j]["cantidad"] for j in comunes), 2)
         filas.append(fila)

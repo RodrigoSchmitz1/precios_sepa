@@ -11,7 +11,7 @@ import {
 } from "../api/client";
 import { fechaEnPalabras, formatearPesos, formatearVariacion, mesEnPalabras, tamanoQueFalta } from "../utils/formato";
 import { ahorroEnCadenas } from "../utils/ahorroCanasta";
-import { liderEn } from "../utils/liderazgo";
+import { categoriasGanadas, liderEn } from "../utils/liderazgo";
 import { nombreCategoria } from "../utils/nombres";
 import { nombreLegible } from "../utils/texto";
 import type { CanastaPorCadena, InflacionResumen, ProductoComparado, ProductoDetalle, QuienGana } from "../types";
@@ -277,27 +277,14 @@ function Presentacion() {
     bajo (ver el comentario del endpoint). Se busca el maximo en vez de confiar
     en el orden que manda la API: si ese ORDER BY cambiara, un grafico que se
     apoya en el orden mentiria en silencio.
-  */
-  const mejorPorCategoria = new Map<string, QuienGana>();
-  for (const fila of datos.quienGana ?? []) {
-    const actual = mejorPorCategoria.get(fila.categoria);
-    if (!actual || fila.pct_gana_cuando_compite > actual.pct_gana_cuando_compite) {
-      mejorPorCategoria.set(fila.categoria, fila);
-    }
-  }
-  const porCadena = new Map<string, number>();
-  for (const fila of mejorPorCategoria.values()) {
-    porCadena.set(fila.cadena, (porCadena.get(fila.cadena) ?? 0) + 1);
-  }
-  const ranking = [...porCadena.entries()].sort((a, b) => b[1] - a[1]);
-  const lideres = ranking.map(([, n]) => n);
-  /*
-    Quien gana, con la misma cuenta que Mas barato (liderEn: un empate cuenta
-    para las dos). Todas las cadenas compiten igual, Maxi incluido (ver
-    CanastaPorCadena).
+
+    El grafico y el lider salen de la misma cuenta que Mas barato
+    (categoriasGanadas: un empate cuenta para las dos). Todas las cadenas
+    compiten igual, Maxi incluido (ver CanastaPorCadena).
   */
   const filasQG = datos.quienGana ?? [];
   const categoriasQG = [...new Set(filasQG.map((f) => f.categoria))];
+  const lideres = [...categoriasGanadas(filasQG, categoriasQG).values()].sort((a, b) => b - a);
   const lider = liderEn(filasQG, categoriasQG);
   const fechaDatos = fechaEnPalabras(datos.ejemplo?.fecha_datos ?? datos.inflacion?.[0]?.fecha_fin ?? "");
 

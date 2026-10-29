@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { obtenerAhorroPorCategoria } from "../api/client";
 import { nombreCadena, nombreCategoria } from "../utils/nombres";
 import { conectorEscalones, escalonesVisibles } from "../utils/reglasDePrecio";
+import { listarConY } from "../utils/texto";
 import type { AhorroPorCategoria, ReglaDePrecio } from "../types";
 
 /*
@@ -131,26 +132,30 @@ function CuantoConvieneComparar() {
           Ahorro típico (la mediana entre sus productos) y la cadena que más veces tiene el precio más bajo.
         </p>
         <ul className="divide-y divide-linea">
-          {categorias.map((c) => (
+          {categorias.map((c) => {
+            // Un empate en el tope nombra a todas (2026-10-29).
+            const masBaratas = listarConY((c.cadenas_mas_baratas ?? [c.cadena_mas_barata]).map(nombreCadena));
+            return (
             <li key={c.categoria} className="flex items-baseline justify-between gap-3 py-1.5 text-sm">
               <span className="text-tinta-media min-w-0">
                 {nombreCategoria(c.categoria)}
                 {/* En el celular, abajo del nombre: el subtitulo la promete y antes se ocultaba. */}
                 <span className="block sm:hidden text-xs text-tinta-suave">
-                  {nombreCadena(c.cadena_mas_barata)} · {pct(c.pct_mas_barata)}
+                  {masBaratas} · {pct(c.pct_mas_barata)}
                 </span>
               </span>
               <span className="flex items-baseline gap-3 shrink-0">
                 <span
                   className="text-xs text-tinta-suave hidden sm:inline"
-                  title={`${nombreCadena(c.cadena_mas_barata)} tiene el precio más bajo en el ${pct(c.pct_mas_barata)} de ${c.productos.toLocaleString("es-AR")} productos`}
+                  title={`${masBaratas} tiene el precio más bajo en el ${pct(c.pct_mas_barata)} de ${c.productos.toLocaleString("es-AR")} productos`}
                 >
-                  {nombreCadena(c.cadena_mas_barata)} · {pct(c.pct_mas_barata)}
+                  {masBaratas} · {pct(c.pct_mas_barata)}
                 </span>
                 <span className="numero font-semibold text-tinta w-14 text-right">{pct(c.ahorro_mediano_pct, 1)}</span>
               </span>
             </li>
-          ))}
+            );
+          })}
         </ul>
         {datos.categorias.length > CATEGORIAS_VISIBLES && (
           <button

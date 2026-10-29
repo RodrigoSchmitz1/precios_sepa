@@ -147,6 +147,12 @@ El error recurrente, en nueve formas distintas:
   fresca: cada cadena codifica sus cortes) va el nivel general de la cadena, y
   la página lo dice. La más barata pasó a ser Maxi, la distancia entre la
   primera y la última bajó de 25% a 14%, y La Anónima de +33% a +13%.
+  La auditoría del 28-10 midió el límite del método: el nivel de cada cadena
+  sale de sus propios productos, no de los mismos que las demás, y comparadas
+  de a pares contra Maxi las cadenas del medio cambian de lugar (Dia pasa de
+  segunda a detrás de Market y Carrefour, por 1,7 puntos). Los extremos sí se
+  sostienen. La página lo dice: entre cadenas que difieren en menos de 2%, el
+  orden no es firme.
 
 ---
 
@@ -302,6 +308,15 @@ mediana exacta (macro `mediana`, que promedia los dos del medio) son 2 de 51 y n
 10.389 productos) y los niveles de Tu canasta en cada cadena no se mueven más de
 0,2%. Las reglas siguen en pie, porque se miden bandera contra hermana sin pasar
 por la referencia: la pista que llevó a ellas estaba sesgada, el hallazgo no.
+
+El resto de las medianas del proyecto se dejaron como están, a propósito. El
+precio de un producto en una cadena (la mediana entre sus sucursales) y los
+precios por categoría de cada sucursal o localidad son precios que se
+muestran, y la mediana de abajo devuelve uno que alguna sucursal cobra de
+verdad: $4.775 y no $4.887,50. Medido sobre El mismo producto, sólo el 0,6% de
+los precios salen de dos sucursales con precios distintos, que es donde la
+diferencia pesa. La mediana exacta va donde el número es una estadística contra
+la que se compara, como el precio típico del mercado.
 
 Las reglas no están escritas a mano: la API las detecta cada día comparando cada
 cadena que suele tener el precio más bajo con sus hermanas de la misma empresa
@@ -538,6 +553,21 @@ dice "Almagro" y la coordenada cae en el barrio de al lado. Una lista de nombres
 nunca iba a cubrir todas las variantes, así que ahora la localidad de una
 sucursal de CABA es el barrio donde cae su coordenada, y el test pide eso
 exactamente. Con el cambio quedan los 48 barrios oficiales.
+
+**No sólo CABA (2026-10-29).** Un test nuevo (`localidad_no_es_otra_provincia`)
+busca localidades que nombran otra provincia y encontró 12 más: seis Dia de
+Jujuy cargadas con el código de San Juan, una Maxi de Jujuy como Salta, las Maxi
+de Santa Rosa y Plaza Huincul como Buenos Aires, una Dia de Palermo con
+"Buenos Aires" escrito en lugar del código, y la Express de Mendoza que decía
+"Córdoba". La corrección por coordenadas pasó a ser general: es sospechosa una
+sucursal de "CABA" fuera de todo barrio, una sin código de provincia válido o
+una cuya localidad nombra otra provincia, y toma la provincia de la sucursal
+limpia más cercana a menos de 50 km (prefiriendo la provincia que nombra, si
+hay alguna cerca; si no, manda la coordenada). Si su localidad es un nombre de
+provincia o un genérico ("Córdoba", "JUJUY", "CAPITAL FEDERAL"), toma también
+la de la vecina: Carrefour usaba "Córdoba" para Jesús María, Alta Gracia o
+Carlos Paz. Un nombre propio, aunque no aparezca en ningún otro lado
+("Laferrere"), se conserva. Quedaron 19 sucursales corregidas y el test en 0.
 
 ---
 

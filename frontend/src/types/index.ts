@@ -128,6 +128,9 @@ export type AhorroPorCategoria = {
     productos: number;
     ahorro_mediano_pct: number;
     cadena_mas_barata: string;
+    /** Todas las empatadas en el tope (2026-10-29); opcional mientras la API
+     *  desplegada sea anterior. */
+    cadenas_mas_baratas?: string[];
     pct_mas_barata: number;
   }[];
   mas_baratas: { cadena: string; productos: number; pct: number }[];
@@ -342,7 +345,16 @@ export type CanastaPorCadena = {
   metodo?: "productos_identicos" | "mediana_de_la_gama";
   /** "zona" si se usaron solo las sucursales de las localidades elegidas. */
   ambito: "zona" | "pais";
-  cadenas: { cadena: string; total: number; con_otra_gama: number; sucursales: number; con_nivel_general?: number }[];
+  cadenas: {
+    cadena: string;
+    total: number;
+    con_otra_gama: number;
+    sucursales: number;
+    /** Categorias valuadas con el nivel general de la cadena. */
+    con_nivel_general?: number;
+    /** Categorias sin ningun nivel: van con el precio propio de la cadena. */
+    con_precio_propio?: number;
+  }[];
   /** Las categorias que venden todas las cadenas comparadas: sobre ellas se suma. */
   categorias_comparadas: string[];
   categorias_afuera: string[];

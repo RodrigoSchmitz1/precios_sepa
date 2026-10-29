@@ -42,6 +42,13 @@ class TestAhorro(unittest.TestCase):
         self.assertEqual(r["categorias"][0]["ahorro_mediano_pct"], 10.0)
         self.assertEqual(r["categorias"][0]["cadena_mas_barata"], "Coto")
 
+    def test_un_empate_en_la_cadena_mas_barata_nombra_a_las_dos(self):
+        # Auditoria 2026-10-28: el empate se resolvia por orden alfabetico y la
+        # fila mostraba una sola cadena.
+        filas = [producto(i, {"Coto": 90, "Dia": 90, "Carrefour": 110}, 100) for i in range(MINIMO_PRODUCTOS_CATEGORIA)]
+        r = ahorro_por_categoria(indice(*filas), EMPRESA_DE)
+        self.assertEqual(r["categorias"][0]["cadenas_mas_baratas"], ["Coto", "Dia"])
+
     def test_la_mediana_no_el_extremo(self):
         # Un producto con 60% de ahorro (un error de carga, probablemente) no mueve
         # la cifra de la categoria.

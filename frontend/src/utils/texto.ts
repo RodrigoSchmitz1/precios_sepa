@@ -5,6 +5,11 @@
   Martín", "Panales"), y nadie tipea los acentos igual que la fuente. Estaba
   duplicada en cada buscador; vive aca para que todos busquen igual.
 */
+/** "a", "a y b", "a, b y c". */
+export function listarConY(partes: string[]): string {
+  return partes.length < 2 ? partes.join("") : `${partes.slice(0, -1).join(", ")} y ${partes[partes.length - 1]}`;
+}
+
 export function normalizar(texto: string): string {
   return texto.normalize("NFD").replace(/\p{Mn}/gu, "").toLowerCase();
 }

@@ -6,9 +6,18 @@
 import { afterEach, describe, expect, it } from "vitest";
 import { guardarLista, leerLista, MAXIMO_PRODUCTOS, MAXIMO_UNIDADES } from "./lista";
 import { conNombresDeCadena, nombreCategoria } from "./nombres";
-import { nombreLegible, normalizar } from "./texto";
+import { listarConY, nombreLegible, normalizar } from "./texto";
 
 afterEach(() => window.localStorage.clear());
+
+describe("listarConY", () => {
+  it("une con comas y una y final", () => {
+    expect(listarConY([])).toBe("");
+    expect(listarConY(["Coto"])).toBe("Coto");
+    expect(listarConY(["Coto", "Dia"])).toBe("Coto y Dia");
+    expect(listarConY(["Coto", "Dia", "Vea"])).toBe("Coto, Dia y Vea");
+  });
+});
 
 describe("normalizar", () => {
   it("busca igual con o sin tildes y enies", () => {

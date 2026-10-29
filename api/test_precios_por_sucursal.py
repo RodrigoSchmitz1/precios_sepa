@@ -230,3 +230,14 @@ class TestCanastaPorCadenaProductosIdenticos(unittest.TestCase):
         r = self.calcular(self.indice, self.items, niveles=niveles)
         jumbo = next(c for c in r["cadenas"] if c["cadena"] == "Jumbo")
         self.assertAlmostEqual(jumbo["total"], (7.0 + 2.2 + 0.5) * 1000)
+
+    def test_el_precio_propio_no_se_cuenta_como_nivel_general(self):
+        # Auditoria 2026-10-28: sin ningun nivel, la categoria se contaba como
+        # "con nivel general" aunque se valuara con el precio propio, y el texto
+        # de la pagina decia que iba el nivel general de cada una.
+        niveles = {"por_categoria": {}, "general": {"Maxi": 0.9, "Dia": 1.0}}
+        r = self.calcular(self.indice, self.items, niveles=niveles)
+        jumbo = next(c for c in r["cadenas"] if c["cadena"] == "Jumbo")
+        dia = next(c for c in r["cadenas"] if c["cadena"] == "Dia")
+        self.assertEqual((jumbo["con_nivel_general"], jumbo["con_precio_propio"]), (0, 3))
+        self.assertEqual((dia["con_nivel_general"], dia["con_precio_propio"]), (3, 0))
