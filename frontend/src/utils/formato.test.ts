@@ -12,6 +12,7 @@ import {
   formatearTamano,
   formatearVariacion,
   mesEnPalabras,
+  porcentajeEntero,
   precioPorUnidad,
   tamanoQueFalta,
 } from "./formato";
@@ -43,6 +44,17 @@ describe("formatearVariacion", () => {
   it("el redondeo que no llega a cero conserva el signo", () => {
     expect(formatearVariacion(0.005)).toBe("+0,01%");
     expect(formatearVariacion(-0.006)).toBe("−0,01%");
+  });
+});
+
+describe("porcentajeEntero", () => {
+  it("redondea al entero", () => {
+    expect(porcentajeEntero(0.137)).toBe("14%");
+    expect(porcentajeEntero(0)).toBe("0%");
+  });
+
+  it("no dice 0% de un ahorro que no es cero", () => {
+    expect(porcentajeEntero(0.004)).toBe("menos de 1%");
   });
 });
 

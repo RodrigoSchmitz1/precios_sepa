@@ -58,6 +58,13 @@ export function formatearVariacion(valor: number, decimales = 2): string {
   return `${valor > 0 ? "+" : "−"}${texto}%`;
 }
 
+/** Un ahorro en porcentaje entero, sin decir "0%" de algo que no es cero
+ *  (auditoria 2026-10-28: "ahorrás $350 (0%)"). `fraccion` va de 0 a 1. */
+export function porcentajeEntero(fraccion: number): string {
+  const entero = Math.round(fraccion * 100);
+  return entero === 0 && fraccion > 0 ? "menos de 1%" : `${entero}%`;
+}
+
 /*
   Precio por unidad, llevado a la unidad en la que la gente piensa.
 

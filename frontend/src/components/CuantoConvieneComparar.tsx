@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { obtenerAhorroPorCategoria } from "../api/client";
 import { nombreCadena, nombreCategoria } from "../utils/nombres";
+import { conectorEscalones, escalonesVisibles } from "../utils/reglasDePrecio";
 import type { AhorroPorCategoria, ReglaDePrecio } from "../types";
 
 /*
@@ -32,15 +33,17 @@ function listarConO(partes: string[]): string {
 }
 
 function TextoRegla({ r }: { r: ReglaDePrecio }) {
-  const escalones = r.escalones.filter((e) => e.pct_productos >= 1);
+  const escalones = escalonesVisibles(r);
+  const conector = conectorEscalones(r);
+  // Los tres con un decimal: con decimales distintos podian no sumar 100.
   return (
     <p className="text-sm text-tinta-media leading-relaxed">
       <strong className="text-tinta">{nombreCadena(r.cadena)}</strong> cobra lo mismo que {nombreCadena(r.referencia)}{" "}
-      en el {pct(r.pct_igual)} de los {r.productos.toLocaleString("es-AR")} productos que venden las dos, y menos en
-      el {pct(r.pct_mas_barata)}
-      {escalones.length > 0 && (
+      en el {pct(r.pct_igual, 1)} de los {r.productos.toLocaleString("es-AR")} productos que venden las dos, y menos en
+      el {pct(r.pct_mas_barata, 1)}
+      {conector && (
         <>
-          : casi siempre{" "}
+          : {conector}{" "}
           {listarConO(escalones.map((e) => `un ${e.descuento_pct}% menos (${pct(e.pct_productos)} de los productos)`))}
         </>
       )}
@@ -90,7 +93,7 @@ function CuantoConvieneComparar() {
           <h3 className="text-sm font-semibold text-tinta mb-3">Quién tiene el precio más bajo</h3>
           <ul className="space-y-2">
             {datos.mas_baratas.map((c) => (
-              <li key={c.cadena} title={`${c.cadena}: el precio más bajo en ${c.productos.toLocaleString("es-AR")} productos`}>
+              <li key={c.cadena} title={`${nombreCadena(c.cadena)}: el precio más bajo en ${c.productos.toLocaleString("es-AR")} productos`}>
                 <div className="flex items-baseline justify-between gap-3 text-sm">
                   <span className="text-tinta-media truncate">{nombreCadena(c.cadena)}</span>
                   <span className="numero text-tinta shrink-0">{pct(c.pct)}</span>
@@ -130,11 +133,17 @@ function CuantoConvieneComparar() {
         <ul className="divide-y divide-linea">
           {categorias.map((c) => (
             <li key={c.categoria} className="flex items-baseline justify-between gap-3 py-1.5 text-sm">
-              <span className="text-tinta-media truncate">{nombreCategoria(c.categoria)}</span>
+              <span className="text-tinta-media min-w-0">
+                {nombreCategoria(c.categoria)}
+                {/* En el celular, abajo del nombre: el subtitulo la promete y antes se ocultaba. */}
+                <span className="block sm:hidden text-xs text-tinta-suave">
+                  {nombreCadena(c.cadena_mas_barata)} · {pct(c.pct_mas_barata)}
+                </span>
+              </span>
               <span className="flex items-baseline gap-3 shrink-0">
                 <span
                   className="text-xs text-tinta-suave hidden sm:inline"
-                  title={`${nombreCadena(c.cadena_mas_barata)} tiene el precio más bajo en el ${pct(c.pct_mas_barata)} de ${c.productos} productos`}
+                  title={`${nombreCadena(c.cadena_mas_barata)} tiene el precio más bajo en el ${pct(c.pct_mas_barata)} de ${c.productos.toLocaleString("es-AR")} productos`}
                 >
                   {nombreCadena(c.cadena_mas_barata)} · {pct(c.pct_mas_barata)}
                 </span>
@@ -147,7 +156,8 @@ function CuantoConvieneComparar() {
           <button
             type="button"
             onClick={() => setTodas(!todas)}
-            className="mt-2 text-sm text-marca font-medium hover:text-marca-hover"
+            aria-expanded={todas}
+            className="mt-2 py-1.5 text-sm text-marca font-medium hover:text-marca-hover"
           >
             {todas ? "Ver menos" : `Ver las ${datos.categorias.length} categorías`}
           </button>

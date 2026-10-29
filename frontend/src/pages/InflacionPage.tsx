@@ -227,7 +227,7 @@ function InflacionPage() {
                 {
                   etiqueta: "Mayor movimiento",
                   valor: formatearVariacion(masExtrema.variacion_pct),
-                  detalle: masExtrema.categoria,
+                  detalle: nombreCategoria(masExtrema.categoria),
                 },
               ]}
             />

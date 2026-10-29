@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { cotizarCanastaPorCadena } from "../api/client";
-import { formatearPesos } from "../utils/formato";
+import { formatearPesos, porcentajeEntero } from "../utils/formato";
 import { nombreCategoria } from "../utils/nombres";
 import type { CanastaPorCadena as Resultado, ItemCanastaIA, LocalidadOpcion } from "../types";
 
@@ -82,14 +82,15 @@ function CanastaPorCadena({ items, localidades }: Props) {
       </div>
 
       <p className="text-lg sm:text-xl text-tinta leading-snug mb-1">
-        En <strong className="font-bold">{barato.cadena}</strong> te sale{" "}
+        {/* Con productos identicos el total es una estimacion (referencia por nivel), no una suma de precios. */}
+        En <strong className="font-bold">{barato.cadena}</strong> te sale{r.metodo === "productos_identicos" ? " unos" : ""}{" "}
         <strong className="font-bold numero">{formatearPesos(barato.total)}</strong>
         {ahorro > 0 && (
           <>
             {" "}
             y en {caro.cadena} {formatearPesos(caro.total)}:{" "}
             <span className="text-ahorro font-extrabold numero">
-              ahorrás {formatearPesos(ahorro)} ({Math.round((ahorro / caro.total) * 100)}%)
+              ahorrás {formatearPesos(ahorro)} ({porcentajeEntero(ahorro / caro.total)})
             </span>
           </>
         )}
@@ -123,9 +124,14 @@ function CanastaPorCadena({ items, localidades }: Props) {
       {r.cadenas.length > VISIBLES && (
         <button
           onClick={() => setVerTodas((v) => !v)}
-          className="mt-3 text-xs text-tinta-media underline underline-offset-2 hover:text-tinta"
+          aria-expanded={verTodas}
+          className="mt-3 py-1.5 text-xs text-tinta-media underline underline-offset-2 hover:text-tinta"
         >
-          {verTodas ? "Ver menos" : `Ver las ${r.cadenas.length - VISIBLES} restantes`}
+          {verTodas
+            ? "Ver menos"
+            : r.cadenas.length - VISIBLES === 1
+              ? "Ver la restante"
+              : `Ver las ${r.cadenas.length - VISIBLES} restantes`}
         </button>
       )}
 
@@ -136,7 +142,7 @@ function CanastaPorCadena({ items, localidades }: Props) {
             {r.ambito === "zona" ? "en las sucursales de tu zona" : "en el país"}), ajustado por cuánto más cara o más
             barata es cada cadena en los productos idénticos que vende: así se compara precio y no surtido.
             {r.cadenas.some((c) => (c.con_nivel_general ?? 0) > 0) &&
-              " Donde no hay productos idénticos entre cadenas, como en la carne fresca, va el nivel general de cada una."}{" "}
+              " En las categorías sin productos idénticos entre cadenas va el nivel general de cada una."}{" "}
             Se suman las{" "}
           </>
         ) : (

@@ -27,8 +27,10 @@ function CascadaCanasta({ datos, esElUltimo }: { datos: IncidenciaCanasta; esElU
 
   // Las que mas mueven, en cualquier sentido; el resto se suma en una fila.
   const ordenadas = [...datos.categorias].sort((a, b) => Math.abs(b.incidencia_pp) - Math.abs(a.incidencia_pp));
-  const principales = ordenadas.slice(0, MOSTRADAS).sort((a, b) => b.incidencia_pp - a.incidencia_pp);
-  const resto = ordenadas.slice(MOSTRADAS);
+  // Una sola de mas se muestra con su nombre: "Otras 1" no dice nada.
+  const corte = ordenadas.length === MOSTRADAS + 1 ? ordenadas.length : MOSTRADAS;
+  const principales = ordenadas.slice(0, corte).sort((a, b) => b.incidencia_pp - a.incidencia_pp);
+  const resto = ordenadas.slice(corte);
 
   const filas: Fila[] = [];
   let acumulado = 0;
@@ -57,8 +59,11 @@ function CascadaCanasta({ datos, esElUltimo }: { datos: IncidenciaCanasta; esElU
   const maximo = Math.max(0, ...filas.map((f) => Math.max(f.desde, f.hasta)), total);
   const rango = maximo - minimo || 1;
   const x = (v: number) => ((v - minimo) / rango) * 100;
-  const puntos = (v: number) =>
-    `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  const puntos = (v: number) => {
+    // Se redondea antes de elegir el signo: -0,004 se mostraba "−0,00".
+    const r = Math.round(v * 100) / 100;
+    return `${r > 0 ? "+" : r < 0 ? "−" : ""}${Math.abs(r).toLocaleString("es-AR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
 
   const textos = textosCascada(datos, esElUltimo);
 
@@ -77,9 +82,13 @@ function CascadaCanasta({ datos, esElUltimo }: { datos: IncidenciaCanasta; esElU
         {filas.map((f) => {
           const sube = f.incidencia >= 0;
           return (
-            <li key={f.nombre} title={`${f.nombre}: ${puntos(f.incidencia)} puntos (${f.detalle})`}>
+            <li key={f.nombre}>
               <div className="flex items-baseline justify-between gap-3 text-sm">
-                <span className="text-tinta-media truncate">{f.nombre}</span>
+                <span className="text-tinta-media min-w-0">
+                  {f.nombre}
+                  {/* Visible y no en un title: en el celular el title no se ve (auditoria 2026-10-28). */}
+                  <span className="block text-[11px] text-tinta-suave leading-snug">{f.detalle}</span>
+                </span>
                 <span className="numero text-tinta shrink-0">{puntos(f.incidencia)} pp</span>
               </div>
               <div className="relative h-2 bg-papel-hundido rounded-full mt-0.5">
