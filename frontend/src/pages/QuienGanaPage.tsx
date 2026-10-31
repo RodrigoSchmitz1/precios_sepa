@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { obtenerQuienGana } from "../api/client";
 import Titular, { Resaltado } from "../components/Titular";
 import FilaDeCifras from "../components/FilaDeCifras";
@@ -27,6 +27,15 @@ type Estado = { filas?: QuienGana[]; error?: string };
 function QuienGanaPage() {
   const [estado, setEstado] = useState<Estado | null>(null);
   const [categoriaElegida, setCategoriaElegida] = useState("");
+  const detalleRef = useRef<HTMLDivElement>(null);
+
+  // En el celular el detalle queda abajo de la lista: tocar una categoria sin
+  // llevar hasta ahi parecia no hacer nada (2026-10-31).
+  useEffect(() => {
+    if (categoriaElegida && window.matchMedia("(max-width: 639px)").matches) {
+      detalleRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [categoriaElegida]);
 
   useEffect(() => {
     let cancelado = false;
@@ -132,7 +141,7 @@ function QuienGanaPage() {
           {detalle.length === 0 ? (
             <p className="text-sm text-tinta-suave">Tocá una categoría del mapa para ver cadena por cadena.</p>
           ) : (
-            <div>
+            <div ref={detalleRef} className="scroll-mt-24">
               <div className="flex items-baseline justify-between gap-3 pb-2 border-b border-linea-fuerte">
                 <h2 className="text-base font-bold text-tinta">
                   {nombreCategoria(categoriaElegida)}: de lo que ofrece, en cuánto tiene el precio más bajo
@@ -162,7 +171,7 @@ function QuienGanaPage() {
                         <span
                           className={`numero text-sm font-semibold ${i === 0 ? "text-ahorro" : "text-tinta"}`}
                         >
-                          {r.pct_gana_cuando_compite}%
+                          {r.pct_gana_cuando_compite.toLocaleString("es-AR", { maximumFractionDigits: 1 })}%
                         </span>
                       </span>
                     </div>
@@ -183,8 +192,7 @@ function QuienGanaPage() {
 
           <p className="text-xs text-tinta-suave mt-5 leading-relaxed">
             Un producto puede empatar en varias cadenas, y cada una mide sobre su propio surtido, así que los
-            porcentajes no suman 100. Solo entran cadenas con al menos 20 productos comparables en la categoría; las
-            demás quedan como celda vacía en el mapa.
+            porcentajes no suman 100. Solo entran cadenas con al menos 20 productos comparables en la categoría; las demás no se miden.
           </p>
         </>
       )}

@@ -25,6 +25,18 @@ export function categoriasGanadas(filas: QuienGana[], categorias: string[]): Map
   return liderazgos;
 }
 
+/** Quien tiene el mejor porcentaje en cada categoria, con las empatadas. Es la
+ *  version del mapa del mercado que entra en un celular. */
+export function liderPorCategoria(filas: QuienGana[], categorias: string[]) {
+  return categorias.flatMap((categoria) => {
+    const deLaCategoria = filas.filter((f) => f.categoria === categoria);
+    if (deLaCategoria.length === 0) return [];
+    const pct = Math.max(...deLaCategoria.map((f) => f.pct_gana_cuando_compite));
+    const cadenas = deLaCategoria.filter((f) => f.pct_gana_cuando_compite === pct).map((f) => f.cadena);
+    return [{ categoria, cadenas, pct }];
+  });
+}
+
 /** La cadena mas barata en mas categorias, y en cuantas. */
 export function liderEn(filas: QuienGana[], categorias: string[]): [string, number] | undefined {
   return [...categoriasGanadas(filas, categorias).entries()].sort((a, b) => b[1] - a[1])[0];

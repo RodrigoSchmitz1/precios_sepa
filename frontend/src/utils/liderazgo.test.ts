@@ -8,7 +8,7 @@
 */
 import { describe, expect, it } from "vitest";
 import type { QuienGana } from "../types";
-import { categoriasGanadas, liderEn } from "./liderazgo";
+import { categoriasGanadas, liderEn, liderPorCategoria } from "./liderazgo";
 
 function fila(categoria: string, cadena: string, pct: number): QuienGana {
   return {
@@ -102,5 +102,15 @@ describe("categoriasGanadas", () => {
     const ganadas = categoriasGanadas(filas, ["Yerba", "Arroz"]);
     expect(Object.fromEntries(ganadas)).toEqual({ Coto: 1, Dia: 2 });
     expect(liderEn(filas, ["Yerba", "Arroz"])).toEqual(["Dia", 2]);
+  });
+});
+
+describe("liderPorCategoria", () => {
+  it("devuelve la mejor de cada categoria, con las empatadas, y salta las vacias", () => {
+    const filas = [fila("Yerba", "Coto", 60), fila("Yerba", "Dia", 60), fila("Arroz", "Dia", 70), fila("Arroz", "Coto", 30)];
+    expect(liderPorCategoria(filas, ["Arroz", "Sal", "Yerba"])).toEqual([
+      { categoria: "Arroz", cadenas: ["Dia"], pct: 70 },
+      { categoria: "Yerba", cadenas: ["Coto", "Dia"], pct: 60 },
+    ]);
   });
 });

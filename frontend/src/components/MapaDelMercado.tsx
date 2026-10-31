@@ -1,5 +1,8 @@
+import { useState } from "react";
 import type { QuienGana } from "../types";
-import { nombreCategoria } from "../utils/nombres";
+import { categoriasGanadas, liderPorCategoria } from "../utils/liderazgo";
+import { nombreCadena, nombreCategoria } from "../utils/nombres";
+import { listarConY } from "../utils/texto";
 
 /*
   Mapa del mercado: una grilla de categorias x cadenas, cada celda pintada segun
@@ -30,6 +33,15 @@ import { nombreCategoria } from "../utils/nombres";
   de 20px y rotulos de 14 y 13px, con la columna de categorias mas ancha para
   que dejen de cortarse.
 */
+/*
+  2026-10-31: en el celular va una lista. Catorce columnas no entran en 414 px:
+  se veian 4 cadenas, la columna de nombres ocupaba el 70% del ancho y en un
+  iPhone la hoja parecia rota. Achicar la grilla no lo arregla, porque el dato
+  deja de leerse; la pregunta que contesta en esa pantalla es quien gana en cada
+  categoria, y eso entra en una fila. Tocarla abre el detalle, como en la grilla.
+*/
+const FILAS_EN_CELULAR = 12;
+
 const PASOS = ["bg-escala-1", "bg-escala-2", "bg-escala-3", "bg-escala-4", "bg-escala-5"];
 
 type Props = {
@@ -39,21 +51,15 @@ type Props = {
 };
 
 function MapaDelMercado({ filas, categoriaElegida, onElegir }: Props) {
+  const [todas, setTodas] = useState(false);
   if (filas.length === 0) return null;
 
   const categorias = [...new Set(filas.map((f) => f.categoria))].sort((a, b) => a.localeCompare(b, "es"));
 
-  // Lider de cada categoria, para ordenar las cadenas por liderazgos.
-  const liderazgos = new Map<string, number>();
-  for (const categoria of categorias) {
-    const deLaCategoria = filas.filter((f) => f.categoria === categoria);
-    const maximo = Math.max(...deLaCategoria.map((f) => f.pct_gana_cuando_compite));
-    for (const fila of deLaCategoria) {
-      if (fila.pct_gana_cuando_compite === maximo) {
-        liderazgos.set(fila.cadena, (liderazgos.get(fila.cadena) ?? 0) + 1);
-      }
-    }
-  }
+  // Las cadenas se ordenan por en cuantas categorias lideran.
+  const liderazgos = categoriasGanadas(filas, categorias);
+  const lideres = liderPorCategoria(filas, categorias);
+  const visibles = todas ? lideres : lideres.slice(0, FILAS_EN_CELULAR);
 
   const cadenas = [...new Set(filas.map((f) => f.cadena))].sort(
     (a, b) => (liderazgos.get(b) ?? 0) - (liderazgos.get(a) ?? 0) || a.localeCompare(b, "es")
@@ -69,7 +75,10 @@ function MapaDelMercado({ filas, categoriaElegida, onElegir }: Props) {
         <h2 className="text-base font-bold text-tinta">
           El mapa del mercado
         </h2>
-        <span className="flex items-center gap-1.5 text-[11px] text-tinta-suave">
+        <p className="sm:hidden text-xs text-tinta-suave w-full">
+          La cadena que más seguido tiene el precio más bajo en cada categoría. Tocá una para ver todas.
+        </p>
+        <span className="hidden sm:flex items-center gap-1.5 text-[11px] text-tinta-suave">
           <span className="numero">0%</span>
           {PASOS.map((clase) => (
             <span key={clase} className={`w-4 h-2.5 rounded-[2px] ${clase}`} aria-hidden="true" />
@@ -80,13 +89,43 @@ function MapaDelMercado({ filas, categoriaElegida, onElegir }: Props) {
         </span>
       </figcaption>
 
-      {/* En pantallas angostas la grilla scrollea sola, con la columna de
-          categorias fija: partirla en dos lineas la volveria ilegible. */}
-      <div className="overflow-x-auto -mx-5 px-5 sm:mx-0 sm:px-0">
+      <div className="sm:hidden">
+        <ul className="divide-y divide-linea">
+          {visibles.map((l) => (
+            <li key={l.categoria}>
+              <button
+                onClick={() => onElegir(l.categoria)}
+                aria-pressed={l.categoria === categoriaElegida}
+                className="w-full flex items-center justify-between gap-3 py-2.5 text-left"
+              >
+                <span className="min-w-0">
+                  <span className="block text-sm font-semibold text-tinta">{nombreCategoria(l.categoria)}</span>
+                  <span className="block text-xs text-tinta-suave">{listarConY(l.cadenas.map(nombreCadena))}</span>
+                </span>
+                <span className="numero text-sm font-semibold text-tinta shrink-0">{Math.round(l.pct)}%</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+        {lideres.length > FILAS_EN_CELULAR && (
+          <button
+            type="button"
+            onClick={() => setTodas(!todas)}
+            aria-expanded={todas}
+            className="mt-1 py-2 text-sm text-marca font-medium"
+          >
+            {todas ? "Ver menos" : `Ver las ${lideres.length} categorías`}
+          </button>
+        )}
+      </div>
+
+      {/* La grilla scrollea sola si hace falta, con la columna de categorias
+          fija: partirla en dos lineas la volveria ilegible. */}
+      <div className="hidden sm:block overflow-x-auto">
         <table className="border-separate border-spacing-[2px] text-left">
           <thead>
             <tr>
-              <th scope="col" className="sticky left-0 z-10 bg-lienzo w-40 sm:w-52" />
+              <th scope="col" className="sticky left-0 z-10 bg-papel w-52" />
               {cadenas.map((cadena) => (
                 <th
                   key={cadena}
@@ -97,7 +136,7 @@ function MapaDelMercado({ filas, categoriaElegida, onElegir }: Props) {
                   {/* Vertical y de abajo hacia arriba: 14 nombres de cadena en
                       horizontal no entran, y abreviarlos los volvia adivinanzas
                       ("Carrefour." podia ser Express o Maxi). */}
-                  <span className="[writing-mode:vertical-rl] rotate-180 whitespace-nowrap text-[13px] font-medium text-tinta-media pb-2">
+                  <span className="inline-block [writing-mode:vertical-rl] rotate-180 whitespace-nowrap text-[13px] font-medium text-tinta-media pb-2">
                     {cadena}
                   </span>
                 </th>
@@ -112,7 +151,7 @@ function MapaDelMercado({ filas, categoriaElegida, onElegir }: Props) {
                   {/* leading-none en la celda, no solo en el boton: la caja de linea del
                       th usaba el interlineado heredado y estiraba cada fila de 14 a 24px,
                       lo que convertia la grilla en una lista. */}
-                  <th scope="row" className="sticky left-0 z-10 bg-lienzo pr-3 font-normal leading-none">
+                  <th scope="row" className="sticky left-0 z-10 bg-papel pr-3 font-normal leading-none">
                     <button
                       onClick={() => onElegir(categoria)}
                       className={[

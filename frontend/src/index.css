@@ -151,6 +151,32 @@ body {
   overflow-x: clip;
 }
 
+/*
+  Un hijo de grid no se achica por debajo de su contenido, y un texto con
+  truncate mide lo que mide en una sola linea. La lista de promos (una grid sin
+  columnas declaradas) media 840 px en un iPhone de 414 por la leyenda de una
+  promo, y el precio quedaba afuera sin poder deslizar, por el overflow-x: clip
+  de arriba (2026-10-31). Va para todas las grids, no solo para esa: es el
+  mismo error esperando en cada una.
+*/
+.grid > *,
+.inline-grid > * {
+  min-width: 0;
+}
+
+/*
+  iOS hace zoom al tocar un campo con letra de menos de 16 px, y la pagina queda
+  agrandada y corrida hasta que se la achica a mano (2026-10-31). Fuera de capa,
+  para ganarle a las utilidades text-sm de cada campo.
+*/
+@media (max-width: 639px) {
+  input,
+  select,
+  textarea {
+    font-size: 16px;
+  }
+}
+
 body {
   margin: 0;
   background-color: var(--color-lienzo);

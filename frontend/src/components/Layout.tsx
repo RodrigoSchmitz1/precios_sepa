@@ -11,7 +11,7 @@ const SECCIONES = [
 function Layout() {
   return (
     <div className="min-h-screen bg-lienzo">
-      <header className="sticky top-0 z-20 bg-papel/90 backdrop-blur shadow-[0_1px_0_var(--color-linea)]">
+      <header className="sticky top-0 z-20 bg-papel shadow-[0_1px_0_var(--color-linea)]">
         {/*
           El logo va pegado al borde izquierdo y no alineado con la columna de
           texto: un logo centrado en el contenedor del contenido se lee como un
@@ -82,7 +82,7 @@ function Layout() {
       */}
       <nav
         aria-label="Secciones"
-        className="sm:hidden fixed bottom-0 inset-x-0 z-[1200] bg-papel/95 backdrop-blur shadow-[0_-4px_20px_rgb(20_20_80/0.08)] pb-[env(safe-area-inset-bottom)]"
+        className="sm:hidden fixed bottom-0 inset-x-0 z-[1200] bg-papel shadow-[0_-4px_20px_rgb(20_20_80/0.08)] pb-[env(safe-area-inset-bottom)]"
       >
         <ul className="grid grid-cols-5">
           {SECCIONES.map((seccion) => (
