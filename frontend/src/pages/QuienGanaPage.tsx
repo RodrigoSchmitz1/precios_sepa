@@ -5,6 +5,7 @@ import { rotuloZona, zonaAParametro } from "../utils/zona";
 import Titular, { Resaltado } from "../components/Titular";
 import FilaDeCifras from "../components/FilaDeCifras";
 import MapaDelMercado from "../components/MapaDelMercado";
+import AvisoCadenasDeOtroDia from "../components/AvisoCadenasDeOtroDia";
 import { formatearNumero } from "../utils/formato";
 import { liderEn } from "../utils/liderazgo";
 import type { QuienGana } from "../types";
@@ -121,6 +122,7 @@ function QuienGanaPage() {
           "Qué cadena tiene el precio más bajo en cada categoría"
         )}
       </Titular>
+      <AvisoCadenasDeOtroDia className="mb-6" />
 
       {zona && !zonaComparable && (
         <p className="mb-6 text-sm text-tinta-media">

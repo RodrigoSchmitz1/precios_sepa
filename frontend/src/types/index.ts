@@ -263,6 +263,10 @@ export type PrecioEnCadena = {
    *  mediana entre empresas y ninguna otra cadena lo confirma. Se muestra
    *  igual, marcado, pero no cuenta para la brecha del producto. */
   precio_creible: boolean;
+  /** De que dia es el precio. Distinto de fecha_datos solo en una cadena que
+   *  SEPA no publico en el ultimo dia y se muestra con su precio mas reciente.
+   *  Opcional: una API anterior no lo manda. */
+  fecha_precio?: string;
 };
 
 export type ProductoDetalle = ProductoComparado & {

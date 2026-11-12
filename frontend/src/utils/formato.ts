@@ -37,6 +37,16 @@ export function fechaEnPalabras(iso: string | null | undefined): string {
   return `${dia} de ${MESES[mes - 1]}`;
 }
 
+/** "2026-11-10" -> "10/11". Se parsea a mano por la misma razon que
+ *  fechaEnPalabras. Vacio si no es fecha. */
+export function fechaCorta(iso: string | null | undefined): string {
+  const partes = (iso ?? "").split("-");
+  const mes = Number(partes[1]);
+  const dia = Number(partes[2]);
+  if (!Number.isInteger(dia) || dia < 1 || dia > 31 || !MESES[mes - 1]) return "";
+  return `${dia}/${mes}`;
+}
+
 /** "2026-10-01" (o cualquier dia del mes) -> "octubre". Vacio si no es fecha. */
 export function mesEnPalabras(iso: string | null | undefined): string {
   return MESES[Number((iso ?? "").split("-")[1]) - 1] ?? "";

@@ -72,6 +72,12 @@ models:
     columns:
       - name: fecha_datos
         tests: [not_null]
+      - name: fecha_precio
+        description: >
+          De que dia sale el precio. Es fecha_datos salvo en una cadena que
+          falto en el ultimo dia, que usa su precio mas reciente dentro de
+          dias_maximos_arrastre (ver arrastre_dentro_del_tope).
+        tests: [not_null]
       - name: descripcion
         tests: [not_null]
       - name: cadena

@@ -38,11 +38,29 @@
 -- Lee int_precio_producto_cadena y no stg_productos: el escaneo grande ya lo
 -- pago ese modelo, que comparte con mart_quien_gana.
 
+--
+-- UNA CADENA QUE FALTA EN EL ULTIMO DIA (2026-11-12)
+-- Algunos dias el ZIP de SEPA llega sin una empresa: el 2026-11-11 no trajo a
+-- Cencosud, y Jumbo, Disco y Vea desaparecieron de la seccion. Sin ellas los
+-- comparables bajaron 9%, y en uno de cada cuatro la mas cara era de Cencosud:
+-- la brecha se achicaba por la cadena ausente, no por el mercado. Paso 3 veces
+-- en 66 dias.
+--
+-- Si una cadena no tiene filas en el ultimo dia, se toman sus precios de la
+-- fecha mas reciente dentro de dias_maximos_arrastre. fecha_datos sigue siendo
+-- el ultimo dia en todas las filas; fecha_precio dice de que dia sale cada
+-- precio, y el sitio lo avisa. Se hace aca y no en int_precio_producto_cadena
+-- porque esa tabla alimenta a mart_quien_gana y a los historicos, que guardan
+-- lo que SEPA publico y no una estimacion.
+--
+-- El filtro va entre literales, asi que BigQuery poda particiones: lee hasta
+-- 1 + dias_maximos_arrastre dias de la tabla intermedia, decenas de MB.
+
 {% set fecha = ultima_fecha(ref("int_precio_producto_cadena")) %}
 
-WITH precios AS (
+WITH recientes AS (
     SELECT
-        fecha_datos,
+        fecha_datos AS fecha_precio,
         id_producto,
         cadena,
         empresa,
@@ -53,7 +71,24 @@ WITH precios AS (
         cantidad_normalizada,
         unidad_normalizada
     FROM {{ ref("int_precio_producto_cadena") }}
-    WHERE fecha_datos = DATE('{{ fecha }}')
+    WHERE fecha_datos BETWEEN DATE_SUB(DATE('{{ fecha }}'), INTERVAL {{ var("dias_maximos_arrastre") }} DAY)
+        AND DATE('{{ fecha }}')
+),
+
+-- La fecha mas reciente de cada cadena: el ultimo dia si vino, o la anterior
+-- mas cercana si falto.
+fecha_por_cadena AS (
+    SELECT cadena, MAX(fecha_precio) AS fecha_precio
+    FROM recientes
+    GROUP BY cadena
+),
+
+precios AS (
+    SELECT
+        DATE('{{ fecha }}') AS fecha_datos,
+        r.*
+    FROM recientes AS r
+    JOIN fecha_por_cadena AS f USING (cadena, fecha_precio)
 ),
 
 -- Un precio por empresa antes de sacar la referencia. Sin este paso, una
@@ -270,6 +305,9 @@ nombre_producto AS (
 
 SELECT
     ev.fecha_datos,
+    -- Igual a fecha_datos salvo en una cadena que falto en el ultimo dia (ver
+    -- arriba): ahi es la fecha de la que sale su precio.
+    ev.fecha_precio,
     ev.id_producto,
     COALESCE(np.descripcion, cat.descripcion) AS descripcion,
     COALESCE(np.marca, cat.marca) AS marca,

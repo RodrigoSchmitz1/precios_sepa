@@ -173,6 +173,10 @@ def armar_indice(filas) -> dict:
                 # verificado, pero no cuenta para la brecha (el mart ya lo dejo
                 # afuera de los extremos).
                 "precio_creible": fila.get("precio_creible", True),
+                # De que dia es el precio: el ultimo, salvo una cadena que falto
+                # y se arrastro (ver cadenas_de_otro_dia). .get porque el mart
+                # puede no traer la columna hasta la corrida siguiente al deploy.
+                "fecha_precio": str(fila.get("fecha_precio") or fila["fecha_datos"]),
             }
         )
 
@@ -180,6 +184,33 @@ def armar_indice(filas) -> dict:
         producto["precios"].sort(key=lambda p: (p["precio_mediano"], p["cadena"]))
         producto["extremos_respaldados"] = _extremos_respaldados(producto)
     return productos
+
+
+def cadenas_de_otro_dia(indice: dict) -> dict:
+    """Las cadenas que se muestran con precios de otro dia, y de cual.
+
+    Algunos dias el ZIP de SEPA llega sin una empresa (Cencosud el 2026-11-11).
+    El mart usa entonces el precio mas reciente de sus cadenas, dentro de
+    dias_maximos_arrastre, y lo marca con fecha_precio. Esta lista es lo que el
+    sitio avisa. Vacia en un dia completo.
+    """
+    fecha_datos = None
+    fechas: dict = {}
+    for producto in indice.values():
+        fecha_datos = fecha_datos or producto["fecha_datos"]
+        for p in producto["precios"]:
+            if p["fecha_precio"] != producto["fecha_datos"]:
+                fechas[p["cadena"]] = p["fecha_precio"]
+    return {
+        "fecha_datos": fecha_datos,
+        "cadenas": [{"cadena": c, "fecha_precio": f} for c, f in sorted(fechas.items())],
+    }
+
+
+def cadenas_con_precio(indice: dict) -> set:
+    """Todas las cadenas con al menos un precio en el indice, incluidas las
+    arrastradas de otro dia."""
+    return {p["cadena"] for producto in indice.values() for p in producto["precios"]}
 
 
 def _resumen(producto: dict) -> dict:

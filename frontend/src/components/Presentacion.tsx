@@ -16,6 +16,7 @@ import { rotuloZona } from "../utils/zona";
 import { categoriasGanadas, liderEn } from "../utils/liderazgo";
 import { nombreCategoria } from "../utils/nombres";
 import { nombreLegible } from "../utils/texto";
+import AvisoCadenasDeOtroDia from "./AvisoCadenasDeOtroDia";
 import type { CanastaPorCadena, InflacionResumen, ProductoComparado, ProductoDetalle, QuienGana } from "../types";
 
 /*
@@ -437,6 +438,9 @@ function Presentacion() {
           Estas cifras son de todo el país. Las promos de abajo y Mismo producto ya usan tu zona ({rotuloZona(zona)}).
         </p>
       )}
+      {/* Las cifras de arriba usan los precios de Mismo producto y Mas barato. */}
+      <AvisoCadenasDeOtroDia className="mt-4" />
+
 
       <nav aria-labelledby="titulo-herramientas" className="mt-10">
         <h2 id="titulo-herramientas" className="font-display text-2xl text-tinta mb-4">

@@ -354,11 +354,63 @@ avisar:
   error. Ahora la ingesta abre y cierra la retención del crudo y de sus copias
   juntas; las fechas afectadas se recalcularon con la misma variable de dbt que
   las correcciones de método.
+- El ZIP que SEPA publicó para el 11 de noviembre **no traía a Cencosud**. La
+  ingesta lo anotó como un comercio más que no vino y siguió, porque que falte
+  uno es normal (hay un número de comercio que no viene nunca). Jumbo, Disco y
+  Vea, con unos 10.000 productos cada una el día anterior, desaparecieron de El
+  mismo producto, Más barato y los históricos de ese día: 11 cadenas en lugar
+  de 14, sin aviso. Al revisar los históricos (66 fechas, del 7 de septiembre al
+  11 de noviembre) apareció que **ya había pasado dos veces**: Cooperativa
+  Obrera el 29 de septiembre y Dia el 8 de noviembre, las dos por la misma
+  causa. Son 3 días de 66, dos de ellos en la misma semana. Ese 11 de
+  noviembre, sin Cencosud, los productos comparables bajaron un 9% y en uno de
+  cada cuatro la cadena más cara era de Cencosud, así que las brechas
+  publicadas se achicaron por la cadena que faltaba y no por el mercado.
 
-Los tres casos tienen ahora un test que falla si vuelven a aparecer. El último,
-además, cambió la ingesta: abre la retención de particiones antes de un
-backfill, la vuelve a cerrar cuando ya no hace falta, y verifica que lo que
-cargó siga existiendo en vez de darlo por hecho.
+Los casos tienen ahora un test que falla si vuelven a aparecer. El de la
+ingesta detenida, además, cambió la ingesta: abre la retención de particiones
+antes de un backfill, la vuelve a cerrar cuando ya no hace falta, y verifica que
+lo que cargó siga existiendo en vez de darlo por hecho. El de la cadena que
+falta (`cadenas_del_ultimo_dia_completas`) compara el último día contra el
+anterior y no contra una lista fija de cadenas: falla si una que tenía más de
+1.000 productos falta o llega con menos de la mitad. En las 66 fechas ninguna
+cadena perdió más de la mitad sin desaparecer del todo, así que el corte no da
+falsas alarmas. Es `error` y no `warn` porque un aviso que no manda el mail no
+lo ve nadie.
+
+Ese día el sitio **usa el precio del día anterior para la cadena que falta, y
+lo avisa**: qué cadenas y de qué fecha son sus precios. Se eligió sobre sólo
+avisar, porque la brecha publicada seguiría achicándose por la cadena que falta
+y no por el mercado. También sobre no publicar el día, que tiraría los precios
+nuevos de las otras cadenas. El arrastre se sostiene en una medición: de un día
+al siguiente cambia de precio el 1% de los pares producto × cadena (1,2% en
+Cencosud). Tiene dos límites. Dura como máximo dos días, porque más atrás el
+precio deja de ser el de hoy. Y no se escribe en los históricos, que guardan lo
+que SEPA publicó y no una estimación.
+
+Cómo quedó:
+- **El arrastre vive en `mart_mismo_producto`, no en la tabla intermedia.**
+  `int_precio_producto_cadena` alimenta a `mart_quien_gana` y, por él, a
+  `historico_quien_gana`: completarla ahí habría escrito precios arrastrados
+  en la historia. Cada fila del mart lleva `fecha_precio`. El tope es la
+  variable `dias_maximos_arrastre`, que también lee el test
+  `arrastre_dentro_del_tope`. Tiene que ser menor que los 3 días que retiene la
+  tabla intermedia: más atrás no hay de dónde sacar el precio. Leer 3 días en
+  vez de 1 suma 37 MB por corrida (de 841 a 878 MB en el dry run).
+- **Más barato nacional se calcula desde el índice de Mismo producto.** Antes
+  leía `mart_quien_gana`, que no tiene la cadena arrastrada, así que Más barato
+  y Mismo producto habrían contado cadenas distintas el mismo día. Usa la misma
+  función que la vista de la zona. En un día completo da los mismos ganadores y
+  conteos que el mart en las 66 categorías. Los porcentajes difieren a lo sumo
+  en una décima, porque BigQuery y Python redondean distinto los ,x5. El sitio
+  hace además dos consultas menos.
+- **Un producto que el último día vende sólo la cadena arrastrada toma el
+  nombre de `stg_categorias`.** El mart lee los nombres del crudo de la última
+  fecha, y leer tres fechas para eso triplicaría su parte más cara. Son
+  productos que no llegan a la comparación: hace falta otra cadena con precio.
+- Con el dato real del 11 de noviembre, el mart nuevo devuelve 30.889 precios
+  arrastrados de Jumbo, Disco y Vea. En 11.098 de ellos, la cadena arrastrada es
+  la más cara del producto: son brechas que el sitio había publicado achicadas.
 
 ---
 
@@ -614,8 +666,8 @@ detecta mirando el resultado agregado: que Carne vacuna y Pollo no mezclen otras
 carnes, que la canasta económica no salga más cara que la gama media, que la
 gama esté ordenada por precio por unidad, que el mapeo de unidades siga
 cubriendo el catálogo, que la categorización no se degrade a "Otros", que los
-históricos hayan capturado la última fecha, y que el crudo no se haya quedado
-atrás respecto del calendario.
+históricos hayan capturado la última fecha, que ninguna cadena grande falte en
+el último día, y que el crudo no se haya quedado atrás respecto del calendario.
 
 Ese último se compara contra `CURRENT_DATE` y no contra otra tabla, a propósito:
 un pipeline no puede notar su propio atraso midiéndose contra sí mismo.

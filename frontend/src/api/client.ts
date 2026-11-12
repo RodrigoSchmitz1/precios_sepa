@@ -22,6 +22,7 @@ import type {
   ResultadoOptimizacion,
 } from "../types";
 import { conNombresDeCadena } from "../utils/nombres";
+import type { CadenasDeOtroDia } from "../utils/cadenasDeOtroDia";
 
 /*
   En desarrollo apunta al uvicorn local; en produccion se define VITE_API_URL al
@@ -143,6 +144,14 @@ export async function obtenerQuienGana(categoria: string): Promise<QuienGana[]> 
   if (categoria) params.set("categoria", categoria);
   const respuesta = await fetch(`${API_BASE}/quien-gana?${params.toString()}`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer quién gana");
+  return leerJson(respuesta);
+}
+
+/** Las cadenas que hoy se muestran con precios de otro dia (SEPA no las
+ *  publico en el ultimo). Vacia en un dia completo. */
+export async function obtenerCadenasDeOtroDia(): Promise<CadenasDeOtroDia> {
+  const respuesta = await fetch(`${API_BASE}/datos/cadenas-de-otro-dia`);
+  if (!respuesta.ok) await fallar(respuesta, "Error al traer las cadenas de otro día");
   return leerJson(respuesta);
 }
 

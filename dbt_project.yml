@@ -96,6 +96,14 @@ vars:
   # reales (Changomas vs Carrefour a $1.590/$1.695, Vea vs Jumbo, La Anonima vs
   # Maxi). Se queda en 10: lo mas estricto que alcanza para esos casos.
   mismo_producto_tolerancia_coincidencia: 0.10
+  # Si una cadena falta en el ultimo dia (el ZIP de SEPA llego sin su empresa),
+  # El mismo producto usa sus precios de la fecha mas reciente dentro de estos
+  # dias, con fecha_precio a la vista. Medido el 2026-11-12: de un dia al otro
+  # cambia de precio el 1% de los pares producto x cadena. Con mas dias el precio
+  # de "hoy" deja de serlo. Tiene que ser menor que la retencion de
+  # int_precio_producto_cadena (3 dias): mas atras no hay filas de donde sacarlo.
+  # Los historicos no arrastran nada. Ver docs/DECISIONES.md.
+  dias_maximos_arrastre: 2
 
   # Minimo de productos para que una sucursal tenga precio en una combinacion
   # categoria x gama x unidad (mart_precio_categoria_sucursal). Es mas bajo que

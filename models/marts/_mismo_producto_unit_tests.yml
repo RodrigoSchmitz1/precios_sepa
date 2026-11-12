@@ -161,3 +161,34 @@ unit_tests:
         - {cadena: Dia, precio_referencia: 2100}
         - {cadena: Maxi (Carrefour), precio_referencia: 2100}
         - {cadena: Vea, precio_referencia: 2100}
+
+  - name: mismo_producto_cadena_que_falta_usa_su_precio_mas_reciente
+    description: >
+      Como el 2026-11-11, cuando el ZIP de SEPA llego sin Cencosud. Jumbo falta
+      el ultimo dia y usa su precio del dia anterior (no el de hace dos dias),
+      con fecha_precio a la vista. Coto vino el ultimo dia y no se duplica con
+      su fila del anterior. Dia tuvo precio por ultima vez hace 3 dias, fuera
+      de dias_maximos_arrastre, y no aparece.
+    model: mart_mismo_producto
+    overrides:
+      macros:
+        ultima_fecha: "2026-11-11"
+    given:
+      - input: ref('int_precio_producto_cadena')
+        rows:
+          - {fecha_datos: "2026-11-11", id_producto: "8", cadena: Coto, empresa: "12", precio_mediano: 1000, precio_minimo: 1000, precio_maximo: 1000, sucursales: 60, cantidad_normalizada: 1000, unidad_normalizada: g}
+          - {fecha_datos: "2026-11-10", id_producto: "8", cadena: Coto, empresa: "12", precio_mediano: 990, precio_minimo: 990, precio_maximo: 990, sucursales: 60, cantidad_normalizada: 1000, unidad_normalizada: g}
+          - {fecha_datos: "2026-11-11", id_producto: "8", cadena: Carrefour, empresa: "10", precio_mediano: 1010, precio_minimo: 1010, precio_maximo: 1010, sucursales: 100, cantidad_normalizada: 1000, unidad_normalizada: g}
+          - {fecha_datos: "2026-11-10", id_producto: "8", cadena: Jumbo, empresa: "9", precio_mediano: 1100, precio_minimo: 1100, precio_maximo: 1100, sucursales: 20, cantidad_normalizada: 1000, unidad_normalizada: g}
+          - {fecha_datos: "2026-11-09", id_producto: "8", cadena: Jumbo, empresa: "9", precio_mediano: 1050, precio_minimo: 1050, precio_maximo: 1050, sucursales: 20, cantidad_normalizada: 1000, unidad_normalizada: g}
+          - {fecha_datos: "2026-11-08", id_producto: "8", cadena: Dia, empresa: "15", precio_mediano: 900, precio_minimo: 900, precio_maximo: 900, sucursales: 900, cantidad_normalizada: 1000, unidad_normalizada: g}
+      - input: ref('stg_categorias')
+        rows:
+          - {id_producto: "8", descripcion: YERBA MATE 1KG, marca: PLAYADITO, categoria: Yerba mate, rubro: Almacen}
+      - input: source('sepa', 'productos')
+        rows: []
+    expect:
+      rows:
+        - {cadena: Carrefour, fecha_datos: "2026-11-11", fecha_precio: "2026-11-11", precio_mediano: 1010, precio_mas_alto: 1100}
+        - {cadena: Coto, fecha_datos: "2026-11-11", fecha_precio: "2026-11-11", precio_mediano: 1000, precio_mas_alto: 1100}
+        - {cadena: Jumbo, fecha_datos: "2026-11-11", fecha_precio: "2026-11-10", precio_mediano: 1100, precio_mas_alto: 1100}

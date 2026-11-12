@@ -14,6 +14,8 @@ import { useZona } from "../contexto/zona";
 import { partirPorZona, resumirZona } from "../utils/precioEnZona";
 import { cadenasVisibles, rotuloZona, type Zona } from "../utils/zona";
 import { guardarLista, leerLista, MAXIMO_PRODUCTOS } from "../utils/lista";
+import { etiquetaFechaPrecio } from "../utils/cadenasDeOtroDia";
+import AvisoCadenasDeOtroDia from "../components/AvisoCadenasDeOtroDia";
 import type { ItemLista, PrecioEnCadena, ProductoComparado, ProductoDetalle } from "../types";
 
 /*
@@ -165,7 +167,7 @@ function EjemploComparacion({ p, onVer }: { p: ProductoDetalle; onVer: (id: stri
 }
 
 /** Las filas de precios de un grupo de cadenas. */
-function FilasDePrecios({ precios }: { precios: PrecioEnCadena[] }) {
+function FilasDePrecios({ precios, fechaDatos }: { precios: PrecioEnCadena[]; fechaDatos?: string }) {
   return (
       <ul className="tarjeta divide-y divide-linea">
       {precios.map((x) => (
@@ -189,6 +191,14 @@ function FilasDePrecios({ precios }: { precios: PrecioEnCadena[] }) {
               {!x.precio_creible && (
                 <span className="text-aviso">
                   <span className="sm:hidden"> · </span>fuera de la comparación
+                </span>
+              )}
+              {/* SEPA no publico esta cadena en el ultimo dia: el precio es el
+                  mas reciente que tiene (ver AvisoCadenasDeOtroDia). */}
+              {etiquetaFechaPrecio(x.fecha_precio, fechaDatos) && (
+                <span className="text-aviso">
+                  <span className={x.precio_creible ? "sm:hidden" : ""}> · </span>
+                  {etiquetaFechaPrecio(x.fecha_precio, fechaDatos)}
                 </span>
               )}
             </span>
@@ -227,11 +237,11 @@ function ListaDePrecios({ p, zona }: { p: ProductoDetalle; zona?: Zona | null })
       {zona && enZona.length > 0 && (
         <>
           <h3 className="text-sm font-bold text-tinta mb-2">En tu zona · {zona.nombre}</h3>
-          <FilasDePrecios precios={enZona} />
+          <FilasDePrecios precios={enZona} fechaDatos={p.fecha_datos} />
           {resto.length > 0 && <h3 className="text-sm font-bold text-tinta mt-5 mb-2">Otras cadenas del país</h3>}
         </>
       )}
-      {resto.length > 0 && <FilasDePrecios precios={resto} />}
+      {resto.length > 0 && <FilasDePrecios precios={resto} fechaDatos={p.fecha_datos} />}
       {/* Fija, con o sin zona: no hay precio por sucursal de un producto exacto. */}
       <p className="text-xs text-tinta-suave mt-2 leading-relaxed">
         Cada precio es el de la cadena en todo el país: la mediana entre sus sucursales.
@@ -411,6 +421,7 @@ function VistaProducto({
           </>
         )}
       </Titular>
+      <AvisoCadenasDeOtroDia className="mb-6" />
 
       {zona && <ResumenDeZona p={p} zona={zona} />}
 
@@ -621,6 +632,7 @@ function MismoProductoPage() {
           onAgregar={agregar}
         />
       ) : (
+        <>
         <Titular
           antetitulo="El mismo producto"
           bajada="Mismo código de barras, misma presentación: la única diferencia es dónde lo comprás. Buscá un producto y mirá cuánto cuesta en cada cadena, o armá tu lista con lo que comprás siempre y fijate dónde te conviene la compra entera."
@@ -634,6 +646,8 @@ function MismoProductoPage() {
             "El mismo producto, otro precio"
           )}
         </Titular>
+        <AvisoCadenasDeOtroDia className="mb-6" />
+        </>
       )}
 
       <section className="mb-10" aria-label="Buscar un producto">

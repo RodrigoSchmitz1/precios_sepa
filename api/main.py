@@ -465,7 +465,7 @@ def obtener_quien_gana_zona(
     desconocido es un error de quien llama y no una zona sin datos.
     """
     indice = _indice_mismo_producto()
-    conocidas = {p["cadena"] for producto in indice.values() for p in producto["precios"]}
+    conocidas = mismo_producto.cadenas_con_precio(indice)
     # Una cadena con sucursales puede no tener precios el ultimo dia: el
     # 2026-11-11 faltaron Vea, Disco y Jumbo, y la zona de Palermo daba 422. Se
     # compite con las que tienen; es un error solo si no queda ninguna.
@@ -474,52 +474,51 @@ def obtener_quien_gana_zona(
     return mismo_producto.quien_gana_entre(indice, set(cadenas))
 
 
+def _quien_gana_nacional():
+    """Quien gana en cada categoria entre todas las cadenas con precio.
+
+    Hasta el 2026-11-12 consultaba mart_quien_gana. Se calcula desde el indice
+    de El mismo producto, con la misma regla que la vista de la zona, porque ese
+    indice incluye a una cadena que falto en el ultimo dia con su precio mas
+    reciente (ver mismo_producto.cadenas_de_otro_dia). mart_quien_gana no puede
+    arrastrarlo: alimenta a historico_quien_gana, que guarda lo que SEPA
+    publico. En un dia completo los dos dan lo mismo (test_quien_gana_nacional).
+
+    Ordenado por pct_gana_cuando_compite, no por pct_victorias: esta ultima
+    divide por todos los comparables de la categoria y no por los que la cadena
+    ofrece, asi que premia el surtido amplio antes que el precio bajo.
+    """
+    indice = _indice_mismo_producto()
+    # Recorre ~47 mil productos: se recalcula solo cuando cambia el indice.
+    guardado = _quien_gana_nacional_guardado.get("valor")
+    if guardado and guardado[0] is indice:
+        return guardado[1]
+    filas = mismo_producto.quien_gana_entre(indice, mismo_producto.cadenas_con_precio(indice))
+    _quien_gana_nacional_guardado["valor"] = (indice, filas)
+    return filas
+
+
+_quien_gana_nacional_guardado: dict = {}
+
+
 @api.get("/quien-gana")
-@cachear
 def obtener_quien_gana(
     categoria: Optional[str] = Query(None, description="Filtrar por categoria exacta"),
 ):
-    tabla = f"{PROYECTO}.dbt_precios.mart_quien_gana"
-    condiciones = [solo_ultima_fecha(tabla)]
-    parametros = []
-
-    if categoria:
-        condiciones.append("categoria = @categoria")
-        parametros.append(bigquery.ScalarQueryParameter("categoria", "STRING", categoria))
-
-    where = f"WHERE {' AND '.join(condiciones)}"
-
-    # Se ordena por pct_gana_cuando_compite, no por pct_victorias: esta ultima
-    # divide por todos los comparables de la categoria y no por los que la
-    # cadena ofrece, asi que premia el surtido amplio antes que el precio bajo.
-    # Con la tasa correcta el lider cambia en 22 de 58 categorias.
-    query = f"""
-        SELECT
-            categoria, rubro, cadena,
-            productos_ganados, productos_ofrecidos, total_productos_categoria,
-            pct_gana_cuando_compite, pct_victorias
-        FROM `{tabla}`
-        {where}
-        ORDER BY categoria, pct_gana_cuando_compite DESC
-    """
-
-    job_config = bigquery.QueryJobConfig(query_parameters=parametros) if parametros else None
-    resultados = cliente_bq.query(query, job_config=job_config).result()
-    return [dict(fila) for fila in resultados]
+    filas = _quien_gana_nacional()
+    return [f for f in filas if f["categoria"] == categoria] if categoria else filas
 
 
 @api.get("/quien-gana/categorias")
-@cachear
 def obtener_categorias_disponibles():
-    tabla = f"{PROYECTO}.dbt_precios.mart_quien_gana"
-    query = f"""
-        SELECT DISTINCT categoria
-        FROM `{tabla}`
-        WHERE {solo_ultima_fecha(tabla)}
-        ORDER BY categoria
-    """
-    resultados = cliente_bq.query(query).result()
-    return [fila["categoria"] for fila in resultados]
+    return sorted({f["categoria"] for f in _quien_gana_nacional()})
+
+
+@api.get("/datos/cadenas-de-otro-dia")
+def obtener_cadenas_de_otro_dia():
+    """Las cadenas que hoy se muestran con precios de otro dia (SEPA no las
+    publico en el ultimo dia), para el aviso del sitio. Vacia en un dia completo."""
+    return mismo_producto.cadenas_de_otro_dia(_indice_mismo_producto())
 
 
 # /canasta y /canasta/detalle se retiraron el 2026-10-08 junto con la seccion
