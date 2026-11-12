@@ -129,6 +129,8 @@ def armar_indice(filas) -> dict:
                 "descripcion": fila["descripcion"],
                 "marca": fila["marca"],
                 "categoria": fila["categoria"],
+                # .get: el rubro se suma para Mas barato por zona (2026-11).
+                "rubro": fila.get("rubro"),
                 "cadenas": fila["cadenas"],
                 "empresas": fila["empresas"],
                 "precio_mas_bajo": fila["precio_mas_bajo"],
@@ -353,6 +355,69 @@ def cotizar_lista(indice: dict, items: list[dict]) -> dict:
 # ---------------------------------------------------------------------------
 
 MINIMO_PRODUCTOS_CATEGORIA = 20
+# El mismo umbral que mart_quien_gana: una cadena con menos productos ofrecidos
+# en la categoria no se mide.
+MINIMO_OFRECIDOS_QUIEN_GANA = 20
+
+
+def quien_gana_entre(indice: dict, cadenas: set) -> list[dict]:
+    """Quien tiene el precio mas bajo en cada categoria, compitiendo solo entre
+    `cadenas` (las de la zona del usuario).
+
+    Filtrar las filas de mart_quien_gana a esas cadenas daria un numero
+    enganoso: cada porcentaje del mart se calculo contra todas las cadenas del
+    pais, asi que una cadena de Palermo "perdia" contra Maxi aunque Maxi no
+    este en Palermo. Aca se recalcula producto por producto con las reglas del
+    mart: comparables los productos que venden al menos 2 de las cadenas, sin
+    la categoria "Otros", un empate cuenta para todas las empatadas, y solo
+    entran las cadenas con al menos MINIMO_OFRECIDOS_QUIEN_GANA productos
+    ofrecidos que ganaron alguno. Como el mart, no filtra por precio creible.
+    Devuelve filas con las mismas columnas que /quien-gana.
+
+    Medido el 2026-11-12 contra produccion, sin cuota: con todas las cadenas da
+    el mismo ganador que mart_quien_gana en las 66 categorias, con los mismos
+    porcentajes y la misma cantidad de comparables. Si alguna vez difieren, la
+    regla cambio de un lado y no del otro.
+    """
+    ofrecidos: dict = {}
+    ganados: dict = {}
+    totales: dict = {}
+    rubros: dict = {}
+    for producto in indice.values():
+        categoria = producto.get("categoria")
+        if not categoria or categoria == "Otros":
+            continue
+        precios = {p["cadena"]: p["precio_mediano"] for p in producto["precios"] if p["cadena"] in cadenas and p["precio_mediano"]}
+        if len(precios) < 2:
+            continue
+        totales[categoria] = totales.get(categoria, 0) + 1
+        rubros.setdefault(categoria, producto.get("rubro"))
+        minimo = min(precios.values())
+        for cadena, precio in precios.items():
+            ofrecidos[(categoria, cadena)] = ofrecidos.get((categoria, cadena), 0) + 1
+            if precio == minimo:
+                ganados[(categoria, cadena)] = ganados.get((categoria, cadena), 0) + 1
+
+    filas = []
+    for (categoria, cadena), victorias in ganados.items():
+        ofrece = ofrecidos[(categoria, cadena)]
+        if ofrece < MINIMO_OFRECIDOS_QUIEN_GANA:
+            continue
+        total = totales[categoria]
+        filas.append(
+            {
+                "categoria": categoria,
+                "rubro": rubros[categoria],
+                "cadena": cadena,
+                "productos_ganados": victorias,
+                "productos_ofrecidos": ofrece,
+                "total_productos_categoria": total,
+                "pct_victorias": round(victorias / total * 100, 1),
+                "pct_gana_cuando_compite": round(victorias / ofrece * 100, 1),
+            }
+        )
+    filas.sort(key=lambda f: (f["categoria"], -f["pct_gana_cuando_compite"], f["cadena"]))
+    return filas
 # Para medir la regla entre dos banderas hermanas hacen falta productos en comun.
 MINIMO_PRODUCTOS_REGLA = 100
 # Una bandera "tiene regla" si es mas barata que su hermana en la mayoria de

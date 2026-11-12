@@ -1,4 +1,7 @@
 import { Outlet, NavLink } from "react-router";
+import AvisoZona from "./AvisoZona";
+import ProveedorZona from "./ProveedorZona";
+import SelectorZona from "./SelectorZona";
 
 const SECCIONES = [
   { ruta: "/", nombre: "Promos", corto: "Promos", icono: "🔥" },
@@ -10,6 +13,7 @@ const SECCIONES = [
 
 function Layout() {
   return (
+    <ProveedorZona>
     <div className="min-h-screen bg-lienzo">
       <header className="sticky top-0 z-20 bg-papel shadow-[0_1px_0_var(--color-linea)]">
         {/*
@@ -17,7 +21,8 @@ function Layout() {
           texto: un logo centrado en el contenedor del contenido se lee como un
           titulo mas de la pagina. La nav mantiene su propio ancho a la derecha.
         */}
-        <div className="px-5 sm:px-7 h-16 sm:h-[4.5rem] flex items-center justify-between gap-6">
+        <div className="px-5 sm:px-7 h-16 sm:h-[4.5rem] flex items-center justify-between gap-3 sm:gap-6">
+          <div className="flex items-center gap-3 min-w-0">
           <NavLink to="/" className="flex items-center gap-2.5 shrink-0" aria-label="Changuito, inicio">
             {/*
               El chango, dibujado y no una imagen: son cuatro trazos, pesa cero y
@@ -38,6 +43,9 @@ function Layout() {
             </span>
             <span className="font-display text-xl sm:text-2xl leading-none text-tinta">Changuito</span>
           </NavLink>
+          {/* La zona del usuario, en todas las paginas (zona compartida, 2026-11). */}
+          <SelectorZona />
+          </div>
 
           {/*
             La nav scrollea en horizontal en pantallas chicas en vez de cortarse
@@ -70,6 +78,7 @@ function Layout() {
       </header>
 
       <main className="py-10 px-5">
+        <AvisoZona />
         <Outlet />
       </main>
 
@@ -133,6 +142,7 @@ function Layout() {
         </div>
       </footer>
     </div>
+    </ProveedorZona>
   );
 }
 

@@ -70,9 +70,12 @@ export function nombreCadena(cadena: string): string {
 /**
  * Devuelve la respuesta de la API con los nombres de cadena ya escritos como
  * se muestran. Va en un solo lugar (api/client.ts) y no en cada pantalla: las
- * cadenas se dibujan en mas de veinte puntos y en frases armadas con listas,
- * y el frontend nunca le devuelve un nombre de cadena a la API, asi que no hay
- * clave que cuidar de este lado.
+ * cadenas se dibujan en mas de veinte puntos y en frases armadas con listas.
+ *
+ * Solo convierte la clave "cadena". Las listas "cadenas" de /zonas quedan con
+ * los nombres de la API a proposito (2026-11): son las que se le devuelven a
+ * /quien-gana/zona. Para compararlas con lo que se muestra, ver
+ * cadenasVisibles en utils/zona.ts.
  */
 export function conNombresDeCadena<T>(datos: T): T {
   if (Array.isArray(datos)) {

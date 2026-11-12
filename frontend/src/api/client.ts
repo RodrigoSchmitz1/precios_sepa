@@ -1,3 +1,4 @@
+import type { Zona } from "../utils/zona";
 import type {
   Promo,
   PromoMapa,
@@ -114,6 +115,26 @@ export async function obtenerPromosMapa(filtros: FiltrosMapa): Promise<Respuesta
 export async function obtenerLugares(): Promise<LugarMapa[]> {
   const respuesta = await fetch(`${API_BASE}/promos/lugares`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer las localidades");
+  return leerJson(respuesta);
+}
+
+/*
+  Los lugares que se pueden elegir como zona, con sus cadenas (zona compartida,
+  2026-11). Una sola vez, como los lugares del mapa.
+*/
+export async function obtenerZonas(): Promise<Zona[]> {
+  const respuesta = await fetch(`${API_BASE}/zonas`);
+  if (!respuesta.ok) await fallar(respuesta, "Error al traer las zonas");
+  return leerJson(respuesta);
+}
+
+/** Quien gana en cada categoria contando solo las cadenas de la zona. Van los
+ *  nombres crudos de la API (Zona.cadenas), no los que se muestran. */
+export async function obtenerQuienGanaZona(cadenas: string[]): Promise<QuienGana[]> {
+  const params = new URLSearchParams();
+  for (const cadena of cadenas) params.append("cadenas", cadena);
+  const respuesta = await fetch(`${API_BASE}/quien-gana/zona?${params.toString()}`);
+  if (!respuesta.ok) await fallar(respuesta, "Error al traer quién gana en tu zona");
   return leerJson(respuesta);
 }
 

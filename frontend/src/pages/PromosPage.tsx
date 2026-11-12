@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from "react";
 import MapaPromos from "../components/MapaPromos";
 import type { BoundingBox, Destino } from "../components/MapaPromos";
 import PromoCard from "../components/PromoCard";
+import { useZona } from "../contexto/zona";
+import type { Zona } from "../utils/zona";
 import Presentacion from "../components/Presentacion";
 import Filtros from "../components/Filtros";
 import BuscadorProducto from "../components/BuscadorProducto";
@@ -40,6 +42,19 @@ function PromosPage() {
   const [bbox, setBbox] = useState<BoundingBox | null>(null);
   const [lugares, setLugares] = useState<LugarMapa[]>([]);
   const [destino, setDestino] = useState<Destino | null>(null);
+
+  /*
+    Con zona, el mapa arranca en ella (zona compartida, 2026-11), y vuelve a
+    ella si el usuario la cambia desde el encabezado. Mover el mapa o buscar
+    otro lugar aca cambia lo que se ve, no la zona. Se ajusta durante el render
+    y no en un efecto, como recomienda React para estado que sigue a otro.
+  */
+  const { zona } = useZona();
+  const [zonaVista, setZonaVista] = useState<Zona | null>(null);
+  if (zona && zona !== zonaVista) {
+    setZonaVista(zona);
+    setDestino({ latitud: zona.latitud, longitud: zona.longitud, zoom: 14 });
+  }
 
   // Si falla, el buscador de lugares queda sin sugerencias y el resto de la
   // pagina sigue andando: no vale la pena un cartel de error por esto.

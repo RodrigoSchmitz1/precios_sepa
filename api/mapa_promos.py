@@ -217,8 +217,20 @@ def _km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     return math.hypot((lat2 - lat1) * 111.0, (lng2 - lng1) * 111.0 * math.cos(math.radians((lat1 + lat2) / 2)))
 
 
-def lugares(indice: IndiceMapa) -> list[dict]:
+# Nombres que en CABA no son un lugar sino la ciudad entera. Sirven para mover
+# el mapa, pero no como zona: "Capital Federal" juntaba las sucursales de Dia
+# que escriben eso en el barrio, y como zona decia que en toda CABA hay una sola
+# cadena (2026-11).
+GENERICOS_CABA = {"capital federal", "caba", "ciudad autonoma de buenos aires", "ciudad autonoma buenos aires", "buenos aires"}
+
+
+def lugares(indice: IndiceMapa, con_cadenas: bool = False) -> list[dict]:
     """Localidades y barrios con sucursales, para que el mapa pueda ir a uno.
+
+    Con `con_cadenas`, cada lugar trae tambien las cadenas con sucursal en el,
+    sin repetir, y quedan afuera los nombres genericos de CABA: es la lista de
+    zonas del sitio (ver /zonas). Va aparte para no agrandar /promos/lugares,
+    que el mapa pide igual que antes.
 
     Se buscan los dos campos porque dicen cosas distintas: en CABA la localidad
     es "Capital Federal" para todo el distrito y el barrio es lo que la gente
@@ -284,8 +296,11 @@ def lugares(indice: IndiceMapa) -> list[dict]:
                 "latitud": lat,
                 "longitud": lng,
                 "sucursales": len(puntos),
+                **({"cadenas": sorted({p["cadena"] for p in puntos if p["cadena"]})} if con_cadenas else {}),
             }
         )
+    if con_cadenas:
+        resultado = [l for l in resultado if not (l["provincia"] == "AR-C" and normalizar(l["nombre"]) in GENERICOS_CABA)]
     resultado.sort(key=lambda l: (-l["sucursales"], l["nombre"]))
     return resultado
 

@@ -11,6 +11,8 @@ import {
 } from "../api/client";
 import { fechaEnPalabras, formatearPesos, formatearVariacion, mesEnPalabras, tamanoQueFalta } from "../utils/formato";
 import { ahorroEnCadenas } from "../utils/ahorroCanasta";
+import { useZona } from "../contexto/zona";
+import { rotuloZona } from "../utils/zona";
 import { categoriasGanadas, liderEn } from "../utils/liderazgo";
 import { nombreCategoria } from "../utils/nombres";
 import { nombreLegible } from "../utils/texto";
@@ -212,6 +214,7 @@ function TarjetaEjemplo({ producto }: { producto: ProductoDetalle }) {
 }
 
 function Presentacion() {
+  const { zona } = useZona();
   const [datos, setDatos] = useState<Datos>({});
   const [texto, setTexto] = useState("");
   const navegar = useNavigate();
@@ -427,6 +430,12 @@ function Presentacion() {
             </div>
           ))}
         </dl>
+      )}
+      {/* Las tres cifras son de todo el pais; con zona se aclara (spec zona-del-usuario). */}
+      {cifras.length > 0 && zona && (
+        <p className="mt-3 text-xs text-tinta-suave">
+          Estas cifras son de todo el país. Las promos de abajo y Mismo producto ya usan tu zona ({rotuloZona(zona)}).
+        </p>
       )}
 
       <nav aria-labelledby="titulo-herramientas" className="mt-10">

@@ -9,7 +9,10 @@ import CuantoConvieneComparar from "../components/CuantoConvieneComparar";
 import DeTuCanasta from "../components/DeTuCanasta";
 import { leerDelNavegador } from "../utils/canastaGuardada";
 import { fechaEnPalabras, formatearNumero, formatearPesos, tamanoQueFalta } from "../utils/formato";
-import { nombreLegible } from "../utils/texto";
+import { listarConY, nombreLegible } from "../utils/texto";
+import { useZona } from "../contexto/zona";
+import { partirPorZona, resumirZona } from "../utils/precioEnZona";
+import { cadenasVisibles, rotuloZona, type Zona } from "../utils/zona";
 import { guardarLista, leerLista, MAXIMO_PRODUCTOS } from "../utils/lista";
 import type { ItemLista, PrecioEnCadena, ProductoComparado, ProductoDetalle } from "../types";
 
@@ -161,14 +164,11 @@ function EjemploComparacion({ p, onVer }: { p: ProductoDetalle; onVer: (id: stri
   );
 }
 
-/** La lista de precios por cadena. Se extrae de VistaProducto para poder
- *  mostrarla tambien en los ejemplos de la portada, donde no va el titular. */
-function ListaDePrecios({ p }: { p: ProductoDetalle }) {
-  const descartes = explicarDescartes(p);
+/** Las filas de precios de un grupo de cadenas. */
+function FilasDePrecios({ precios }: { precios: PrecioEnCadena[] }) {
   return (
-    <>
       <ul className="tarjeta divide-y divide-linea">
-      {p.precios.map((x) => (
+      {precios.map((x) => (
         <li
           key={x.cadena}
           className={`flex items-baseline gap-3 sm:gap-4 px-4 py-2.5 ${x.precio_creible ? "" : "bg-papel-hundido"}`}
@@ -213,8 +213,67 @@ function ListaDePrecios({ p }: { p: ProductoDetalle }) {
         </li>
       ))}
       </ul>
+  );
+}
+
+/** La lista de precios por cadena. Se extrae de VistaProducto para poder
+ *  mostrarla tambien en los ejemplos de la portada, donde no va el titular.
+ *  Con zona, las cadenas de la zona van primero y aparte (2026-11). */
+function ListaDePrecios({ p, zona }: { p: ProductoDetalle; zona?: Zona | null }) {
+  const descartes = explicarDescartes(p);
+  const { enZona, resto } = zona ? partirPorZona(p.precios, cadenasVisibles(zona)) : { enZona: [], resto: p.precios };
+  return (
+    <>
+      {zona && enZona.length > 0 && (
+        <>
+          <h3 className="text-sm font-bold text-tinta mb-2">En tu zona · {zona.nombre}</h3>
+          <FilasDePrecios precios={enZona} />
+          {resto.length > 0 && <h3 className="text-sm font-bold text-tinta mt-5 mb-2">Otras cadenas del país</h3>}
+        </>
+      )}
+      {resto.length > 0 && <FilasDePrecios precios={resto} />}
+      {/* Fija, con o sin zona: no hay precio por sucursal de un producto exacto. */}
+      <p className="text-xs text-tinta-suave mt-2 leading-relaxed">
+        Cada precio es el de la cadena en todo el país: la mediana entre sus sucursales.
+      </p>
       {descartes && <p className="text-xs text-tinta-media mt-2 leading-relaxed">{descartes}</p>}
     </>
+  );
+}
+
+/** Con zona: la mas barata de las cadenas que el usuario tiene cerca. */
+function ResumenDeZona({ p, zona }: { p: ProductoDetalle; zona: Zona }) {
+  const { enZona } = partirPorZona(p.precios, cadenasVisibles(zona));
+  const resumen = resumirZona(enZona);
+  const donde = rotuloZona(zona);
+  return (
+    <div className="tarjeta p-4 sm:p-5 mb-6 border-l-4 border-ahorro">
+      <p className="text-xs font-bold text-ahorro uppercase tracking-wide mb-1">📍 En tu zona · {donde}</p>
+      {enZona.length === 0 ? (
+        <p className="text-base text-tinta">
+          Ninguna cadena con sucursal en tu zona vende este producto. Lo venden {nombrarCadenas(p.precios)}.
+        </p>
+      ) : resumen.tipo === "ninguna" ? (
+        <p className="text-base text-tinta">
+          Lo vende {nombrarCadenas(enZona)}, pero con un precio fuera de la comparación: puede estar mal cargado.
+        </p>
+      ) : resumen.tipo === "una" ? (
+        <p className="text-base text-tinta">
+          Solo lo vende <strong>{resumen.cadena}</strong>, a <strong className="numero">{formatearPesos(resumen.precio)}</strong>.
+        </p>
+      ) : resumen.ahorroPct === 0 ? (
+        <p className="text-base text-tinta">
+          Sale <strong className="numero">{formatearPesos(resumen.precio)}</strong> en todas las cadenas de tu zona.
+        </p>
+      ) : (
+        <p className="text-base text-tinta">
+          La más barata es <strong>{listarConY(resumen.baratas)}</strong>, a{" "}
+          <strong className="numero">{formatearPesos(resumen.precio)}</strong>: un{" "}
+          <strong className="text-ahorro">{resumen.ahorroPct}% menos</strong> que {listarConY(resumen.caras)} (
+          <span className="numero">{formatearPesos(resumen.precioCaro)}</span>).
+        </p>
+      )}
+    </div>
   );
 }
 
@@ -288,6 +347,10 @@ function VistaProducto({
   enLista?: (id: string) => boolean;
   onAgregar?: (p: ProductoComparado) => void;
 }) {
+  // La zona solo en la vista de un producto elegido, no en los ejemplos de la
+  // portada de la seccion (sin onVolver), que siguen siendo nacionales.
+  const { zona: zonaElegida } = useZona();
+  const zona = onVolver ? zonaElegida : null;
   if (estado === null) return <p className="text-sm text-tinta-suave mb-10">Cargando…</p>;
 
   // Sin onVolver la vista se usa como ejemplo dentro de la portada de la
@@ -349,6 +412,8 @@ function VistaProducto({
         )}
       </Titular>
 
+      {zona && <ResumenDeZona p={p} zona={zona} />}
+
       {hayDiferencia && (
         <div className="mb-6">
           <TiraDePuntos
@@ -381,7 +446,7 @@ function VistaProducto({
         />
       </div>
 
-      <ListaDePrecios p={p} />
+      <ListaDePrecios p={p} zona={zona} />
     </section>
   );
 }

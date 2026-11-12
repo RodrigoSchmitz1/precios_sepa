@@ -15,7 +15,7 @@ resolvió y qué test lo cubre ahora.
 8. [La IA interpreta, el código cuenta](#la-ia-interpreta-el-código-cuenta)
 9. [Una sección que se retiró](#una-sección-que-se-retiró)
    y [lo que se midió y no se publicó](#lo-que-se-midió-y-no-se-publicó)
-10. [Geografía](#geografía)
+10. [Geografía](#geografía) y [la zona del usuario](#la-zona-del-usuario)
 11. [Tests](#tests)
 12. [Costo](#costo)
 
@@ -568,6 +568,42 @@ provincia o un genérico ("Córdoba", "JUJUY", "CAPITAL FEDERAL"), toma también
 la de la vecina: Carrefour usaba "Córdoba" para Jesús María, Alta Gracia o
 Carlos Paz. Un nombre propio, aunque no aparezca en ningún otro lado
 ("Laferrere"), se conserva. Quedaron 19 sucursales corregidas y el test en 0.
+
+## La zona del usuario
+
+**El problema (2026-11).** El sitio pedía "tu zona" de cuatro formas que no se
+hablaban: el mapa de Promos, las localidades de Tu canasta, el punto de "Dónde
+comprarla", y nada en Más barato, Mismo producto e Inflación. Probado en un
+celular por alguien que no lo conocía, el recorrido natural fue elegir la
+localidad en el inicio y buscar un producto, y en Mismo producto la zona ya no
+estaba. Fue el primer cambio hecho con OpenSpec: la propuesta, las specs, el
+diseño y las tareas están en `openspec/changes/zona-compartida/`, y al
+archivarse las specs pasan a `openspec/specs/`.
+
+**Una sola zona.** Es un barrio o una localidad con sucursales, se elige una vez
+(buscando o con la ubicación del teléfono, que se resuelve en el navegador y no
+viaja a la API), se ve en el encabezado de todas las páginas, se recuerda en el
+navegador y va en la URL (`?zona=<provincia>:<nombre>`), así cualquier link
+copiado la lleva. Un link gana sobre lo guardado; uno con una zona que ya no
+existe avisa. "Capital Federal" no es una zona: en CABA la zona es el barrio.
+
+**El precio de un producto sigue siendo el de la cadena.** No hay precio por
+sucursal de un código de barras, y la zona no lo inventa: dice cuáles de las
+cadenas el usuario tiene cerca y cuál de ellas es la más barata. Es honesto
+porque una cadena cobra casi lo mismo en todo el país (ver [lo que se midió y
+no se publicó](#lo-que-se-midió-y-no-se-publicó)), y la página lo aclara con o
+sin zona.
+
+**Más barato en la zona se recalcula, no se filtra.** Filtrar las filas del
+ranking nacional a las cadenas de la zona daba un número engañoso: cada
+porcentaje se calculó contra todas las cadenas del país, y una cadena de Palermo
+"perdía" contra Maxi aunque Maxi no esté en Palermo. La API recalcula quién gana
+producto por producto entre las cadenas de la zona, desde el índice de El mismo
+producto que ya tiene en memoria, con las reglas de `mart_quien_gana`. Con todas
+las cadenas, el cálculo da el mismo ganador que el mart en las 66 categorías,
+con los mismos porcentajes (medido el 12-11). Una cadena sin precios ese día se
+ignora: el 11-11 Vea, Disco y Jumbo no tuvieron, y la zona de Palermo no podía
+romperse por eso.
 
 ---
 

@@ -19,6 +19,8 @@ import type {
   CategoriaCanasta,
 } from "../types";
 import { nombreProvincia } from "../utils/provincias";
+import { useZona } from "../contexto/zona";
+import { localidadDeZona, rotuloZona } from "../utils/zona";
 import { formatearPesos } from "../utils/formato";
 import ItemCanastaEditable from "../components/ItemCanastaEditable";
 import AgregarCategoria from "../components/AgregarCategoria";
@@ -231,10 +233,42 @@ function CanastaPersonalizadaPage() {
     Limpiar una URL ya limpia no hace nada, asi que es seguro que corra de mas.
   */
   useEffect(() => {
-    if (window.location.search.includes(`${PARAMETRO_URL}=`)) {
-      window.history.replaceState({}, "", window.location.pathname);
+    // Solo el parametro de la canasta: el resto del link (la zona, desde
+    // 2026-11) sigue siendo valido.
+    const params = new URLSearchParams(window.location.search);
+    if (params.has(PARAMETRO_URL)) {
+      params.delete(PARAMETRO_URL);
+      const resto = params.toString();
+      window.history.replaceState(window.history.state, "", window.location.pathname + (resto ? `?${resto}` : ""));
     }
   }, []);
+
+  /*
+    La zona entra como primera localidad, una sola vez, si no habia ninguna
+    guardada (spec tu-canasta). Si el usuario la saca no vuelve, y sumar o
+    sacar localidades aca no cambia su zona.
+  */
+  const { zona } = useZona();
+  const [zonaRevisada, setZonaRevisada] = useState(inicial.localidades.length > 0);
+  const [avisoZona, setAvisoZona] = useState<string | null>(null);
+  useEffect(() => {
+    if (zonaRevisada || !zona) return;
+    let cancelado = false;
+    buscarLocalidades(zona.nombre)
+      .then((opciones) => {
+        if (cancelado) return;
+        const localidad = localidadDeZona(opciones, zona);
+        if (localidad) setLocalidadesElegidas((actuales) => (actuales.length === 0 ? [localidad] : actuales));
+        else setAvisoZona(`Tu zona (${rotuloZona(zona)}) no tiene precios para cotizar la canasta: elegí una localidad cercana.`);
+      })
+      .catch(() => {})
+      .finally(() => {
+        if (!cancelado) setZonaRevisada(true);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [zona, zonaRevisada]);
 
   useEffect(() => {
     // No se persiste el estado vacio: evita dejar una entrada inutil en el
@@ -584,7 +618,7 @@ function CanastaPersonalizadaPage() {
           {/* Paso 3 */}
           <section className="mb-8">
             <h2 className="font-display text-xl text-tinta mb-3">
-              <span aria-hidden="true" className="inline-grid place-items-center w-7 h-7 rounded-full fondo-marca text-white text-sm font-extrabold mr-2 align-middle">3</span>Elegí tu zona <span className="text-sm font-semibold text-tinta-suave">(hasta 3)</span>
+              <span aria-hidden="true" className="inline-grid place-items-center w-7 h-7 rounded-full fondo-marca text-white text-sm font-extrabold mr-2 align-middle">3</span>¿Dónde cotizamos? <span className="text-sm font-semibold text-tinta-suave">(hasta 3 localidades)</span>
             </h2>
 
             <input
@@ -608,6 +642,10 @@ function CanastaPersonalizadaPage() {
                   </button>
                 ))}
               </div>
+            )}
+
+            {avisoZona && localidadesElegidas.length === 0 && (
+              <p className="mt-2 text-sm text-aviso">{avisoZona}</p>
             )}
 
             {localidadesElegidas.length > 0 && (

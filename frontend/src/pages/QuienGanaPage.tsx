@@ -1,12 +1,14 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { obtenerQuienGana } from "../api/client";
+import { obtenerQuienGana, obtenerQuienGanaZona } from "../api/client";
+import { useZona } from "../contexto/zona";
+import { rotuloZona, zonaAParametro } from "../utils/zona";
 import Titular, { Resaltado } from "../components/Titular";
 import FilaDeCifras from "../components/FilaDeCifras";
 import MapaDelMercado from "../components/MapaDelMercado";
 import { formatearNumero } from "../utils/formato";
 import { liderEn } from "../utils/liderazgo";
 import type { QuienGana } from "../types";
-import { nombreCategoria } from "../utils/nombres";
+import { nombreCadena, nombreCategoria } from "../utils/nombres";
 
 /*
   Supermercado mas barato.
@@ -22,10 +24,22 @@ import { nombreCategoria } from "../utils/nombres";
   para la lista de categorias.
 */
 
-type Estado = { filas?: QuienGana[]; error?: string };
+type Estado = { clave: string; filas?: QuienGana[]; error?: string };
 
 function QuienGanaPage() {
-  const [estado, setEstado] = useState<Estado | null>(null);
+  /*
+    Con zona (2026-11), por defecto se compite solo entre las cadenas de la
+    zona, recalculado en la API producto por producto: filtrar las filas del
+    ranking nacional mentiria, porque cada porcentaje se calculo contra todas
+    las cadenas del pais. Con una sola cadena en la zona no hay ranking local.
+  */
+  const { zona } = useZona();
+  const [verPais, setVerPais] = useState(false);
+  const zonaComparable = zona !== null && zona.cadenas.length >= 2;
+  const enZona = zonaComparable && !verPais;
+  const clave = enZona ? `zona:${zonaAParametro(zona)}` : "pais";
+  const [estadoGuardado, setEstado] = useState<Estado | null>(null);
+  const estado = estadoGuardado?.clave === clave ? estadoGuardado : null;
   const [categoriaElegida, setCategoriaElegida] = useState("");
   const detalleRef = useRef<HTMLDivElement>(null);
 
@@ -39,17 +53,18 @@ function QuienGanaPage() {
 
   useEffect(() => {
     let cancelado = false;
-    obtenerQuienGana("")
+    const pedido = enZona && zona ? obtenerQuienGanaZona(zona.cadenas) : obtenerQuienGana("");
+    pedido
       .then((filas) => {
-        if (!cancelado) setEstado({ filas });
+        if (!cancelado) setEstado({ clave, filas });
       })
       .catch((err) => {
-        if (!cancelado) setEstado({ error: err.message });
+        if (!cancelado) setEstado({ clave, error: err.message });
       });
     return () => {
       cancelado = true;
     };
-  }, []);
+  }, [clave, enZona, zona]);
 
   const filas = useMemo(() => estado?.filas ?? [], [estado]);
 
@@ -98,6 +113,7 @@ function QuienGanaPage() {
       >
         {resumen ? (
           <>
+            {enZona && "En tu zona, "}
             <Resaltado tono="barato">{resumen.lider}</Resaltado> es la más barata en{" "}
             {resumen.categoriasLideradas} de las {resumen.categorias.length} categorías
           </>
@@ -105,6 +121,39 @@ function QuienGanaPage() {
           "Qué cadena tiene el precio más bajo en cada categoría"
         )}
       </Titular>
+
+      {zona && !zonaComparable && (
+        <p className="mb-6 text-sm text-tinta-media">
+          En tu zona ({rotuloZona(zona)}) hay una sola cadena, {zona.cadenas.map(nombreCadena).join("")}: no hay con qué compararla ahí.
+          Esto es todo el país.
+        </p>
+      )}
+      {zonaComparable && zona && (
+        <div className="mb-6 flex flex-wrap gap-2" role="group" aria-label="Qué cadenas comparar">
+          {[
+            { pais: false, texto: `📍 ${rotuloZona(zona)}` },
+            { pais: true, texto: "Todo el país" },
+          ].map((opcion) => (
+            <button
+              key={opcion.texto}
+              type="button"
+              onClick={() => setVerPais(opcion.pais)}
+              aria-pressed={verPais === opcion.pais}
+              className={[
+                "rounded-full px-4 py-2 text-sm font-semibold transition-colors",
+                verPais === opcion.pais ? "bg-marca text-white" : "bg-papel text-tinta-media border border-linea-fuerte",
+              ].join(" ")}
+            >
+              {opcion.texto}
+            </button>
+          ))}
+        </div>
+      )}
+      {enZona && estado?.filas?.length === 0 && (
+        <p className="mb-6 text-sm text-tinta-media">
+          Las cadenas de tu zona no tienen suficientes productos en común para comparar. Mirá todo el país.
+        </p>
+      )}
 
       {estado === null && <p className="text-sm text-tinta-suave">Cargando…</p>}
 

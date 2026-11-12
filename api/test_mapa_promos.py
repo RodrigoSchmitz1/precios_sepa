@@ -159,9 +159,9 @@ class TestMapaPromos(unittest.TestCase):
         self.assertEqual(len([f for f in filas if f["descripcion"] == "GASEOSA COLA 2 L"]), 1)
 
 
-def sucursal_en(sucursal, localidad, provincia, lat, lng, barrio=None):
+def sucursal_en(sucursal, localidad, provincia, lat, lng, barrio=None, cadena="Coto"):
     return {
-        "sucursal": sucursal, "cadena": "Coto", "nombre_sucursal": sucursal, "calle": "", "numero": "",
+        "sucursal": sucursal, "cadena": cadena, "nombre_sucursal": sucursal, "calle": "", "numero": "",
         "barrio": barrio, "localidad": localidad, "provincia": provincia, "latitud": lat, "longitud": lng,
     }
 
@@ -213,6 +213,28 @@ class TestLugares(unittest.TestCase):
         mendoza = [sucursal_en("m", "San Martin", "AR-M", -33.08, -68.47)]
         pba = [sucursal_en("b", "San Martin", "AR-B", -34.57, -58.53)]
         self.assertEqual(len(lugares(self.indice(mendoza + pba))), 2)
+
+    def test_las_zonas_traen_sus_cadenas_sin_repetir(self):
+        # Zona compartida (2026-11): "las cadenas de tu zona" son las que tienen
+        # sucursal en ese barrio o localidad.
+        palermo = [
+            sucursal_en("d1", "Palermo", "AR-C", -34.58, -58.42, cadena="Dia"),
+            sucursal_en("d2", "Palermo", "AR-C", -34.581, -58.421, cadena="Dia"),
+            sucursal_en("c1", "Palermo", "AR-C", -34.582, -58.422, cadena="Coto"),
+        ]
+        (lugar,) = lugares(self.indice(palermo), con_cadenas=True)
+        self.assertEqual(lugar["cadenas"], ["Coto", "Dia"])
+
+    def test_capital_federal_no_es_una_zona(self):
+        # Sirve para mover el mapa, pero como zona diria que en toda CABA hay
+        # una sola cadena: la que escribe "CAPITAL FEDERAL" en el barrio.
+        caba = [sucursal_en(f"c{i}", "Palermo", "AR-C", -34.58, -58.42, barrio="CAPITAL FEDERAL", cadena="Dia") for i in range(3)]
+        self.assertIn("Capital Federal", {l["nombre"] for l in lugares(self.indice(caba))})
+        self.assertEqual({l["nombre"] for l in lugares(self.indice(caba), con_cadenas=True)}, {"Palermo"})
+
+    def test_sin_pedirlas_el_mapa_recibe_lo_mismo_que_antes(self):
+        (lugar,) = lugares(self.indice([sucursal_en("v", "Palermo", "AR-C", -34.58, -58.42)]))
+        self.assertEqual(set(lugar), {"nombre", "provincia", "latitud", "longitud", "sucursales"})
 
     def test_los_articulos_van_en_minuscula(self):
         villa = [sucursal_en("v", "VILLA DEL PARQUE", "AR-C", -34.6, -58.49)]

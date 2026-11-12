@@ -3,6 +3,8 @@ import { obtenerIncidenciaCanasta, obtenerInflacionResumen } from "../api/client
 import CascadaCanasta from "../components/CascadaCanasta";
 import DetalleInflacionCadenas from "../components/DetalleInflacionCadenas";
 import Titular, { Resaltado } from "../components/Titular";
+import { useZona } from "../contexto/zona";
+import { rotuloZona } from "../utils/zona";
 import FilaDeCifras from "../components/FilaDeCifras";
 import { fechaEnPalabras, formatearVariacion, mesEnPalabras } from "../utils/formato";
 import type { IncidenciaCanasta, InflacionResumen } from "../types";
@@ -42,6 +44,7 @@ function mesAnterior(iso: string): string {
 type Estado = { mes: string | null; filas?: InflacionResumen[]; error?: string };
 
 function InflacionPage() {
+  const { zona } = useZona();
   const [estado, setEstado] = useState<Estado | null>(null);
   const [abierta, setAbierta] = useState<string | null>(null);
   // null = el ultimo mes con datos, que es lo que la API devuelve sin parametro.
@@ -197,6 +200,14 @@ function InflacionPage() {
           "Qué categorías subieron y cuáles bajaron"
         )}
       </Titular>
+
+      {/* La inflacion se mide con todas las cadenas del pais, haya o no zona
+          (spec inflacion, 2026-11): con una zona elegida se aclara. */}
+      {zona && (
+        <p className="max-w-5xl mx-auto mb-6 text-sm text-tinta-media">
+          📍 Tenés elegida {rotuloZona(zona)}, pero la inflación es de todo el país: se mide con todas las cadenas.
+        </p>
+      )}
 
       {vigente?.error && (
         <p className="text-sm text-alerta bg-alerta-tenue border border-alerta/20 rounded-lg px-3 py-2">

@@ -1,0 +1,47 @@
+schema: spec-driven
+
+context: |
+  Language: es
+  All artifacts must be written in es.
+  Keep OpenSpec structural headings and SHALL/MUST keywords in English.
+
+  Proyecto: Changuito, precios de supermercados de la Argentina con datos
+  oficiales de SEPA. Pipeline dbt sobre BigQuery, API FastAPI y frontend React
+  (Vite + Tailwind) servidos juntos en Cloud Run. Repo publico y portfolio.
+
+  Restricciones duras:
+  - Costo cero en BigQuery: nada que el visitante haga puede disparar una
+    consulta nueva. La API lee los marts con la Storage Read API (no usa cuota)
+    y busca en memoria; un cambio que necesite una consulta por pedido no va.
+  - Publico argentino, sobre todo en celular (Safari en iPhone y Chrome en
+    Android): cada pantalla se piensa primero a 375-414 px, sin desplazamiento
+    horizontal, con campos de 16 px y botones de al menos 24 px.
+  - Formato es-AR (coma decimal, $ 1.234), sin new Date("AAAA-MM-DD").
+  - Honestidad del dato: el precio de un producto exacto es por cadena para
+    todo el pais, no por sucursal; las promos y la canasta si son por sucursal.
+    Ninguna pantalla puede sugerir una precision que el dato no tiene.
+  - Cada regla de negocio vive en un solo lugar: texto, API y tests leen el
+    mismo umbral.
+  - Decisiones y resultados medidos se documentan en docs/DECISIONES.md.
+
+# Per-artifact rules (optional)
+# Add custom rules for specific artifacts.
+# Example:
+#   rules:
+#     proposal:
+#       - Keep proposals under 500 words
+#       - Always state what is out of scope
+#     tasks:
+#       - Break tasks into chunks of max 2 hours
+
+# Per-operation guidance (optional)
+# Add advisory guidance for how apply and archive work should be conducted.
+# This is separate from artifact rules above.
+# Example:
+#   operations:
+#     apply:
+#       guidance:
+#         - Keep test summaries concise
+#     archive:
+#       guidance:
+#         - Summarize the archive outcome before finishing

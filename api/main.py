@@ -6,7 +6,7 @@ import time
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
-from fastapi import FastAPI, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
@@ -372,6 +372,19 @@ def obtener_lugares_del_mapa():
     return mapa_promos.lugares(_indice_mapa())
 
 
+@api.get("/zonas")
+def obtener_zonas():
+    """Los lugares que se pueden elegir como zona, con las cadenas de cada uno.
+
+    Es la misma lista del buscador del mapa, con las cadenas que tienen
+    sucursal en cada lugar: el frontend la pide una vez y resuelve en el
+    navegador la busqueda, la ubicacion del telefono y "las cadenas de tu
+    zona". Sale del indice del mapa, que ya esta en memoria: no consulta
+    BigQuery.
+    """
+    return mapa_promos.lugares(_indice_mapa(), con_cadenas=True)
+
+
 @api.get("/promos/mapa")
 def obtener_promos_mapa(
     busqueda: Optional[str] = Query(None, description="Buscar en la descripcion del producto"),
@@ -438,6 +451,27 @@ def obtener_gama(
     job_config = bigquery.QueryJobConfig(query_parameters=parametros)
     resultados = cliente_bq.query(query, job_config=job_config).result()
     return [dict(fila) for fila in resultados]
+
+
+@api.get("/quien-gana/zona")
+def obtener_quien_gana_zona(
+    cadenas: list[str] = Query(..., description="Las cadenas de la zona del usuario"),
+):
+    """Quien gana en cada categoria contando solo las cadenas de una zona.
+
+    Se recalcula desde el indice de El mismo producto, que ya esta en memoria:
+    no consulta BigQuery (ver mismo_producto.quien_gana_entre). Una cadena que
+    no existe es un 422: las cadenas salen de /zonas, asi que un nombre
+    desconocido es un error de quien llama y no una zona sin datos.
+    """
+    indice = _indice_mismo_producto()
+    conocidas = {p["cadena"] for producto in indice.values() for p in producto["precios"]}
+    # Una cadena con sucursales puede no tener precios el ultimo dia: el
+    # 2026-11-11 faltaron Vea, Disco y Jumbo, y la zona de Palermo daba 422. Se
+    # compite con las que tienen; es un error solo si no queda ninguna.
+    if not set(cadenas) & conocidas:
+        raise HTTPException(status_code=422, detail="Ninguna de esas cadenas tiene precios hoy")
+    return mismo_producto.quien_gana_entre(indice, set(cadenas))
 
 
 @api.get("/quien-gana")
