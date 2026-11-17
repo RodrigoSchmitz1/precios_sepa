@@ -11,7 +11,8 @@ import { leerDelNavegador } from "../utils/canastaGuardada";
 import { fechaEnPalabras, formatearNumero, formatearPesos, tamanoQueFalta } from "../utils/formato";
 import { listarConY, nombreLegible } from "../utils/texto";
 import { useZona } from "../contexto/zona";
-import { partirPorZona, resumirZona } from "../utils/precioEnZona";
+import { partirPorZona } from "../utils/precioEnZona";
+import { titularDelProducto, type TitularProducto } from "../utils/titularProducto";
 import { cadenasVisibles, rotuloZona, type Zona } from "../utils/zona";
 import { guardarLista, leerLista, MAXIMO_PRODUCTOS } from "../utils/lista";
 import { etiquetaFechaPrecio } from "../utils/cadenasDeOtroDia";
@@ -111,9 +112,10 @@ function explicarDescartes(p: ProductoDetalle): string | null {
   Fanta a $309 contra $5.150 aplastaba a las demas cadenas contra un borde. Los
   descartados siguen en la lista, con su explicacion.
 */
-function puntosComparables(p: ProductoDetalle) {
+/** Con zona, solo las cadenas de la zona: la tira es parte de la respuesta. */
+function puntosComparables(p: ProductoDetalle, cadenasZona: Set<string> | null = null) {
   return p.precios
-    .filter((x) => x.precio_creible)
+    .filter((x) => x.precio_creible && (!cadenasZona || cadenasZona.has(x.cadena)))
     .map((x) => ({ id: x.cadena, valor: x.precio_mediano, nombre: x.cadena }));
 }
 
@@ -251,40 +253,65 @@ function ListaDePrecios({ p, zona }: { p: ProductoDetalle; zona?: Zona | null })
   );
 }
 
-/** Con zona: la mas barata de las cadenas que el usuario tiene cerca. */
-function ResumenDeZona({ p, zona }: { p: ProductoDetalle; zona: Zona }) {
-  const { enZona } = partirPorZona(p.precios, cadenasVisibles(zona));
-  const resumen = resumirZona(enZona);
-  const donde = rotuloZona(zona);
-  return (
-    <div className="tarjeta p-4 sm:p-5 mb-6 border-l-4 border-ahorro">
-      <p className="text-xs font-bold text-ahorro uppercase tracking-wide mb-1">📍 En tu zona · {donde}</p>
-      {enZona.length === 0 ? (
-        <p className="text-base text-tinta">
-          Ninguna cadena con sucursal en tu zona vende este producto. Lo venden {nombrarCadenas(p.precios)}.
-        </p>
-      ) : resumen.tipo === "ninguna" ? (
-        <p className="text-base text-tinta">
-          Lo vende {nombrarCadenas(enZona)}, pero con un precio fuera de la comparación: puede estar mal cargado.
-        </p>
-      ) : resumen.tipo === "una" ? (
-        <p className="text-base text-tinta">
-          Solo lo vende <strong>{resumen.cadena}</strong>, a <strong className="numero">{formatearPesos(resumen.precio)}</strong>.
-        </p>
-      ) : resumen.ahorroPct === 0 ? (
-        <p className="text-base text-tinta">
-          Sale <strong className="numero">{formatearPesos(resumen.precio)}</strong> en todas las cadenas de tu zona.
-        </p>
-      ) : (
-        <p className="text-base text-tinta">
-          La más barata es <strong>{listarConY(resumen.baratas)}</strong>, a{" "}
-          <strong className="numero">{formatearPesos(resumen.precio)}</strong>: un{" "}
-          <strong className="text-ahorro">{resumen.ahorroPct}% menos</strong> que {listarConY(resumen.caras)} (
-          <span className="numero">{formatearPesos(resumen.precioCaro)}</span>).
-        </p>
-      )}
-    </div>
-  );
+/** El titular del producto: de la zona si hay zona, y "casi lo mismo" si la
+ *  diferencia es chica (ver utils/titularProducto). */
+function TextoTitular({ p, t, nombre }: { p: ProductoDetalle; t: TitularProducto; nombre: string }) {
+  const c = t.cifras;
+  const pesos = (n: number) => <span className="numero">{formatearPesos(n)}</span>;
+  if (t.alcance === "zona") {
+    switch (t.tipo) {
+      case "no_en_zona":
+        return <>{nombre}: en tu zona no se consigue</>;
+      case "sin_creible_en_zona":
+        return <>{nombre}: en tu zona el precio puede estar mal cargado</>;
+      case "una_cadena":
+        return <>En tu zona solo lo vende {t.cadena}, a {pesos(t.precio)}</>;
+      case "igual":
+        return <>En tu zona sale {pesos(c.precio)} en todas las cadenas</>;
+      case "casi_igual":
+        return (
+          <>
+            En tu zona cuesta casi lo mismo: de {pesos(c.precio)} en {listarConY(c.baratas)} a {pesos(c.precioCaro)} en{" "}
+            {listarConY(c.caras)}
+          </>
+        );
+      case "diferencia":
+        return (
+          <>
+            En tu zona, {listarConY(c.baratas)} lo tiene a {pesos(c.precio)}:{" "}
+            <Resaltado tono="barato">un {c.menosPct}% menos</Resaltado> que {listarConY(c.caras)}
+          </>
+        );
+    }
+  }
+  switch (t.tipo) {
+    case "igual":
+      return <>{nombre}: el mismo precio en las {p.cadenas} cadenas</>;
+    case "casi_igual":
+      return (
+        <>
+          {nombre}: cuesta casi lo mismo en las {p.cadenas} cadenas ({pesos(c.precioCaro - c.precio)} de diferencia)
+        </>
+      );
+    case "sin_respaldo":
+      return (
+        <>
+          {nombre}: de {pesos(c.precio)} a {pesos(c.precioCaro)} según la cadena
+        </>
+      );
+    default:
+      return (
+        <>
+          {nombre}: <Resaltado>{porcentaje(c.diferenciaPct)} más caro</Resaltado> en {nombrarLista(c.caras)} que en{" "}
+          {nombrarLista(c.baratas)}
+        </>
+      );
+  }
+}
+
+/** "Coto" o "Coto y 2 más", como nombrarCadenas pero desde nombres. */
+function nombrarLista(nombres: string[]): string {
+  return nombres.length === 1 ? nombres[0] : `${nombres[0]} y ${nombres.length - 1} más`;
 }
 
 /** Agregar un producto a Tu lista, o avisar que ya esta. */
@@ -366,7 +393,7 @@ function VistaProducto({
   // Sin onVolver la vista se usa como ejemplo dentro de la portada de la
   // seccion, donde no hay de donde volver.
   const volver = onVolver ? (
-    <button onClick={onVolver} className="text-sm text-tinta-media hover:text-tinta mb-6">
+    <button onClick={onVolver} className="text-sm text-tinta-media hover:text-tinta mb-4">
       ← Todos los productos
     </button>
   ) : null;
@@ -382,55 +409,29 @@ function VistaProducto({
 
   const p = estado.producto;
   const nombre = nombreConTamano(p);
-  const baratos = p.precios.filter((x) => x.precio_mediano === p.precio_mas_bajo);
-  const caros = p.precios.filter((x) => x.precio_mediano === p.precio_mas_alto);
+  const t = titularDelProducto(p, zona ? cadenasVisibles(zona) : null);
+  const c = t.cifras;
   const hayDiferencia = p.precio_mas_alto > p.precio_mas_bajo;
+  const deZona = t.alcance === "zona" && t.tipo !== "no_en_zona" && t.tipo !== "sin_creible_en_zona";
+  const sufijo = deZona ? " en tu zona" : "";
 
   return (
     <section className="mb-12">
-      {volver}
-      <Titular
-        antetitulo="El mismo producto"
-        bajada={
-          <>
-            <p>
-              Mismo código de barras ({p.id_producto}) en {p.cadenas} cadenas, con precios del{" "}
-              {fechaEnPalabras(p.fecha_datos)}. El precio de cada cadena es la mediana entre sus sucursales.
-            </p>
-            {hayDiferencia && !p.extremos_respaldados && (
-              <p className="mt-2 text-sm text-sobre-oscuro-aviso">
-                El precio más bajo o el más alto sale de menos de {SUCURSALES_MINIMAS} sucursales: la diferencia
-                puede deberse a un precio mal cargado.
-              </p>
-            )}
-          </>
-        }
-      >
-        {!hayDiferencia ? (
-          <>
-            {nombre}: el mismo precio en las {p.cadenas} cadenas
-          </>
-        ) : p.extremos_respaldados ? (
-          <>
-            {nombre}: <Resaltado>{porcentaje(p.diferencia_pct)} más caro</Resaltado> en {nombrarCadenas(caros)} que
-            en {nombrarCadenas(baratos)}
-          </>
-        ) : (
-          <>
-            {nombre}: de {formatearPesos(p.precio_mas_bajo)} a {formatearPesos(p.precio_mas_alto)} según la cadena
-          </>
-        )}
+      {/* Siempre compacto: el producto elegido es el resultado (2026-11). */}
+      <Titular antetitulo={deZona ? `${nombre} · ${rotuloZona(zona!)}` : "El mismo producto"} compacto>
+        <TextoTitular p={p} t={t} nombre={nombre} />
       </Titular>
+      {/* Debajo de la banda y no arriba: la banda sube 40 px (-mt-10) y tapaba
+          el boton, que quedaba invisible e intocable en el celular. */}
+      {volver}
       <AvisoCadenasDeOtroDia className="mb-6" />
 
-      {zona && <ResumenDeZona p={p} zona={zona} />}
-
-      {hayDiferencia && (
+      {(deZona ? c.precioCaro > c.precio : hayDiferencia) && (
         <div className="mb-6">
           <TiraDePuntos
-            puntos={puntosComparables(p)}
+            puntos={puntosComparables(p, deZona ? cadenasVisibles(zona!) : null)}
             formatear={formatearPesos}
-            descripcion={`Precio de ${nombre} en cada cadena, de ${formatearPesos(p.precio_mas_bajo)} a ${formatearPesos(p.precio_mas_alto)}`}
+            descripcion={`Precio de ${nombre} en cada cadena${sufijo}, de ${formatearPesos(c.precio)} a ${formatearPesos(c.precioCaro)}`}
           />
         </div>
       )}
@@ -442,19 +443,43 @@ function VistaProducto({
         </div>
       )}
 
-      <div className="mb-6">
+      <div className="mb-3">
         <FilaDeCifras
-          cifras={[
-            { etiqueta: "Más barato", valor: formatearPesos(p.precio_mas_bajo), detalle: nombrarCadenas(baratos) },
-            { etiqueta: "Más caro", valor: formatearPesos(p.precio_mas_alto), detalle: nombrarCadenas(caros) },
-            {
-              etiqueta: "Diferencia",
-              valor: formatearPesos(p.precio_mas_alto - p.precio_mas_bajo),
-              detalle: "por el mismo producto",
-            },
-            { etiqueta: "Cadenas", valor: formatearNumero(p.cadenas), detalle: "con este código de barras" },
-          ]}
+          cifras={
+            t.tipo === "una_cadena"
+              ? [
+                  { etiqueta: "Precio en tu zona", valor: formatearPesos(t.precio), detalle: t.cadena },
+                  { etiqueta: "Cadenas", valor: formatearNumero(p.cadenas), detalle: "lo venden en el país" },
+                ]
+              : [
+                  { etiqueta: `Más barato${sufijo}`, valor: formatearPesos(c.precio), detalle: nombrarLista(c.baratas) },
+                  { etiqueta: `Más caro${sufijo}`, valor: formatearPesos(c.precioCaro), detalle: nombrarLista(c.caras) },
+                  { etiqueta: `Diferencia${sufijo}`, valor: formatearPesos(c.precioCaro - c.precio), detalle: "por el mismo producto" },
+                  deZona
+                    ? { etiqueta: "Cadenas en tu zona", valor: formatearNumero(c.cadenas), detalle: `de ${formatearNumero(p.cadenas)} en el país` }
+                    : { etiqueta: "Cadenas", valor: formatearNumero(p.cadenas), detalle: "con este código de barras" },
+                ]
+          }
         />
+      </div>
+      {/* Lo que antes iba en la bajada del titular. */}
+      <div className="mb-6 text-xs text-tinta-suave leading-relaxed space-y-1">
+        {deZona && hayDiferencia && (
+          <p>
+            En todo el país, de {formatearPesos(p.precio_mas_bajo)} en {nombrarCadenas(p.precios.filter((x) => x.precio_mediano === p.precio_mas_bajo))} a{" "}
+            {formatearPesos(p.precio_mas_alto)} en {nombrarCadenas(p.precios.filter((x) => x.precio_mediano === p.precio_mas_alto))}.
+          </p>
+        )}
+        <p>
+          Mismo código de barras ({p.id_producto}) en {p.cadenas} cadenas, con precios del {fechaEnPalabras(p.fecha_datos)}. El
+          precio de cada cadena es la mediana entre sus sucursales.
+        </p>
+        {hayDiferencia && !p.extremos_respaldados && (
+          <p className="text-aviso">
+            El precio más bajo o el más alto sale de menos de {SUCURSALES_MINIMAS} sucursales: la diferencia puede deberse a
+            un precio mal cargado.
+          </p>
+        )}
       </div>
 
       <ListaDePrecios p={p} zona={zona} />
@@ -635,6 +660,7 @@ function MismoProductoPage() {
         <>
         <Titular
           antetitulo="El mismo producto"
+          compacto={consulta.length >= 2 || lista.length > 0}
           bajada="Mismo código de barras, misma presentación: la única diferencia es dónde lo comprás. Buscá un producto y mirá cuánto cuesta en cada cadena, o armá tu lista con lo que comprás siempre y fijate dónde te conviene la compra entera."
         >
           {mayor ? (

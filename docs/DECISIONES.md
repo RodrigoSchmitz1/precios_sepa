@@ -670,6 +670,29 @@ nombra arriba y queda afuera de los totales. Si contara, un solo producto
 regional dejaría a la zona sin ninguna cadena completa y sin titular. Change
 `lista-en-tu-zona` en OpenSpec.
 
+**El titular del producto también es de la zona (2026-11-17).** Con "Lomas de
+Zamora" elegida y la Playadito de 1 kg, el titular decía "7% más caro en Coto y
+2 más que en Vea", y en Lomas no hay Vea. Las tarjetas también eran nacionales,
+y un recuadro verde más abajo nombraba otra cadena como la más barata de la
+zona. Ahora el titular, la tira de precios y las tarjetas salen de la misma
+cuenta: la de la zona, si hay zona y alguna cadena de la zona vende el producto
+con precio creíble. El recuadro verde se fue, porque decía lo mismo una segunda
+vez. Lo nacional queda en una línea debajo de las tarjetas y en "Otras cadenas
+del país". Change `respuesta-antes-que-el-titular` en OpenSpec.
+
+**Menos de un 5% es "casi lo mismo".** Un 3% en rosa y en letra grande
+presentaba como noticia algo que no lo era. Debajo del 5% (el escalón de Maxi
+frente a Carrefour, y el orden de lo que varía una cadena entre provincias), el
+titular dice que cuesta casi lo mismo y cuántos pesos de diferencia hay.
+
+**La respuesta antes que el titular.** En el celular, el titular a sangre ocupaba
+media pantalla y el primer resultado de una búsqueda quedaba a 561 px, debajo
+del teclado de iOS. Con una búsqueda, un producto elegido o una lista guardada,
+el titular de Mismo producto pasa a la versión compacta: medido en WebKit a
+414x896, la búsqueda arranca a 294 px y Tu lista a 308. Al hacerlo apareció un
+error que ya estaba en producción: la banda sube 40 px y tapaba el botón "←
+Todos los productos", que quedaba invisible y no se podía tocar.
+
 ---
 
 ## El buscador

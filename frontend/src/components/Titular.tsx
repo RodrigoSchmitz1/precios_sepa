@@ -35,6 +35,11 @@ import type { ReactNode } from "react";
   de la marca, con la letra de los titulos pesada en vez de serif y dos circulos
   translucidos de fondo. El negro con serif era lo que hacia que el sitio se
   leyera "como un diario". El antetitulo pasa de versalitas a una pastilla.
+
+  2026-11-17, compacto (openspec respuesta-antes-que-el-titular): en Mismo
+  producto, con una busqueda, un producto elegido o una lista, la banda ocupaba
+  media pantalla del celular y el primer resultado quedaba a 561 px, debajo del
+  teclado. La version compacta deja el titular y saca la bajada.
 */
 
 type Props = {
@@ -43,6 +48,8 @@ type Props = {
   /** El titular. Puede llevar <Resaltado> en la cifra. */
   children: ReactNode;
   bajada?: ReactNode;
+  /** Mas bajo y sin bajada: cuando lo importante es lo que viene abajo. */
+  compacto?: boolean;
 };
 
 /** La cifra del titular. El color acompana al texto, no lo reemplaza. */
@@ -52,14 +59,18 @@ export function Resaltado({ children, tono = "caro" }: { children: ReactNode; to
   );
 }
 
-function Titular({ antetitulo, children, bajada }: Props) {
+function Titular({ antetitulo, children, bajada, compacto = false }: Props) {
   return (
     /* A sangre y no una tarjeta: ver el comentario de arriba. */
-    <header className="relative overflow-hidden mb-10 fondo-marca -mt-10 mx-[calc(50%-50vw)] px-5 pt-10 pb-12 sm:pt-14 sm:pb-16 rounded-b-[2.5rem]">
+    <header
+      className={`relative overflow-hidden fondo-marca -mt-10 mx-[calc(50%-50vw)] px-5 ${
+        compacto ? "mb-6 pt-5 pb-6 sm:pt-6 sm:pb-7 rounded-b-[1.75rem]" : "mb-10 pt-10 pb-12 sm:pt-14 sm:pb-16 rounded-b-[2.5rem]"
+      }`}
+    >
       <span aria-hidden="true" className="absolute -right-24 -top-40 w-[30rem] h-[30rem] rounded-full bg-white/[0.07]" />
       <span aria-hidden="true" className="absolute right-[18%] -bottom-40 w-72 h-72 rounded-full bg-white/[0.06]" />
       <div className="relative max-w-4xl mx-auto">
-      <p className="inline-block text-xs font-bold text-white bg-white/15 rounded-full px-3 py-1 mb-4">
+      <p className={`inline-block text-xs font-bold text-white bg-white/15 rounded-full px-3 py-1 ${compacto ? "mb-2" : "mb-4"}`}>
         {antetitulo}
       </p>
       {/*
@@ -69,10 +80,14 @@ function Titular({ antetitulo, children, bajada }: Props) {
         cuerpo no tiene que hacer ademas ese trabajo. La diferencia se cierra
         por los dos lados: el titular baja un escalon y las listas suben uno.
       */}
-      <h1 className="font-display text-4xl sm:text-5xl lg:text-[3.5rem] leading-[1.05] text-white max-w-3xl text-balance">
+      <h1
+        className={`font-display text-white max-w-3xl text-balance ${
+          compacto ? "text-2xl sm:text-3xl leading-tight" : "text-4xl sm:text-5xl lg:text-[3.5rem] leading-[1.05]"
+        }`}
+      >
         {children}
       </h1>
-      {bajada && (
+      {bajada && !compacto && (
         <div className="mt-4 text-base leading-relaxed text-white/85 max-w-2xl">
           {bajada}
         </div>
