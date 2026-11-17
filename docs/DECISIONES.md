@@ -683,7 +683,10 @@ del país". Change `respuesta-antes-que-el-titular` en OpenSpec.
 **Menos de un 5% es "casi lo mismo".** Un 3% en rosa y en letra grande
 presentaba como noticia algo que no lo era. Debajo del 5% (el escalón de Maxi
 frente a Carrefour, y el orden de lo que varía una cadena entre provincias), el
-titular dice que cuesta casi lo mismo y cuántos pesos de diferencia hay.
+titular dice que cuesta casi lo mismo y cuántos pesos de diferencia hay. Tu lista
+usa la misma regla desde el mismo día: con Lomas de Zamora decía "ahorrás $ 212
+(2%)" en verde, y ahora dice que cuesta casi lo mismo, con la diferencia en
+pesos (change `lista-casi-lo-mismo`).
 
 **La respuesta antes que el titular.** En el celular, el titular a sangre ocupaba
 media pantalla y el primer resultado de una búsqueda quedaba a 561 px, debajo

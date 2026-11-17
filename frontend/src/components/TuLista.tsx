@@ -3,7 +3,7 @@ import { cotizarLista } from "../api/client";
 import { useZona } from "../contexto/zona";
 import { fechaEnPalabras, formatearPesos } from "../utils/formato";
 import { MAXIMO_UNIDADES } from "../utils/lista";
-import { productosComparados, vistaDeLista } from "../utils/listaEnZona";
+import { comparacionDeLista, productosComparados, vistaDeLista } from "../utils/listaEnZona";
 import { listarConY } from "../utils/texto";
 import { cadenasVisibles, rotuloZona } from "../utils/zona";
 import type { ItemLista, ResultadoLista } from "../types";
@@ -89,6 +89,7 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
   const barata = completas[0];
   const cara = completas[completas.length - 1];
   const ahorro = barata && cara && completas.length > 1 ? cara.total - barata.total : 0;
+  const comparacion = comparacionDeLista(barata, completas.length > 1 ? cara : undefined);
   // Una zona donde una sola cadena vende la lista: se dice, sin ahorro.
   const unicaDeLaZona = enZona && completas.length === 1 && incompletas.length === 0;
   const maximo = Math.max(...completas.map((c) => c.total), 1);
@@ -134,13 +135,21 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
             <strong className="font-semibold">{barata.cadena}</strong>
             {unicaDeLaZona ? ": te sale " : " te sale "}
             <strong className="font-semibold numero">{formatearPesos(barata.total)}</strong>
-            {ahorro > 0 && (
+            {comparacion === "ahorro" && (
               <>
                 {" "}
                 y en {cara.cadena} {formatearPesos(cara.total)}:{" "}
                 <span className="text-ahorro font-semibold numero">
                   ahorrás {formatearPesos(ahorro)} ({Math.round((ahorro / cara.total) * 100)}%)
                 </span>
+              </>
+            )}
+            {/* Menos del 5%: casi lo mismo, como en el detalle del producto. */}
+            {comparacion === "casi_igual" && (
+              <>
+                {" "}
+                y en {cara.cadena} {formatearPesos(cara.total)}: cuesta casi lo mismo,{" "}
+                <span className="numero">{formatearPesos(ahorro)}</span> de diferencia
               </>
             )}
           </p>

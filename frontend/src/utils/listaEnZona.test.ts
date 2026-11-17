@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ResultadoLista, TotalCadenaLista } from "../types";
-import { productosComparados, vistaDeLista } from "./listaEnZona";
+import { comparacionDeLista, productosComparados, vistaDeLista } from "./listaEnZona";
 
 function fila(cadena: string, total: number, completa: boolean, faltan: string[] = []): TotalCadenaLista {
   return { cadena, total, productos_con_precio: completa ? 3 : 3 - faltan.length, completa, faltan };
@@ -69,5 +69,23 @@ describe("vistaDeLista", () => {
     const r = resultado(ZONA_LOMAS);
     expect(productosComparados(r, vistaDeLista(r, LOMAS))).toBe(2);
     expect(productosComparados(r, vistaDeLista(r, null))).toBe(3);
+  });
+});
+
+describe("comparacionDeLista", () => {
+  it("Lomas: $ 13.088 contra $ 13.300 es casi lo mismo", () => {
+    expect(comparacionDeLista(fila("Maxi (Carrefour)", 13088, true), fila("Coto", 13300, true))).toBe("casi_igual");
+  });
+
+  it("del 5% para arriba es ahorro", () => {
+    expect(comparacionDeLista(fila("Día", 10000, true), fila("Coto", 10500, true))).toBe("ahorro");
+    expect(comparacionDeLista(fila("Día", 10000, true), fila("Coto", 10499, true))).toBe("casi_igual");
+  });
+
+  it("una sola cadena o el mismo total no es una comparación", () => {
+    const una = fila("La Anónima", 14750, true);
+    expect(comparacionDeLista(una, una)).toBe("sin_comparacion");
+    expect(comparacionDeLista(una, fila("Coto", 14750, true))).toBe("sin_comparacion");
+    expect(comparacionDeLista(undefined, undefined)).toBe("sin_comparacion");
   });
 });
