@@ -35,3 +35,12 @@ export function guardarLista(lista: ItemLista[]): void {
     /* sin persistencia, la lista sigue funcionando en esta visita */
   }
 }
+
+export const CLAVE_LISTA = CLAVE;
+
+/** Agrega un producto si no estaba y si la lista no llego al tope; si no,
+ *  devuelve la misma lista (el mismo objeto: React no re-renderiza). */
+export function agregarALista(lista: ItemLista[], item: ItemLista): ItemLista[] {
+  if (lista.some((i) => i.id_producto === item.id_producto) || lista.length >= MAXIMO_PRODUCTOS) return lista;
+  return [...lista, { ...item, cantidad: Math.min(Math.max(item.cantidad, 1), MAXIMO_UNIDADES) }];
+}

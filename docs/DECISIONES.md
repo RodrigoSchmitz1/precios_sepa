@@ -709,6 +709,17 @@ una línea chica, no los titulares. Ahora, con zona:
 
 Change `portada-de-tu-zona` en OpenSpec.
 
+**Tu lista, a mano en todo el sitio (2026-11-17).** La lista vivía al fondo de
+Mismo producto, en una sección que no se llamaba "lista", y ninguna otra página
+podía saber que existía. Quien tocaba "+ Lista" no veía adónde iba el producto.
+Ahora es un estado compartido (`ProveedorLista`), guardado con la misma clave
+de siempre, así que ninguna lista armada se perdió. El encabezado de todas las
+páginas muestra el changuito con la cantidad de productos, que cambia en el
+momento al agregar y también si se cambia en otra pestaña. `/lista` es su
+página. La barra del celular no cambió: reemplazar "Inflación" por "Mi lista"
+queda para cuando se vea si el acceso del encabezado alcanza. Change
+`lista-a-mano` en OpenSpec.
+
 ---
 
 ## El buscador

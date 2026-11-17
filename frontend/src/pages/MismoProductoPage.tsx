@@ -14,10 +14,10 @@ import { useZona } from "../contexto/zona";
 import { partirPorZona } from "../utils/precioEnZona";
 import { titularDelProducto, type TitularProducto } from "../utils/titularProducto";
 import { cadenasVisibles, rotuloZona, type Zona } from "../utils/zona";
-import { guardarLista, leerLista, MAXIMO_PRODUCTOS } from "../utils/lista";
+import { useLista } from "../contexto/lista";
 import { etiquetaFechaPrecio } from "../utils/cadenasDeOtroDia";
 import AvisoCadenasDeOtroDia from "../components/AvisoCadenasDeOtroDia";
-import type { ItemLista, PrecioEnCadena, ProductoComparado, ProductoDetalle } from "../types";
+import type { PrecioEnCadena, ProductoComparado, ProductoDetalle } from "../types";
 
 /*
   El mismo producto: cuanto cuesta el mismo codigo de barras en cada cadena.
@@ -537,25 +537,14 @@ function MismoProductoPage() {
   const [detalle, setDetalle] = useState<Detalle | null>(null);
   const [destacados, setDestacados] = useState<Destacados | null>(null);
   const [ejemplos, setEjemplos] = useState<ProductoDetalle[]>([]);
-  const [lista, setLista] = useState<ItemLista[]>(leerLista);
+  // La lista es la de todo el sitio (ProveedorLista, lista-a-mano).
+  const { lista, agregar: agregarItem, cambiarCantidad, quitar, vaciar, enLista } = useLista();
   // Tu canasta, si ya la armo en este navegador: sus categorias son las filas
   // de "De tu canasta". Se lee una vez; la canasta se edita en su pagina.
   const [canasta] = useState(() => leerDelNavegador()?.items ?? []);
 
-  useEffect(() => {
-    guardarLista(lista);
-  }, [lista]);
-
-  const enLista = (idProducto: string) => lista.some((i) => i.id_producto === idProducto);
   const agregar = (p: ProductoComparado, cantidad = 1) =>
-    setLista((previa) =>
-      previa.some((i) => i.id_producto === p.id_producto) || previa.length >= MAXIMO_PRODUCTOS
-        ? previa
-        : [...previa, { id_producto: p.id_producto, nombre: nombreConTamano(p), cantidad, categoria: p.categoria }]
-    );
-  const cambiarCantidad = (idProducto: string, cantidad: number) =>
-    setLista((previa) => previa.map((i) => (i.id_producto === idProducto ? { ...i, cantidad } : i)));
-  const quitar = (idProducto: string) => setLista((previa) => previa.filter((i) => i.id_producto !== idProducto));
+    agregarItem({ id_producto: p.id_producto, nombre: nombreConTamano(p), cantidad, categoria: p.categoria });
 
   useEffect(() => {
     let cancelado = false;
@@ -724,7 +713,7 @@ function MismoProductoPage() {
           lista={lista}
           onCambiarCantidad={cambiarCantidad}
           onQuitar={quitar}
-          onVaciar={() => setLista([])}
+          onVaciar={vaciar}
           onVer={elegir}
         />
       )}

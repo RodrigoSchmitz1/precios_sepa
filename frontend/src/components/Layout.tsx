@@ -1,6 +1,8 @@
 import { Outlet, NavLink } from "react-router";
 import AvisoZona from "./AvisoZona";
 import ProveedorZona from "./ProveedorZona";
+import ProveedorLista from "./ProveedorLista";
+import AccesoLista from "./AccesoLista";
 import SelectorZona from "./SelectorZona";
 
 const SECCIONES = [
@@ -14,6 +16,7 @@ const SECCIONES = [
 function Layout() {
   return (
     <ProveedorZona>
+    <ProveedorLista>
     <div className="min-h-screen bg-lienzo">
       <header className="sticky top-0 z-20 bg-papel shadow-[0_1px_0_var(--color-linea)]">
         {/*
@@ -46,6 +49,7 @@ function Layout() {
           {/* La zona del usuario, en todas las paginas (zona compartida, 2026-11). */}
           <SelectorZona />
           </div>
+          <div className="flex items-center gap-2 sm:gap-4 min-w-0">
 
           {/*
             La nav scrollea en horizontal en pantallas chicas en vez de cortarse
@@ -74,6 +78,9 @@ function Layout() {
               </NavLink>
             ))}
           </nav>
+          {/* Tu lista, en todas las paginas (lista-a-mano, 2026-11). */}
+          <AccesoLista />
+          </div>
         </div>
       </header>
 
@@ -142,6 +149,7 @@ function Layout() {
         </div>
       </footer>
     </div>
+    </ProveedorLista>
     </ProveedorZona>
   );
 }
