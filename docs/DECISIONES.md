@@ -657,6 +657,19 @@ con los mismos porcentajes (medido el 12-11). Una cadena sin precios ese día se
 ignora: el 11-11 Vea, Disco y Jumbo no tuvieron, y la zona de Palermo no podía
 romperse por eso.
 
+**Tu lista también compara en la zona (2026-11-17).** zona-compartida dejó
+afuera a Tu lista, y un explore hecho por alguien sin el contexto del proyecto lo
+encontró enseguida. Con "Lomas de Zamora" elegida, la lista decía "ahorrás 11%"
+contra la Cooperativa Obrera, que no tiene sucursales ahí, y en la misma página
+el recuadro del producto sí comparaba en la zona. Ahora la API cotiza la lista
+también entre las cadenas de la zona, con el mismo criterio que Más barato: se
+recalcula, no se filtra, porque "combinando cadenas" necesita la más barata de
+la zona en cada producto. Las cadenas de afuera van en "Otras cadenas del país",
+plegadas y sin ahorro. Un producto que no vende ninguna cadena de la zona se
+nombra arriba y queda afuera de los totales. Si contara, un solo producto
+regional dejaría a la zona sin ninguna cadena completa y sin titular. Change
+`lista-en-tu-zona` en OpenSpec.
+
 ---
 
 ## Tests

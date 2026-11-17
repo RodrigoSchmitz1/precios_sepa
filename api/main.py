@@ -1147,6 +1147,9 @@ def buscar_mismo_producto(
 
 class ListaDeProductos(BaseModel):
     items: list
+    # Las cadenas de la zona del usuario, con los nombres crudos de /zonas. Una
+    # que no tiene precios ese dia se ignora, como en /quien-gana/zona.
+    cadenas: list[str] | None = None
 
 
 @api.post("/mismo-producto/lista")
@@ -1159,7 +1162,7 @@ def cotizar_lista_de_productos(datos: ListaDeProductos):
     if not datos.items:
         return JSONResponse(status_code=422, content={"detail": "La lista está vacía."})
     items = [i for i in datos.items if isinstance(i, dict)]
-    return mismo_producto.cotizar_lista(_indice_mismo_producto(), items)
+    return mismo_producto.cotizar_lista(_indice_mismo_producto(), items, datos.cadenas)
 
 
 class CategoriasDeTuCanasta(BaseModel):

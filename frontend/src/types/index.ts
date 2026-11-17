@@ -392,4 +392,12 @@ export type ResultadoLista = {
   /** Cada producto en la cadena donde esta mas barato: el piso, yendo a varias. */
   combinando_cadenas: number;
   fecha_datos: string | null;
+  /** Solo si se cotizo con las cadenas de la zona: la misma cuenta entre ellas.
+   *  "completa" es tener todo lo que se consigue en la zona (lista-en-tu-zona). */
+  zona?: {
+    cadenas: TotalCadenaLista[];
+    combinando_cadenas: number;
+    no_en_zona: string[];
+    mas_barato: Record<string, { cadena: string; precio: number }>;
+  };
 };

@@ -249,11 +249,16 @@ export async function obtenerProductosDestacados(): Promise<ProductoComparado[]>
 }
 
 /** Tu lista: cuanto sale una lista de productos exactos en cada cadena. */
-export async function cotizarLista(items: { id_producto: string; cantidad: number }[]): Promise<ResultadoLista> {
+/** Con `cadenas` (los nombres crudos de Zona.cadenas, como en
+ *  obtenerQuienGanaZona) la respuesta suma el bloque "zona". */
+export async function cotizarLista(
+  items: { id_producto: string; cantidad: number }[],
+  cadenas?: string[],
+): Promise<ResultadoLista> {
   const respuesta = await fetch(`${API_BASE}/mismo-producto/lista`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ items }),
+    body: JSON.stringify(cadenas && cadenas.length > 0 ? { items, cadenas } : { items }),
   });
   if (!respuesta.ok) await fallar(respuesta, "Error al cotizar tu lista");
   return leerJson(respuesta);

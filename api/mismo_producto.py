@@ -297,7 +297,7 @@ MAXIMO_PRODUCTOS_LISTA = 50
 MAXIMO_UNIDADES_POR_PRODUCTO = 99
 
 
-def cotizar_lista(indice: dict, items: list[dict]) -> dict:
+def cotizar_lista(indice: dict, items: list[dict], cadenas: list[str] | None = None) -> dict:
     """Cuanto sale una lista de productos exactos (codigo de barras) en cada cadena.
 
     Es la pregunta de uso diario que la pagina respondia de a un producto: "si
@@ -312,6 +312,10 @@ def cotizar_lista(indice: dict, items: list[dict]) -> dict:
 
     Solo cuentan los precios creibles: el que contradice a la mediana entre
     empresas tampoco entra aca (ver mart_mismo_producto).
+
+    Con las cadenas de la zona del usuario se suma el bloque "zona", la misma
+    cuenta entre esas cadenas (ver _lista_en_zona). Las filas nacionales no
+    cambian.
     """
     pedidos: dict[str, int] = {}
     for item in items[:MAXIMO_PRODUCTOS_LISTA]:
@@ -336,20 +340,9 @@ def cotizar_lista(indice: dict, items: list[dict]) -> dict:
             "_precios": precios,
         })
 
-    cadenas = sorted({c for p in productos for c in p["_precios"]})
-    por_cadena = []
-    for cadena in cadenas:
-        con_precio = [p for p in productos if cadena in p["_precios"]]
-        por_cadena.append({
-            "cadena": cadena,
-            "total": round(sum(p["_precios"][cadena] * p["cantidad"] for p in con_precio), 2),
-            "productos_con_precio": len(con_precio),
-            "completa": len(con_precio) == len(productos),
-            "faltan": [p["id_producto"] for p in productos if cadena not in p["_precios"]],
-        })
-    por_cadena.sort(key=lambda c: (not c["completa"], -c["productos_con_precio"], c["total"], c["cadena"]))
-
+    por_cadena = _filas_por_cadena(productos, lambda p: p["_precios"])
     combinada = round(sum(p["mas_barato"]["precio"] * p["cantidad"] for p in productos), 2)
+    zona = _lista_en_zona(productos, set(cadenas)) if cadenas else None
     for p in productos:
         del p["_precios"]
     return {
@@ -358,6 +351,53 @@ def cotizar_lista(indice: dict, items: list[dict]) -> dict:
         "cadenas": por_cadena,
         "combinando_cadenas": combinada,
         "fecha_datos": next((indice[p["id_producto"]]["fecha_datos"] for p in productos), None),
+        **({"zona": zona} if zona is not None else {}),
+    }
+
+
+def _filas_por_cadena(productos: list[dict], precios_de) -> list[dict]:
+    """Total, cobertura y faltantes de cada cadena sobre una lista de productos.
+
+    Primero las completas, de la mas barata a la mas cara; despues las
+    incompletas, de la que tiene mas productos a la que tiene menos."""
+    cadenas = sorted({c for p in productos for c in precios_de(p)})
+    filas = []
+    for cadena in cadenas:
+        con_precio = [p for p in productos if cadena in precios_de(p)]
+        filas.append({
+            "cadena": cadena,
+            "total": round(sum(precios_de(p)[cadena] * p["cantidad"] for p in con_precio), 2),
+            "productos_con_precio": len(con_precio),
+            "completa": len(con_precio) == len(productos),
+            "faltan": [p["id_producto"] for p in productos if cadena not in precios_de(p)],
+        })
+    filas.sort(key=lambda c: (not c["completa"], -c["productos_con_precio"], c["total"], c["cadena"]))
+    return filas
+
+
+def _lista_en_zona(productos: list[dict], cadenas: set[str]) -> dict:
+    """La misma cuenta de la lista, contando solo las cadenas de la zona (2026-11).
+
+    Un producto que no vende ninguna cadena de la zona va a no_en_zona y queda
+    afuera: si contara, un solo producto regional dejaria a la zona sin ninguna
+    cadena completa y sin titular. "Completa" es entonces tener todo lo que se
+    consigue en la zona. Las cadenas de la zona sin precio ese dia simplemente
+    no aparecen (el 2026-11-11 falto Cencosud entero).
+    """
+    def en_zona(p):
+        return {c: v for c, v in p["_precios"].items() if c in cadenas}
+
+    conseguibles = [p for p in productos if en_zona(p)]
+    mas_barato = {}
+    for p in conseguibles:
+        precios = en_zona(p)
+        cadena = min(precios, key=lambda c: (precios[c], c))
+        mas_barato[p["id_producto"]] = {"cadena": cadena, "precio": precios[cadena]}
+    return {
+        "cadenas": _filas_por_cadena(conseguibles, en_zona),
+        "combinando_cadenas": round(sum(mas_barato[p["id_producto"]]["precio"] * p["cantidad"] for p in conseguibles), 2),
+        "no_en_zona": [p["id_producto"] for p in productos if not en_zona(p)],
+        "mas_barato": mas_barato,
     }
 
 

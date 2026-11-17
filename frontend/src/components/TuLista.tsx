@@ -1,7 +1,11 @@
 import { useEffect, useState } from "react";
 import { cotizarLista } from "../api/client";
+import { useZona } from "../contexto/zona";
 import { fechaEnPalabras, formatearPesos } from "../utils/formato";
 import { MAXIMO_UNIDADES } from "../utils/lista";
+import { productosComparados, vistaDeLista } from "../utils/listaEnZona";
+import { listarConY } from "../utils/texto";
+import { cadenasVisibles, rotuloZona } from "../utils/zona";
 import type { ItemLista, ResultadoLista } from "../types";
 
 /*
@@ -17,6 +21,11 @@ import type { ItemLista, ResultadoLista } from "../types";
   productos: una cadena a la que le falta el aceite suma menos porque compra
   menos, no porque sea mas barata. Por eso el titular compara solo cadenas con
   la lista completa, y las incompletas van aparte diciendo que les falta.
+
+  Con zona (2026-11, openspec lista-en-tu-zona) se compara entre las cadenas
+  que el usuario tiene cerca, y las del resto del pais van aparte, plegadas y
+  sin ahorro: con Lomas de Zamora elegida, el titular decia "ahorras 11%"
+  contra la Cooperativa Obrera, que ahi no existe.
 */
 
 type Props = {
@@ -35,7 +44,10 @@ const INCOMPLETAS_VISIBLES = 4;
 function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props) {
   // La lista serializada: es la dependencia del efecto (un arreglo nuevo en cada
   // render dispararia una cotizacion por render) y lleva todo lo que se cotiza.
-  const clave = lista.length > 0 ? JSON.stringify(lista.map((i) => [i.id_producto, i.cantidad])) : "";
+  // La zona tambien: cambiarla o borrarla vuelve a cotizar.
+  const { zona } = useZona();
+  const clave =
+    lista.length > 0 ? JSON.stringify([lista.map((i) => [i.id_producto, i.cantidad]), zona?.cadenas ?? []]) : "";
   const [estado, setEstado] = useState<Estado | null>(null);
   const [verTodas, setVerTodas] = useState(false);
 
@@ -45,8 +57,11 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
     // Se espera un momento: apretar "+" varias veces seguidas no tiene que
     // disparar una cotizacion por click.
     const espera = setTimeout(() => {
-      const pares = JSON.parse(clave) as [string, number][];
-      cotizarLista(pares.map(([id_producto, cantidad]) => ({ id_producto, cantidad })))
+      const [pares, cadenas] = JSON.parse(clave) as [[string, number][], string[]];
+      cotizarLista(
+        pares.map(([id_producto, cantidad]) => ({ id_producto, cantidad })),
+        cadenas,
+      )
         .then((resultado) => {
           if (!cancelado) setEstado({ clave, resultado });
         })
@@ -64,12 +79,18 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
   // numeros cambian en el lugar en vez de parpadear.
   const r = estado?.resultado;
   const nombres = new Map(lista.map((i) => [i.id_producto, i.nombre]));
-  const completas = r?.cadenas.filter((c) => c.completa) ?? [];
-  const incompletas = r?.cadenas.filter((c) => !c.completa) ?? [];
+  const vista = r ? vistaDeLista(r, zona ? cadenasVisibles(zona) : null) : null;
+  const enZona = vista?.alcance === "zona";
+  const completas = vista?.completas ?? [];
+  const incompletas = vista?.incompletas ?? [];
+  const comparados = r && vista ? productosComparados(r, vista) : lista.length;
+  const nombrar = (ids: string[]) => listarConY(ids.map((id) => nombres.get(id) ?? id));
   // El titular es la mas barata de todas, Maxi incluido (ver CanastaPorCadena).
   const barata = completas[0];
   const cara = completas[completas.length - 1];
   const ahorro = barata && cara && completas.length > 1 ? cara.total - barata.total : 0;
+  // Una zona donde una sola cadena vende la lista: se dice, sin ahorro.
+  const unicaDeLaZona = enZona && completas.length === 1 && incompletas.length === 0;
   const maximo = Math.max(...completas.map((c) => c.total), 1);
   const unidades = lista.reduce((suma, i) => suma + i.cantidad, 0);
 
@@ -89,10 +110,29 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
         </p>
       </div>
 
+      {zona && vista && (
+        <div className="mb-3 text-sm">
+          <p className="text-xs font-bold text-ahorro uppercase tracking-wide">📍 En tu zona · {rotuloZona(zona)}</p>
+          {vista.nadaEnZona && (
+            <p className="text-tinta-media mt-1">
+              Ninguna cadena de tu zona vende tus productos. Abajo, cuánto salen en las cadenas del país.
+            </p>
+          )}
+          {enZona && vista.noEnZona.length > 0 && (
+            <p className="text-aviso mt-1">
+              No se consigue en tu zona: {nombrar(vista.noEnZona)}. La comparación es con{" "}
+              {comparados === 1 ? "el otro producto" : `los otros ${comparados}`}.
+            </p>
+          )}
+        </div>
+      )}
+
       {barata && (
         <div className="mb-5">
           <p className="text-lg sm:text-xl text-tinta leading-snug">
-            En <strong className="font-semibold">{barata.cadena}</strong> te sale{" "}
+            {unicaDeLaZona ? "La única cadena de tu zona con tus productos es " : "En "}
+            <strong className="font-semibold">{barata.cadena}</strong>
+            {unicaDeLaZona ? ": te sale " : " te sale "}
             <strong className="font-semibold numero">{formatearPesos(barata.total)}</strong>
             {ahorro > 0 && (
               <>
@@ -104,17 +144,17 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
               </>
             )}
           </p>
-          {r && r.combinando_cadenas < barata.total - 0.5 && (
+          {vista && vista.combinando < barata.total - 0.5 && (
             <p className="text-sm text-tinta-media mt-1">
-              Comprando cada producto donde está más barato, {formatearPesos(r.combinando_cadenas)}, aunque eso es ir
-              a varias cadenas.
+              Comprando cada producto donde está más barato{enZona && " en tu zona"}, {formatearPesos(vista.combinando)},
+              aunque eso es ir a varias cadenas.
             </p>
           )}
         </div>
       )}
       {r && !barata && r.productos.length > 0 && (
         <p className="text-sm text-tinta-media mb-5">
-          Ninguna cadena tiene todos los productos de tu lista, así que los totales no se comparan entre sí. Abajo,
+          Ninguna cadena {enZona && "de tu zona "}tiene todos los productos de tu lista, así que los totales no se comparan entre sí. Abajo,
           cuántos tiene cada una.
         </p>
       )}
@@ -198,7 +238,7 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
                   <span className="numero shrink-0">
                     {formatearPesos(c.total)}{" "}
                     <span className="text-xs text-tinta-suave">
-                      por {c.productos_con_precio} de {lista.length}
+                      por {c.productos_con_precio} de {comparados}
                     </span>
                   </span>
                 </span>
@@ -218,6 +258,33 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
           )}
           {incompletas.length <= INCOMPLETAS_VISIBLES && <div className="mb-3" />}
         </>
+      )}
+
+      {enZona && vista && vista.otras.length > 0 && r && (
+        <details className="mb-5 group">
+          <summary className="cursor-pointer text-sm text-tinta-media underline underline-offset-2 hover:text-tinta">
+            Otras cadenas del país ({vista.otras.length})
+          </summary>
+          <p className="text-xs text-tinta-suave mt-2 mb-1">
+            No tienen sucursal en tu zona, así que no entran en la comparación.
+          </p>
+          <ul className="divide-y divide-linea">
+            {vista.otras.map((c) => (
+              <li key={c.cadena} className="py-1.5 flex items-baseline justify-between gap-3 text-sm text-tinta-media">
+                <span className="truncate">{c.cadena}</span>
+                <span className="numero shrink-0">
+                  {formatearPesos(c.total)}
+                  {!c.completa && (
+                    <span className="text-xs text-tinta-suave">
+                      {" "}
+                      por {c.productos_con_precio} de {r.productos.length}
+                    </span>
+                  )}
+                </span>
+              </li>
+            ))}
+          </ul>
+        </details>
       )}
 
       {r && r.no_encontrados.length > 0 && (
