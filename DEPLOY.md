@@ -149,10 +149,17 @@ gcloud secrets add-iam-policy-binding gemini-api-key --member=serviceAccount:dbt
 Desplegar, desde la raíz del repo:
 
 ```bash
-gcloud run deploy precios-sepa-api --source . --region us-central1 --allow-unauthenticated --service-account dbt-788@proyecto-precios-504221.iam.gserviceaccount.com --set-env-vars USAR_CREDENCIALES_DEL_ENTORNO=1 --set-secrets GEMINI_API_KEY=gemini-api-key:latest --memory 512Mi --max-instances 3
+gcloud run deploy precios-sepa-api --source . --region us-central1 --allow-unauthenticated --service-account dbt-788@proyecto-precios-504221.iam.gserviceaccount.com --set-env-vars USAR_CREDENCIALES_DEL_ENTORNO=1 --set-secrets GEMINI_API_KEY=gemini-api-key:latest --memory 1Gi --max-instances 3
 ```
 
 Detalles que importan:
+
+- `--memory 1Gi` (desde 2026-11-17). Con 512 MiB la instancia vivía al borde:
+  con el índice de Mismo producto, el del mapa de promos y las cachés cargadas,
+  Cloud Run cortaba por memoria apenas creció el índice del buscador. Como el
+  CPU se asigna solo durante los pedidos y no hay instancias mínimas, la
+  memoria se factura solo mientras se atiende un pedido. El nivel gratuito
+  (360.000 GiB-segundos por mes) cubre de sobra el tráfico del sitio.
 
 - `USAR_CREDENCIALES_DEL_ENTORNO=1` hace que la API use la identidad del propio
   servicio en vez de una clave. **No se sube ninguna clave privada**, y el
