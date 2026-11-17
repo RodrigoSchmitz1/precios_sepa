@@ -672,6 +672,46 @@ regional dejaría a la zona sin ninguna cadena completa y sin titular. Change
 
 ---
 
+## El buscador
+
+**El problema (2026-11-17).** Lo encontró el explore externo y después se
+midió con 20 búsquedas de la compra diaria contra el índice real:
+- **"leche":** los 8 primeros resultados eran Águila, Actimel, arroz con leche,
+  Kinder, Cofler y Cindor.
+- **"huevos":** el primero era el huevo Kinder.
+- **"azucar":** Coca Cola, Schweppes y Nido.
+- **"pan":** mantecas y tapas de empanada.
+- **"yerva":** nada.
+
+El buscador buscaba pedazos de texto ("pan" está dentro de "empanada") y
+ordenaba por la cantidad de cadenas. Como casi todos los productos están en 13
+o 14 cadenas, el orden real era el alfabético.
+
+**Palabras, ortografía y relevancia.**
+- **Palabras:** cada palabra buscada tiene que ser el comienzo de una palabra
+  del producto. Así "gall" sigue encontrando galletitas.
+- **Ortografía:** se igualan b/v, s/z/c suave, y/ll y la h muda, tanto en el
+  producto como en la búsqueda.
+- **Orden:** lo que se buscó va primero. Primero la categoría que la búsqueda
+  nombra entera, después la que nombra en parte. Después, el producto que tiene
+  las palabras en el nombre que muestra la página. Recién después cuentan las
+  cadenas.
+
+Después del cambio, las 20 búsquedas devuelven su categoría arriba, "yerva"
+encuentra lo mismo que "yerba", y las que ya andaban ("fideos", "cafe",
+"detergente", "fernet") siguen igual. Una búsqueda tarda menos de 0,1 s: un
+vocabulario ordenado por índice deja buscar el prefijo con bisect.
+
+**Lo que no se arregló, a propósito.**
+- **Pañales con "pan":** sin tilde, "pañal" empieza con "pan". Sacarlo haría
+  que "panales" no encontrara pañales, así que queda en la lista, después de
+  todo lo que dice "pan" entero.
+- **Errores de clasificación:** son de la categoría de dbt, no del buscador.
+  Actimel figura como "Leche fluida" y el "JABON PAN BLANQUEADOR" como Pan.
+  Quedan anotados para revisar la clasificación.
+
+---
+
 ## Tests
 
 Además de los genéricos, hay tests singulares de dbt para lo que sólo se

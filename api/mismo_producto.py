@@ -9,6 +9,7 @@ Este modulo no conoce BigQuery: recibe filas y devuelve diccionarios, para
 poder testearlo sin credenciales.
 """
 
+import bisect
 import math
 import re
 import unicodedata
@@ -62,6 +63,52 @@ def normalizar(texto: str | None) -> str:
     descompuesto = unicodedata.normalize("NFD", texto or "")
     plano = "".join(c for c in descompuesto if unicodedata.category(c) != "Mn").lower()
     return TAMANO_SEPARADO.sub(r"\1\2", plano)
+
+
+# ---------------------------------------------------------------------------
+# Buscador (2026-11-17, openspec buscador-que-encuentra)
+#
+# Buscaba pedazos de texto y ordenaba por cantidad de cadenas: "leche" traia
+# Kinder y Actimel, "pan" traia empanadas (y "panal", pañal sin tilde), "yerva"
+# no traia nada. Ahora cada palabra buscada tiene que ser el comienzo de una
+# palabra del producto, se toleran los errores foneticos del castellano y lo que
+# se busco va primero (ver buscar).
+
+# Una palabra: letras y numeros, con un decimal pegado ("1.5l", "1,5l").
+PALABRA = re.compile(r"[a-z0-9]+(?:[.,][0-9]+)?[a-z]*")
+
+
+def fonetizar(texto: str) -> str:
+    """Iguala lo que en castellano suena igual, sobre un texto ya normalizado:
+    b/v, s/z/c suave, y/ll, y la h muda (no la de "ch"). Se aplica al producto y a
+    la busqueda por igual, asi que lo bien escrito encuentra lo mismo que antes."""
+    t = texto.replace("ll", "y").replace("v", "b").replace("z", "s")
+    t = re.sub(r"c(?=[ei])", "s", t)
+    return re.sub(r"(?<!c)h", "", t)
+
+
+def palabras(texto: str | None) -> set[str]:
+    return set(PALABRA.findall(fonetizar(normalizar(texto))))
+
+
+def _variantes(palabra: str) -> set[str]:
+    """La palabra buscada y su singular: "huevos" tiene que encontrar "HUEVO"."""
+    variantes = {palabra}
+    if len(palabra) > 3 and palabra.endswith("es"):
+        variantes.add(palabra[:-2])
+    if len(palabra) > 3 and palabra.endswith("s"):
+        variantes.add(palabra[:-1])
+    return variantes
+
+
+def _empieza_alguna(conjunto: set[str], variantes: set[str]) -> bool:
+    return any(w.startswith(v) for w in conjunto for v in variantes)
+
+
+def _es_alguna(conjunto: set[str], variantes: set[str]) -> bool:
+    """La palabra entera, con su plural de cualquiera de los dos lados: "pan" es
+    la categoria Pan pero no Panales."""
+    return any(_variantes(w) & variantes for w in conjunto)
 
 
 def _tamanos_buscables(cantidad, unidad) -> str:
@@ -155,11 +202,19 @@ def armar_indice(filas) -> dict:
                 # puede llegar como "YERBA" de marca "PLAYA" en una y como
                 # "PLAYADITO YERBA MATE SUAVE 500G" en otra (textos_busqueda los
                 # junta a todos; .get porque llega en la corrida siguiente).
-                "_texto": normalizar(
+                "_palabras": palabras(
                     f"{fila['descripcion']} {fila['marca'] or ''} "
                     f"{_tamanos_buscables(fila.get('cantidad_normalizada'), fila.get('unidad_normalizada'))} "
                     f"{fila.get('textos_busqueda') or ''}"
                 ),
+                # Lo que muestra la pagina: un producto que tiene la palabra
+                # en su propio nombre va antes que uno que la tiene solo en el
+                # nombre que le da otra cadena.
+                "_palabras_visibles": palabras(
+                    f"{fila['descripcion']} {fila['marca'] or ''} "
+                    f"{_tamanos_buscables(fila.get('cantidad_normalizada'), fila.get('unidad_normalizada'))}"
+                ),
+                "_palabras_categoria": palabras(fila.get("categoria")),
             }
         producto["precios"].append(
             {
@@ -217,15 +272,77 @@ def _resumen(producto: dict) -> dict:
     return {campo: producto[campo] for campo in CAMPOS_RESUMEN}
 
 
+def _vocabulario(indice: dict) -> tuple[list[str], dict[str, list[str]]]:
+    """Las palabras de todos los productos, ordenadas, y que productos tiene
+    cada una. Buscar un prefijo es entonces un bisect y no recorrer cada palabra
+    de cada producto. Se arma una vez por indice (el indice se arma una vez por
+    instancia y por dia)."""
+    global _ULTIMO_VOCABULARIO
+    if _ULTIMO_VOCABULARIO is not None and _ULTIMO_VOCABULARIO[0] is indice:
+        return _ULTIMO_VOCABULARIO[1]
+    por_palabra: dict[str, list[str]] = {}
+    for clave, producto in indice.items():
+        for w in producto["_palabras"]:
+            por_palabra.setdefault(w, []).append(clave)
+    vocabulario = (sorted(por_palabra), por_palabra)
+    _ULTIMO_VOCABULARIO = (indice, vocabulario)
+    return vocabulario
+
+
+_ULTIMO_VOCABULARIO = None
+
+
+def _con_prefijo(vocabulario, variantes: set[str]) -> set[str]:
+    ordenadas, por_palabra = vocabulario
+    claves: set[str] = set()
+    for v in variantes:
+        i = bisect.bisect_left(ordenadas, v)
+        while i < len(ordenadas) and ordenadas[i].startswith(v):
+            claves.update(por_palabra[ordenadas[i]])
+            i += 1
+    return claves
+
+
 def buscar(indice: dict, consulta: str, limite: int = 20) -> list[dict]:
-    """Productos cuya descripcion o marca contienen TODAS las palabras buscadas,
-    en cualquier orden. Primero los que estan en mas cadenas: son los mas
-    conocidos y los que mas informacion dan."""
-    palabras = normalizar(consulta).split()
-    if not palabras:
+    """Productos que tienen TODAS las palabras buscadas, en cualquier orden.
+
+    Cada palabra buscada tiene que ser el comienzo de una palabra del producto
+    (su nombre en cualquier cadena, su marca o su tamaño): "gall" encuentra
+    galletitas y "pan" no encuentra empanadas. El orden pone primero lo que se
+    busco:
+      1. la categoria tiene alguna palabra buscada entera ("leche" -> Leche
+         fluida; "pan" -> Pan, no Panales), y antes la que queda nombrada
+         entera ("pan": Pan antes que Rebozadores y pan rallado);
+      2. el nombre que muestra la pagina tiene todas las palabras;
+      3. y las tiene enteras: "pan" pone "MANTECA TONADITA PAN" antes que
+         "PAÑAL", que sin tilde empieza con "pan";
+      4. mas cadenas, y la descripcion mas corta.
+    """
+    buscadas = [_variantes(w) for w in PALABRA.findall(fonetizar(normalizar(consulta)))]
+    if not buscadas:
         return []
-    encontrados = [p for p in indice.values() if all(w in p["_texto"] for w in palabras)]
-    encontrados.sort(key=lambda p: (-p["cadenas"], p["descripcion"]))
+    vocabulario = _vocabulario(indice)
+    claves: set[str] | None = None
+    for variantes in buscadas:
+        con_esta = _con_prefijo(vocabulario, variantes)
+        claves = con_esta if claves is None else claves & con_esta
+        if not claves:
+            return []
+
+    def nivel_categoria(p):
+        # 0: lo buscado nombra la categoria entera ("pan" -> Pan); 1: nombra
+        # una palabra ("pan" -> Rebozadores y pan rallado); 2: ninguna.
+        nombradas = [w for w in p["_palabras_categoria"] if len(w) > 2]
+        tocadas = [w for w in nombradas if any(_variantes(w) & v for v in buscadas)]
+        return 2 if not tocadas else 0 if len(tocadas) == len(nombradas) else 1
+
+    def orden(p):
+        categoria = nivel_categoria(p)
+        visible = all(_empieza_alguna(p["_palabras_visibles"], v) for v in buscadas)
+        enteras = all(_es_alguna(p["_palabras_visibles"], v) for v in buscadas)
+        return (categoria, not visible, not enteras, -p["cadenas"], len(p["descripcion"]), p["descripcion"])
+
+    encontrados = sorted((indice[c] for c in claves), key=orden)
     return [_resumen(p) for p in encontrados[:limite]]
 
 

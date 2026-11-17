@@ -89,7 +89,8 @@ class TestBuscar(unittest.TestCase):
         self.assertEqual(buscar(self.indice, "   "), [])
 
     def test_el_resumen_no_expone_campos_internos(self):
-        self.assertNotIn("_texto", buscar(self.indice, "yerba")[0])
+        resumen = buscar(self.indice, "yerba")[0]
+        self.assertFalse([campo for campo in resumen if campo.startswith("_")])
 
 
 class TestDetalle(unittest.TestCase):
