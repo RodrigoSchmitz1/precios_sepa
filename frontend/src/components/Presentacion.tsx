@@ -1,6 +1,7 @@
-import { useEffect, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useState, type FormEvent } from "react";
 import { Link, useNavigate } from "react-router";
 import {
+  buscarLocalidades,
   buscarProductos,
   cotizarCanastaPorCadena,
   obtenerComposicionCanasta,
@@ -8,13 +9,13 @@ import {
   obtenerProducto,
   obtenerProductosDestacados,
   obtenerQuienGana,
+  obtenerQuienGanaZona,
 } from "../api/client";
-import { fechaEnPalabras, formatearPesos, formatearVariacion, mesEnPalabras, tamanoQueFalta } from "../utils/formato";
-import { ahorroEnCadenas } from "../utils/ahorroCanasta";
+import { fechaEnPalabras, formatearPesos, tamanoQueFalta } from "../utils/formato";
+import { cifrasDePortada } from "../utils/cifrasPortada";
 import { useZona } from "../contexto/zona";
-import { rotuloZona } from "../utils/zona";
-import { categoriasGanadas, liderEn } from "../utils/liderazgo";
-import { nombreCategoria } from "../utils/nombres";
+import { localidadDeZona, zonaAParametro } from "../utils/zona";
+import { categoriasGanadas } from "../utils/liderazgo";
 import { nombreLegible } from "../utils/texto";
 import AvisoCadenasDeOtroDia from "./AvisoCadenasDeOtroDia";
 import type { CanastaPorCadena, InflacionResumen, ProductoComparado, ProductoDetalle, QuienGana } from "../types";
@@ -67,6 +68,17 @@ type Datos = {
   destacados?: ProductoComparado[];
   ejemplo?: ProductoDetalle;
   canastaPorCadena?: CanastaPorCadena;
+};
+
+/** Lo de la portada que depende de la zona (openspec portada-de-tu-zona). La
+ *  clave es la zona para la que se pidio: lo que llega tarde de una zona
+ *  anterior no se muestra. */
+type DatosZona = {
+  clave: string;
+  quienGana?: QuienGana[];
+  /** "zona": cotizada en las sucursales de la zona; "pais": la zona no tiene
+   *  precios para la canasta y se usa la del pais. */
+  canasta?: { alcance: "zona" | "pais"; datos?: CanastaPorCadena };
 };
 
 /** Barras divergentes en miniatura: una categoria, una barra. */
@@ -214,9 +226,18 @@ function TarjetaEjemplo({ producto }: { producto: ProductoDetalle }) {
   );
 }
 
+/** La canasta basica del INDEC (un adulto, gama economica), lista para cotizar. */
+function itemsCanastaBasica() {
+  return obtenerComposicionCanasta().then((grupos) =>
+    grupos.flatMap((g) => g.items.map((i) => ({ ...i, gama: "economico" as const, razon: "" })))
+  );
+}
+
 function Presentacion() {
   const { zona } = useZona();
   const [datos, setDatos] = useState<Datos>({});
+  const [datosZona, setDatosZona] = useState<DatosZona | null>(null);
+  const claveZona = zona ? zonaAParametro(zona) : "";
   const [texto, setTexto] = useState("");
   const navegar = useNavigate();
 
@@ -242,13 +263,8 @@ function Presentacion() {
     // La canasta basica del INDEC (un adulto, gama economica) en cada cadena.
     // La composicion es una seed que se lee con list_rows y la cotizacion sale
     // del indice en memoria de Tu canasta: ninguna de las dos consume cuota.
-    obtenerComposicionCanasta()
-      .then((grupos) =>
-        cotizarCanastaPorCadena(
-          grupos.flatMap((g) => g.items.map((i) => ({ ...i, gama: "economico", razon: "" }))),
-          []
-        )
-      )
+    itemsCanastaBasica()
+      .then((items) => cotizarCanastaPorCadena(items, []))
       .then((canastaPorCadena) => {
         if (!cancelado) setDatos((previo) => ({ ...previo, canastaPorCadena }));
       })
@@ -264,13 +280,35 @@ function Presentacion() {
     };
   }, []);
 
+  // Con zona: quien gana entre las cadenas de la zona y la canasta en sus
+  // sucursales. Las dos salen de indices en memoria (Mas barato y Tu canasta
+  // hacen los mismos pedidos), y se vuelven a pedir si cambia la zona.
+  useEffect(() => {
+    if (!zona) return;
+    let cancelado = false;
+    const guardar = (parte: Partial<DatosZona>) => {
+      if (!cancelado) setDatosZona((previo) => ({ ...(previo?.clave === claveZona ? previo : { clave: claveZona }), ...parte }));
+    };
+    obtenerQuienGanaZona(zona.cadenas)
+      .then((quienGana) => guardar({ quienGana }))
+      .catch(() => guardar({ quienGana: [] }));
+    Promise.all([buscarLocalidades(zona.nombre), itemsCanastaBasica()])
+      .then(([opciones, items]) => {
+        const localidad = localidadDeZona(opciones, zona);
+        if (!localidad) return guardar({ canasta: { alcance: "pais" } });
+        // La API cotiza el pais cuando la zona no alcanza para comparar (por
+        // ejemplo, una sola cadena): el alcance lo dice la respuesta.
+        return cotizarCanastaPorCadena(items, [localidad]).then((datos) =>
+          guardar({ canasta: { alcance: datos.ambito === "zona" ? "zona" : "pais", datos } })
+        );
+      })
+      .catch(() => guardar({ canasta: { alcance: "pais" } }));
+    return () => {
+      cancelado = true;
+    };
+  }, [zona, claveZona]);
+
   const inflacion = datos.inflacion ?? [];
-  // "Cuantas subieron" no decia nada: con inflacion casi todas suben siempre
-  // (2026-10-20, 40 de 42). Lo que si es noticia es cual subio mas.
-  const masSubio = inflacion.reduce<InflacionResumen | undefined>(
-    (mayor, f) => (!mayor || f.variacion_pct > mayor.variacion_pct ? f : mayor),
-    undefined
-  );
 
   /*
     Cuantas categorias lidera cada cadena, de mayor a menor.
@@ -289,7 +327,6 @@ function Presentacion() {
   const filasQG = datos.quienGana ?? [];
   const categoriasQG = [...new Set(filasQG.map((f) => f.categoria))];
   const lideres = [...categoriasGanadas(filasQG, categoriasQG).values()].sort((a, b) => b - a);
-  const lider = liderEn(filasQG, categoriasQG);
   const fechaDatos = fechaEnPalabras(datos.ejemplo?.fecha_datos ?? datos.inflacion?.[0]?.fecha_fin ?? "");
 
   const brechas = (datos.destacados ?? []).map((p) => p.diferencia_pct);
@@ -330,38 +367,20 @@ function Presentacion() {
     },
   ];
 
-  type CifraPortada = { etiqueta: string; valor: ReactNode; detalle: string; chip: string; chipClase: string };
-  const cifras: CifraPortada[] = [];
-  if (lider) {
-    cifras.push({
-      etiqueta: "Más barata en más categorías",
-      valor: lider[0],
-      detalle: `en ${lider[1]} de ${categoriasQG.length} categorías`,
-      chip: "🏆 #1 del día",
-      chipClase: "bg-ahorro-tenue text-ahorro",
-    });
-  }
-  if (masSubio && masSubio.variacion_pct > 0) {
-    cifras.push({
-      etiqueta: "Lo que más subió",
-      valor: formatearVariacion(masSubio.variacion_pct, 1),
-      detalle: `${nombreCategoria(masSubio.categoria)}, en lo que va de ${mesEnPalabras(masSubio.mes)}`,
-      chip: "▲ el que más subió",
-      chipClase: "bg-alerta-tenue text-alerta",
-    });
-  }
-  // Reemplaza a "productos comparados", que mostraba el trabajo del sitio y no
-  // algo que le sirva a quien compra.
-  const ahorroCanasta = ahorroEnCadenas(datos.canastaPorCadena);
-  if (ahorroCanasta) {
-    cifras.push({
-      etiqueta: "Cuánto ahorrás eligiendo dónde",
-      valor: `${ahorroCanasta.pct}%`,
-      detalle: ahorroCanasta.detalle,
-      chip: "💰 canasta básica",
-      chipClase: "bg-ahorro-tenue text-ahorro",
-    });
-  }
+  // Las tarjetas (utils/cifrasPortada). Con zona, mientras llega lo de la zona
+  // no se muestra la cifra del pais en su lugar: pasaria de "Maxi" a la cadena
+  // de la zona delante de los ojos.
+  const zonaVigente = zona && datosZona?.clave === claveZona ? datosZona : null;
+  const canastaZona = zonaVigente?.canasta;
+  const cifras = cifrasDePortada(
+    {
+      inflacion,
+      quienGana: zona ? zonaVigente?.quienGana : datos.quienGana,
+      canasta: !zona ? datos.canastaPorCadena : canastaZona ? (canastaZona.datos ?? datos.canastaPorCadena) : undefined,
+      canastaDeZona: canastaZona?.alcance === "zona",
+    },
+    zona ? zona.cadenas : null
+  );
 
   const buscar = (e: FormEvent) => {
     e.preventDefault();
@@ -432,12 +451,8 @@ function Presentacion() {
           ))}
         </dl>
       )}
-      {/* Las tres cifras son de todo el pais; con zona se aclara (spec zona-del-usuario). */}
-      {cifras.length > 0 && zona && (
-        <p className="mt-3 text-xs text-tinta-suave">
-          Estas cifras son de todo el país. Las promos de abajo y Mismo producto ya usan tu zona ({rotuloZona(zona)}).
-        </p>
-      )}
+      {/* Con zona, cada tarjeta dice si su dato es de la zona o del pais
+          (spec portada); la linea "Estas cifras son de todo el pais" se fue. */}
       {/* Las cifras de arriba usan los precios de Mismo producto y Mas barato. */}
       <AvisoCadenasDeOtroDia className="mt-4" />
 

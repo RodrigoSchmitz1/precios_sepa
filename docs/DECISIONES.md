@@ -693,6 +693,22 @@ el titular de Mismo producto pasa a la versión compacta: medido en WebKit a
 error que ya estaba en producción: la banda sube 40 px y tapaba el botón "←
 Todos los productos", que quedaba invisible y no se podía tocar.
 
+**La portada también es de la zona (2026-11-17).** Con "Lomas de Zamora"
+elegida, la portada seguía diciendo "Maxi" (la más barata del país) y "ahorrás
+12%" entre dos cadenas que casi nadie tiene cerca a la vez. La zona cambiaba
+una línea chica, no los titulares. Ahora, con zona:
+- **La tarjeta principal** es "Tu súper más barato cerca", con la misma cuenta
+  de Más barato en tu zona. En Lomas sigue siendo Maxi, porque Maxi tiene
+  sucursales ahí, pero ahora entre las cadenas de Lomas: 62 de 64 categorías.
+- **La de ahorro** cotiza la canasta en las sucursales de la zona: 10% entre
+  Maxi y Express.
+- **Una zona de una sola cadena,** como Rafaela, no recibe ningún ranking ni
+  ningún "ahorrás". La portada dice que SEPA informa solo La Anónima y cuánto
+  sale la canasta ahí.
+- **Lo que más subió** sigue siendo nacional y lo dice en la misma tarjeta.
+
+Change `portada-de-tu-zona` en OpenSpec.
+
 ---
 
 ## El buscador
