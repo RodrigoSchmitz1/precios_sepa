@@ -12,6 +12,7 @@ poder testearlo sin credenciales.
 import bisect
 import math
 import re
+import sys
 import unicodedata
 
 # Para DESTACAR una diferencia, el precio mas bajo y el mas alto tienen que
@@ -91,6 +92,26 @@ def palabras(texto: str | None) -> set[str]:
     return set(PALABRA.findall(fonetizar(normalizar(texto))))
 
 
+# Memoria (2026-11-17): con un set de palabras por producto el indice paso de
+# 101 a 215 MiB (47.637 productos) y Cloud Run, con 512 MiB, empezo a cortar por
+# memoria. Las palabras se guardan como tuplas de cadenas internadas (la misma
+# palabra en miles de productos es un solo objeto), y las del texto completo,
+# que solo sirven para armar el vocabulario, como un unico texto separado por
+# espacios.
+_CATEGORIAS: dict[str, tuple[str, ...]] = {}
+
+
+def _tupla(texto: str | None) -> tuple[str, ...]:
+    return tuple(sorted(sys.intern(w) for w in palabras(texto)))
+
+
+def _tupla_categoria(categoria: str | None) -> tuple[str, ...]:
+    clave = categoria or ""
+    if clave not in _CATEGORIAS:
+        _CATEGORIAS[clave] = _tupla(clave)
+    return _CATEGORIAS[clave]
+
+
 def _variantes(palabra: str) -> set[str]:
     """La palabra buscada y su singular: "huevos" tiene que encontrar "HUEVO"."""
     variantes = {palabra}
@@ -101,11 +122,11 @@ def _variantes(palabra: str) -> set[str]:
     return variantes
 
 
-def _empieza_alguna(conjunto: set[str], variantes: set[str]) -> bool:
+def _empieza_alguna(conjunto, variantes: set[str]) -> bool:
     return any(w.startswith(v) for w in conjunto for v in variantes)
 
 
-def _es_alguna(conjunto: set[str], variantes: set[str]) -> bool:
+def _es_alguna(conjunto, variantes: set[str]) -> bool:
     """La palabra entera, con su plural de cualquiera de los dos lados: "pan" es
     la categoria Pan pero no Panales."""
     return any(_variantes(w) & variantes for w in conjunto)
@@ -202,19 +223,19 @@ def armar_indice(filas) -> dict:
                 # puede llegar como "YERBA" de marca "PLAYA" en una y como
                 # "PLAYADITO YERBA MATE SUAVE 500G" en otra (textos_busqueda los
                 # junta a todos; .get porque llega en la corrida siguiente).
-                "_palabras": palabras(
+                "_palabras": " ".join(sorted(palabras(
                     f"{fila['descripcion']} {fila['marca'] or ''} "
                     f"{_tamanos_buscables(fila.get('cantidad_normalizada'), fila.get('unidad_normalizada'))} "
                     f"{fila.get('textos_busqueda') or ''}"
-                ),
+                ))),
                 # Lo que muestra la pagina: un producto que tiene la palabra
                 # en su propio nombre va antes que uno que la tiene solo en el
                 # nombre que le da otra cadena.
-                "_palabras_visibles": palabras(
+                "_palabras_visibles": _tupla(
                     f"{fila['descripcion']} {fila['marca'] or ''} "
                     f"{_tamanos_buscables(fila.get('cantidad_normalizada'), fila.get('unidad_normalizada'))}"
                 ),
-                "_palabras_categoria": palabras(fila.get("categoria")),
+                "_palabras_categoria": _tupla_categoria(fila.get("categoria")),
             }
         producto["precios"].append(
             {
@@ -282,8 +303,8 @@ def _vocabulario(indice: dict) -> tuple[list[str], dict[str, list[str]]]:
         return _ULTIMO_VOCABULARIO[1]
     por_palabra: dict[str, list[str]] = {}
     for clave, producto in indice.items():
-        for w in producto["_palabras"]:
-            por_palabra.setdefault(w, []).append(clave)
+        for w in producto["_palabras"].split():
+            por_palabra.setdefault(sys.intern(w), []).append(clave)
     vocabulario = (sorted(por_palabra), por_palabra)
     _ULTIMO_VOCABULARIO = (indice, vocabulario)
     return vocabulario

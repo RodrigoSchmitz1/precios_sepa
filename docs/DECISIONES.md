@@ -725,6 +725,17 @@ encuentra lo mismo que "yerba", y las que ya andaban ("fideos", "cafe",
 "detergente", "fernet") siguen igual. Una búsqueda tarda menos de 0,1 s: un
 vocabulario ordenado por índice deja buscar el prefijo con bisect.
 
+**La memoria (17-11, el mismo día).** Con un set de palabras por producto, el
+índice pasó de 101 a 215 MiB (47.637 productos). Cloud Run tiene 512 MiB y
+cortó por memoria 13 veces en las revisiones 00028 y 00029. Se me pasó porque
+revisé los logs justo después del deploy, antes de que llegara tráfico. Ahora
+las palabras visibles y las de la categoría se guardan como tuplas de cadenas
+internadas: la misma palabra en miles de productos es un solo objeto, y la
+tupla de cada categoría se comparte. El texto completo, que solo sirve para
+armar el vocabulario, queda como un único texto. El índice ocupa 105 MiB más
+8 de vocabulario, con los mismos resultados en las 20 búsquedas. Desde ahora,
+los logs se revisan unos minutos después del deploy y no enseguida.
+
 **Lo que no se arregló, a propósito.**
 - **Pañales con "pan":** sin tilde, "pañal" empieza con "pan". Sacarlo haría
   que "panales" no encontrara pañales, así que queda en la lista, después de
