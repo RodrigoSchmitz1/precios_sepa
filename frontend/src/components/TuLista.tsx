@@ -4,6 +4,7 @@ import { useZona } from "../contexto/zona";
 import { fechaEnPalabras, formatearPesos } from "../utils/formato";
 import { MAXIMO_UNIDADES } from "../utils/lista";
 import { comparacionDeLista, productosComparados, vistaDeLista } from "../utils/listaEnZona";
+import { claseCambio, textoCambioLista } from "../utils/cambioPrecio";
 import { promosQueConvienen, resumenPromosDeLista } from "../utils/promosCerca";
 import { listarConY } from "../utils/texto";
 import { cadenasVisibles, rotuloZona } from "../utils/zona";
@@ -138,6 +139,19 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
     }
   }
   const resumenPromos = resumenPromosDeLista(mejorPromo.size);
+  // El cambio de precio de la cadena mas barata de la zona (historia-de-precio).
+  // Misma condicion que las promos: solo con la cotizacion de esta lista y zona.
+  const cambioDeZona = new Map<string, string>();
+  const claseDeCambio = new Map<string, string>();
+  if (zona && estado?.clave === clave && r?.zona) {
+    for (const item of lista) {
+      const elegido = r.zona.mas_barato[item.id_producto];
+      if (elegido?.cambio) {
+        cambioDeZona.set(item.id_producto, textoCambioLista(elegido.cambio, elegido.cadena));
+        claseDeCambio.set(item.id_producto, claseCambio(elegido.cambio));
+      }
+    }
+  }
 
   return (
     <section aria-labelledby="titulo-lista" className="mb-10 tarjeta p-4 sm:p-6">
@@ -256,6 +270,9 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
                 ×
               </button>
             </div>
+            {cambioDeZona.has(item.id_producto) && (
+              <p className={`text-xs mt-0.5 ${claseDeCambio.get(item.id_producto)}`}>{cambioDeZona.get(item.id_producto)}</p>
+            )}
             {mejorPromo.has(item.id_producto) && (
               <div className="mt-1.5 mb-0.5 pl-3 border-l-2 border-ahorro">
                 <PromoCercana promo={mejorPromo.get(item.id_producto)!} />

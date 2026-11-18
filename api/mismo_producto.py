@@ -178,8 +178,26 @@ def _extremos_respaldados(producto: dict) -> bool:
     return respaldado(producto["precio_mas_bajo"]) and respaldado(producto["precio_mas_alto"])
 
 
-def armar_indice(filas) -> dict:
+def armar_cambios(filas) -> dict:
+    """Los cambios de precio de mart_cambio_precio, por (id_producto, cadena).
+
+    La regla de que cambio se cuenta (reciente, de 3% o mas, el precio de hoy)
+    vive en el mart; aca solo se indexa (openspec historia-de-precio)."""
+    return {
+        (str(f["id_producto"]), f["cadena"]): {
+            "precio_anterior": f["precio_anterior"],
+            "fecha": str(f["fecha_cambio"]),
+            "pct": f["cambio_pct"],
+        }
+        for f in filas
+    }
+
+
+def armar_indice(filas, cambios: dict | None = None) -> dict:
     """Agrupa las filas del mart (una por producto x cadena) por producto.
+
+    cambios (de armar_cambios) pega a cada precio su ultimo cambio para
+    mostrar, o None: "subio 8% el 25/11" en el detalle y en Tu lista.
 
     Los agregados por producto (cadenas, extremos, diferencia) se toman del mart
     tal cual y no se recalculan: la definicion vive en un solo lugar y la
@@ -253,6 +271,7 @@ def armar_indice(filas) -> dict:
                 # y se arrastro (ver cadenas_de_otro_dia). .get porque el mart
                 # puede no traer la columna hasta la corrida siguiente al deploy.
                 "fecha_precio": str(fila.get("fecha_precio") or fila["fecha_datos"]),
+                "cambio": cambios.get((clave, fila["cadena"])) if cambios else None,
             }
         )
 
@@ -470,19 +489,21 @@ def cotizar_lista(indice: dict, items: list[dict], cadenas: list[str] | None = N
         if not precios:
             no_encontrados.append(clave)
             continue
+        cambios = {p["cadena"]: p.get("cambio") for p in producto["precios"] if p["precio_creible"]}
         cadena_barata = min(precios, key=lambda c: (precios[c], c))
         productos.append({
             **_resumen(producto),
             "cantidad": cantidad,
-            "mas_barato": {"cadena": cadena_barata, "precio": precios[cadena_barata]},
+            "mas_barato": {"cadena": cadena_barata, "precio": precios[cadena_barata], "cambio": cambios.get(cadena_barata)},
             "_precios": precios,
+            "_cambios": cambios,
         })
 
     por_cadena = _filas_por_cadena(productos, lambda p: p["_precios"])
     combinada = round(sum(p["mas_barato"]["precio"] * p["cantidad"] for p in productos), 2)
     zona = _lista_en_zona(productos, set(cadenas)) if cadenas else None
     for p in productos:
-        del p["_precios"]
+        del p["_precios"], p["_cambios"]
     return {
         "productos": productos,
         "no_encontrados": no_encontrados,
@@ -530,7 +551,9 @@ def _lista_en_zona(productos: list[dict], cadenas: set[str]) -> dict:
     for p in conseguibles:
         precios = en_zona(p)
         cadena = min(precios, key=lambda c: (precios[c], c))
-        mas_barato[p["id_producto"]] = {"cadena": cadena, "precio": precios[cadena]}
+        # El cambio de precio viaja con la cadena elegida: Tu lista dice "Bajo 6%
+        # en Dia" solo si cambio donde conviene comprar (historia-de-precio).
+        mas_barato[p["id_producto"]] = {"cadena": cadena, "precio": precios[cadena], "cambio": p["_cambios"].get(cadena)}
     return {
         "cadenas": _filas_por_cadena(conseguibles, en_zona),
         "combinando_cadenas": round(sum(mas_barato[p["id_producto"]]["precio"] * p["cantidad"] for p in conseguibles), 2),

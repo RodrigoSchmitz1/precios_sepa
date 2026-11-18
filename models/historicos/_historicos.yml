@@ -26,3 +26,26 @@ models:
     columns:
       - name: fecha_datos
         tests: [not_null]
+
+  - name: historico_precio_producto
+    description: >
+      Historia del precio creible de cada producto en cada cadena, como registro
+      de cambios: una fila solo cuando el precio difiere del ultimo guardado (o
+      es la primera vez). Data IRRECUPERABLE: nunca --full-refresh.
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns: [fecha_datos, id_producto, cadena]
+    columns:
+      - name: fecha_datos
+        tests: [not_null]
+      - name: fecha_precio
+        tests: [not_null]
+      - name: id_producto
+        tests: [not_null]
+      - name: cadena
+        tests: [not_null]
+      - name: precio
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "> 0"

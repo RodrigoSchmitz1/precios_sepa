@@ -65,7 +65,7 @@ class TestListaEnZona(unittest.TestCase):
 
     def test_combinando_cadenas_usa_la_mas_barata_de_la_zona(self):
         r = cotizar_lista(self.indice, items("yerba", "leche"), LOMAS)
-        self.assertEqual(r["zona"]["mas_barato"]["leche"], {"cadena": "Dia", "precio": 1400})
+        self.assertEqual(r["zona"]["mas_barato"]["leche"], {"cadena": "Dia", "precio": 1400, "cambio": None})
         self.assertEqual(r["zona"]["combinando_cadenas"], 3000 + 1400)
         self.assertEqual(r["combinando_cadenas"], 3000 + 1000)  # la nacional, con Maxi
 

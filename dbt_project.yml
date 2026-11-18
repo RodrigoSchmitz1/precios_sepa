@@ -105,6 +105,15 @@ vars:
   # Los historicos no arrastran nada. Ver docs/DECISIONES.md.
   dias_maximos_arrastre: 2
 
+  # Que cambio de precio se cuenta en el detalle y en Tu lista (mart_cambio_precio,
+  # openspec historia-de-precio). Medido el 2026-11-18 entre el 16 y el 17-11:
+  # de 2.950 cambios, 1.539 vinieron con otra cantidad de sucursales informando
+  # y la mitad de esos es menor al 3% (la mediana que se mueve, no la cadena que
+  # remarca); los 1.411 con las mismas sucursales son casi todos del 3 al 10%.
+  # 30 dias: "hace poco" para una compra semanal o mensual.
+  cambio_precio_minimo_pct: 3
+  cambio_precio_dias: 30
+
   # Minimo de productos para que una sucursal tenga precio en una combinacion
   # categoria x gama x unidad (mart_precio_categoria_sucursal). Es mas bajo que
   # las 10 muestras del mart por localidad porque una sucursal ofrece decenas de

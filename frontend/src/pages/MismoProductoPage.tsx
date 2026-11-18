@@ -19,6 +19,7 @@ import { etiquetaFechaPrecio } from "../utils/cadenasDeOtroDia";
 import AvisoCadenasDeOtroDia from "../components/AvisoCadenasDeOtroDia";
 import type { PrecioEnCadena, ProductoComparado, ProductoDetalle } from "../types";
 import PromosCercaDelProducto from "../components/PromosCercaDelProducto";
+import { claseCambio, textoCambioDetalle } from "../utils/cambioPrecio";
 
 /*
   El mismo producto: cuanto cuesta el mismo codigo de barras en cada cadena.
@@ -170,7 +171,7 @@ function EjemploComparacion({ p, onVer }: { p: ProductoDetalle; onVer: (id: stri
 }
 
 /** Las filas de precios de un grupo de cadenas. */
-function FilasDePrecios({ precios, fechaDatos }: { precios: PrecioEnCadena[]; fechaDatos?: string }) {
+export function FilasDePrecios({ precios, fechaDatos }: { precios: PrecioEnCadena[]; fechaDatos?: string }) {
   return (
       <ul className="tarjeta divide-y divide-linea">
       {precios.map((x) => (
@@ -205,6 +206,11 @@ function FilasDePrecios({ precios, fechaDatos }: { precios: PrecioEnCadena[]; fe
                 </span>
               )}
             </span>
+            {/* El ultimo cambio de precio de esta cadena, si es reciente y de
+                3% o mas (historia-de-precio). Sin cambio no se dice nada. */}
+            {x.cambio && (
+              <span className={`block text-xs ${claseCambio(x.cambio)}`}>{textoCambioDetalle(x.cambio)}</span>
+            )}
           </span>
           {x.precio_maximo > x.precio_minimo && (
             <span className="numero text-xs text-tinta-suave hidden sm:inline" title="Rango entre sucursales">

@@ -1,0 +1,83 @@
+version: 2
+
+# Tests unitarios de la historia del precio (openspec historia-de-precio).
+# Corren en BigQuery con filas de prueba: cuestan unos pocos MB y no leen los
+# datos del dia.
+
+unit_tests:
+  - name: historia_guarda_solo_lo_que_cambia
+    description: >
+      La yerba en Dia sigue a $4.200: no suma fila. El aceite en Dia baja de
+      $4.000 a $3.600: suma fila. El cafe aparece por primera vez en Coto: suma
+      fila. El precio no creible de Jumbo no entra.
+    model: historico_precio_producto
+    overrides:
+      macros:
+        is_incremental: true
+    given:
+      - input: ref('mart_mismo_producto')
+        rows:
+          - {fecha_datos: "2026-11-25", fecha_precio: "2026-11-25", id_producto: "yerba", cadena: Dia, precio_mediano: 4200, precio_creible: true}
+          - {fecha_datos: "2026-11-25", fecha_precio: "2026-11-25", id_producto: "aceite", cadena: Dia, precio_mediano: 3600, precio_creible: true}
+          - {fecha_datos: "2026-11-25", fecha_precio: "2026-11-24", id_producto: "cafe", cadena: Coto, precio_mediano: 6000, precio_creible: true}
+          - {fecha_datos: "2026-11-25", fecha_precio: "2026-11-25", id_producto: "aceite", cadena: Jumbo, precio_mediano: 40000, precio_creible: false}
+      - input: this
+        rows:
+          - {fecha_datos: "2026-11-18", fecha_precio: "2026-11-18", id_producto: "yerba", cadena: Dia, precio: 4200}
+          - {fecha_datos: "2026-11-18", fecha_precio: "2026-11-18", id_producto: "aceite", cadena: Dia, precio: 4000}
+          - {fecha_datos: "2026-11-18", fecha_precio: "2026-11-18", id_producto: "aceite", cadena: Jumbo, precio: 4100}
+    expect:
+      rows:
+        - {fecha_datos: "2026-11-25", fecha_precio: "2026-11-25", id_producto: "aceite", cadena: Dia, precio: 3600}
+        - {fecha_datos: "2026-11-25", fecha_precio: "2026-11-24", id_producto: "cafe", cadena: Coto, precio: 6000}
+
+  - name: historia_es_idempotente_en_el_mismo_dia
+    description: >
+      La corrida del 25 ya escribio la baja del aceite. Correr otra vez el 25
+      compara contra lo guardado antes del 25 y vuelve a escribir la misma fila
+      (insert_overwrite reemplaza la particion), en vez de perderla.
+    model: historico_precio_producto
+    overrides:
+      macros:
+        is_incremental: true
+    given:
+      - input: ref('mart_mismo_producto')
+        rows:
+          - {fecha_datos: "2026-11-25", fecha_precio: "2026-11-25", id_producto: "aceite", cadena: Dia, precio_mediano: 3600, precio_creible: true}
+      - input: this
+        rows:
+          - {fecha_datos: "2026-11-18", fecha_precio: "2026-11-18", id_producto: "aceite", cadena: Dia, precio: 4000}
+          - {fecha_datos: "2026-11-25", fecha_precio: "2026-11-25", id_producto: "aceite", cadena: Dia, precio: 3600}
+    expect:
+      rows:
+        - {fecha_datos: "2026-11-25", fecha_precio: "2026-11-25", id_producto: "aceite", cadena: Dia, precio: 3600}
+
+  - name: cambio_cuenta_si_es_reciente_grande_y_actual
+    description: >
+      Aceite en Dia: baja de 10% el 25/11, cuenta. Cafe en Coto: 2%, no cuenta.
+      Leche en Dia: baja de 10% hace 45 dias, no cuenta. Yerba en Dia: una sola
+      fila, no hay cambio. Fideos en Coto: el ultimo precio de la historia no es
+      el de hoy (hoy no es creible), no cuenta.
+    model: mart_cambio_precio
+    given:
+      - input: ref('historico_precio_producto')
+        rows:
+          - {fecha_datos: "2026-11-18", fecha_precio: "2026-11-18", id_producto: "aceite", cadena: Dia, precio: 4000}
+          - {fecha_datos: "2026-11-25", fecha_precio: "2026-11-25", id_producto: "aceite", cadena: Dia, precio: 3600}
+          - {fecha_datos: "2026-11-18", fecha_precio: "2026-11-18", id_producto: "cafe", cadena: Coto, precio: 1000}
+          - {fecha_datos: "2026-11-25", fecha_precio: "2026-11-25", id_producto: "cafe", cadena: Coto, precio: 1020}
+          - {fecha_datos: "2026-09-01", fecha_precio: "2026-09-01", id_producto: "leche", cadena: Dia, precio: 1000}
+          - {fecha_datos: "2026-10-12", fecha_precio: "2026-10-12", id_producto: "leche", cadena: Dia, precio: 900}
+          - {fecha_datos: "2026-11-18", fecha_precio: "2026-11-18", id_producto: "yerba", cadena: Dia, precio: 4200}
+          - {fecha_datos: "2026-11-18", fecha_precio: "2026-11-18", id_producto: "fideos", cadena: Coto, precio: 1000}
+          - {fecha_datos: "2026-11-25", fecha_precio: "2026-11-25", id_producto: "fideos", cadena: Coto, precio: 1500}
+      - input: ref('mart_mismo_producto')
+        rows:
+          - {fecha_datos: "2026-11-26", id_producto: "aceite", cadena: Dia, precio_mediano: 3600, precio_creible: true}
+          - {fecha_datos: "2026-11-26", id_producto: "cafe", cadena: Coto, precio_mediano: 1020, precio_creible: true}
+          - {fecha_datos: "2026-11-26", id_producto: "leche", cadena: Dia, precio_mediano: 900, precio_creible: true}
+          - {fecha_datos: "2026-11-26", id_producto: "yerba", cadena: Dia, precio_mediano: 4200, precio_creible: true}
+          - {fecha_datos: "2026-11-26", id_producto: "fideos", cadena: Coto, precio_mediano: 1500, precio_creible: false}
+    expect:
+      rows:
+        - {id_producto: "aceite", cadena: Dia, precio: 3600, precio_anterior: 4000, fecha_cambio: "2026-11-25", cambio_pct: -10.0}

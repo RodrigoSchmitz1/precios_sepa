@@ -832,6 +832,54 @@ consulta BigQuery.
 
 ---
 
+## La historia del precio
+
+**El problema (2026-11-18).** El sitio sabía cuánto costaba un producto hoy,
+pero no cuánto costaba antes. `int_precio_producto_cadena` vence a los 3 días y
+el crudo a los 4, así que no podía decir "tu yerba bajó" ni ayudar con la
+sospecha de "inflan y después descuentan". Fue el candidato 6 del explore
+externo, con la condición de medir antes el almacenamiento. La historia solo se
+junta desde el día en que se empieza a guardar: el pasado no se puede rehacer.
+
+**Lo que se midió.** Con la metadata de las tablas (`__TABLES__`, sin cuota) y
+dos consultas chicas sobre `int_precio_producto_cadena` del 16 y 17-11, unos
+100 MiB en total:
+- **Espacio:** 7,1 de los 10 GiB gratuitos estaban usados.
+- **Foto diaria:** 229 mil precios por producto y cadena, unos 8,5 MiB por
+  día. Llenaba lo que queda en menos de un año.
+- **Cuánto cambia:** de un día al otro cambiaron 2.950 precios (1,3%) y
+  aparecieron 1.023 productos.
+- **Ruido de la mediana:** 1.539 de esos cambios vinieron con otra cantidad de
+  sucursales informando, y la mitad era de menos del 3%. Es la mediana que se
+  mueve cuando entra o sale una sucursal, no la cadena que remarca. Los 1.411
+  con las mismas sucursales eran casi todos del 3 al 10%.
+
+**La decisión: un registro de cambios.** `historico_precio_producto` guarda una
+fila por producto y cadena solo cuando el precio cambia (o la primera vez). La
+primera corrida guardó 204.719 filas en 10,2 MiB; después suma unos 4 mil por
+día, unos 0,2 MiB. Una foto semanal ocupaba unos 440 MiB por año y perdía el
+día del cambio.
+- **La fuente es `mart_mismo_producto`:** el mismo precio creíble que muestra
+  la página. Los saltos de más del 50%, que son errores de carga, no entran, y
+  el "antes $ X" coincide con lo que la página mostró ese día.
+- **Una cadena que no vino o viene arrastrada** no suma filas: no está en el
+  mart, o trae el mismo precio.
+- **Es data irrecuperable,** como los otros históricos: nunca `--full-refresh`.
+
+**Qué se cuenta.** `mart_cambio_precio` se queda con el último cambio de cada
+producto y cadena si pasó en los últimos 30 días, fue de 3% o más y es el
+precio de hoy (`cambio_precio_dias` y `cambio_precio_minimo_pct` en
+`dbt_project.yml`). La API lo pega a cada precio del índice de Mismo producto.
+El detalle dice "Bajó 10% el 25/11 (antes $ 4.000)" y Tu lista dice "Bajó 6%
+en Día el 25/11", solo si cambió en la cadena más barata de tu zona. Sin cambio
+no se dice nada, nunca "sin cambios": antes de empezar a guardar no se sabe.
+
+**Costo.** Las dos tablas nuevas leen unos 30 MiB por corrida, contra un tope
+de 32 GiB por día. La API las lee con la Storage Read API, sin cuota. Queda para
+cuando haya un mes de historia: si una promo es real o si el precio subió antes.
+
+---
+
 ## Tests
 
 Además de los genéricos, hay tests singulares de dbt para lo que sólo se

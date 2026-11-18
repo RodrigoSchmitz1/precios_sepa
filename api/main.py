@@ -1152,7 +1152,22 @@ _candado_mismo_producto = threading.Lock()
 def _cargar_indice_mismo_producto():
     # leer_tabla no es una consulta y no consume la cuota. El mart tiene solo el
     # ultimo dia, asi que no hace falta filtrar por fecha.
-    return mismo_producto.armar_indice(leer_tabla(f"{PROYECTO}.dbt_precios.mart_mismo_producto"))
+    return mismo_producto.armar_indice(
+        leer_tabla(f"{PROYECTO}.dbt_precios.mart_mismo_producto"), _cargar_cambios_de_precio()
+    )
+
+
+def _cargar_cambios_de_precio() -> dict:
+    """Los cambios de precio recientes (mart_cambio_precio, historia-de-precio).
+
+    Es un agregado de la pagina, no su base: si el mart todavia no existe (deploy
+    antes de la corrida de dbt) o no se puede leer, Mismo producto sigue andando
+    sin la linea de "subio/bajo" en vez de caerse entero."""
+    try:
+        return mismo_producto.armar_cambios(leer_tabla(f"{PROYECTO}.dbt_precios.mart_cambio_precio"))
+    except Exception as error:  # noqa: BLE001
+        print(f"Sin cambios de precio: no se pudo leer mart_cambio_precio ({error!r})")
+        return {}
 
 
 def _indice_mismo_producto():

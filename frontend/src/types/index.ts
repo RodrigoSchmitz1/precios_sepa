@@ -252,6 +252,16 @@ export type ProductoComparado = {
   extremos_respaldados: boolean;
 };
 
+/** El ultimo cambio de precio de un producto en una cadena, si es reciente y
+ *  de 3% o mas (mart_cambio_precio, openspec historia-de-precio). */
+export type CambioDePrecio = {
+  precio_anterior: number;
+  /** "AAAA-MM-DD": el dia en que la cadena informo el precio nuevo. */
+  fecha: string;
+  /** Con signo: negativo es una baja. */
+  pct: number;
+};
+
 export type PrecioEnCadena = {
   cadena: string;
   /** Mediana entre las sucursales de la cadena. */
@@ -267,6 +277,8 @@ export type PrecioEnCadena = {
    *  SEPA no publico en el ultimo dia y se muestra con su precio mas reciente.
    *  Opcional: una API anterior no lo manda. */
   fecha_precio?: string;
+  /** Opcional: una API anterior no lo manda. null sin cambio para mostrar. */
+  cambio?: CambioDePrecio | null;
 };
 
 export type ProductoDetalle = ProductoComparado & {
@@ -386,7 +398,7 @@ export type TotalCadenaLista = {
 };
 
 export type ResultadoLista = {
-  productos: (ProductoComparado & { cantidad: number; mas_barato: { cadena: string; precio: number } })[];
+  productos: (ProductoComparado & { cantidad: number; mas_barato: { cadena: string; precio: number; cambio?: CambioDePrecio | null } })[];
   no_encontrados: string[];
   cadenas: TotalCadenaLista[];
   /** Cada producto en la cadena donde esta mas barato: el piso, yendo a varias. */
@@ -398,7 +410,7 @@ export type ResultadoLista = {
     cadenas: TotalCadenaLista[];
     combinando_cadenas: number;
     no_en_zona: string[];
-    mas_barato: Record<string, { cadena: string; precio: number }>;
+    mas_barato: Record<string, { cadena: string; precio: number; cambio?: CambioDePrecio | null }>;
   };
 };
 

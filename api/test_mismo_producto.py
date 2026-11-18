@@ -330,7 +330,7 @@ class TestTuLista(unittest.TestCase):
         # La leche de Jumbo a $999 contradice al mercado: Jumbo no la "tiene".
         r = self.cotizar({"id_producto": "leche", "cantidad": 1})
         self.assertNotIn("Jumbo", [c["cadena"] for c in r["cadenas"]])
-        self.assertEqual(r["productos"][0]["mas_barato"], {"cadena": "Dia", "precio": 1200})
+        self.assertEqual(r["productos"][0]["mas_barato"], {"cadena": "Dia", "precio": 1200, "cambio": None})
 
     def test_combinando_cadenas_es_cada_producto_donde_esta_mas_barato(self):
         r = self.cotizar({"id_producto": "yerba", "cantidad": 1}, {"id_producto": "aceite", "cantidad": 2})
