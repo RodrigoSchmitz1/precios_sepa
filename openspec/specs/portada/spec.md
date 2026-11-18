@@ -39,14 +39,25 @@ dato del país y decir que es del país.
 - **THEN** la tarjeta de ahorro muestra el dato del país y dice que es del país
 
 ### Requirement: Una zona con una sola cadena no inventa una comparación
-Con una zona elegida en la que SEPA informa una sola cadena, la portada SHALL
-decirlo y SHALL mostrar cuánto sale ahí la canasta básica, sin un porcentaje de
-ahorro ni un ranking.
+Con una zona elegida en la que SEPA informa una sola cadena cerca, la portada SHALL decirlo y SHALL mostrar cuánto sale ahí la canasta básica, sin un porcentaje de ahorro ni un ranking.
 
 #### Scenario: Rafaela
-- **GIVEN** la zona es "Rafaela, Santa Fe", donde la única cadena es La Anónima
+- **GIVEN** la zona es "Rafaela, Santa Fe", donde la única cadena cerca es La Anónima
 - **WHEN** el usuario abre la portada
-- **THEN** lee que en su zona SEPA informa solo La Anónima y cuánto sale ahí la canasta básica, sin un "ahorrás"
+- **THEN** lee que cerca de su zona SEPA informa solo La Anónima y cuánto sale ahí la canasta básica, sin un "ahorrás"
+
+### Requirement: Una zona con una sola cadena dice lo que cuesta no tener opciones
+Con una sola cadena cerca, la portada SHALL decir a cuántos km está la sucursal más cercana de otra cadena. Si la cadena de la zona tiene total en el ranking nacional de la canasta, SHALL decir cuánto menos sale la misma canasta en la cadena más barata del país, como un costo y no como un ahorro al alcance. Sin ese total, NO SHALL mostrar la cifra.
+
+#### Scenario: Lo que cuesta no tener opciones
+- **GIVEN** la zona es "Rafaela, Santa Fe", la otra cadena más cercana está a 50 km, y en el ranking nacional la canasta sale 14% menos en Maxi (Carrefour) que en La Anónima
+- **WHEN** el usuario abre la portada
+- **THEN** lee que la otra cadena más cercana está a unos 50 km y que en Maxi (Carrefour), la más barata del país, la misma canasta sale 14% menos
+
+#### Scenario: Una cadena sin total nacional
+- **GIVEN** la única cadena cerca es la Cooperativa Obrera, que no tiene total en el ranking nacional
+- **WHEN** el usuario abre la portada
+- **THEN** lee que es la única cadena cerca y a cuántos km está la otra más cercana, sin una comparación con la más barata del país
 
 ### Requirement: Lo nacional se dice como nacional
 Con una zona elegida, cada tarjeta de la portada que siga mostrando un dato de
