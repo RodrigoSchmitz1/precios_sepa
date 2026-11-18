@@ -938,6 +938,53 @@ van en el build porque casi nunca cambian.
 
 ---
 
+## Tu canasta confiable
+
+**El problema (2026-11-18).** El diferencial de Tu canasta es que los números
+se puedan creer, y tenía tres fallas que decían "no está terminado". Fue el
+candidato 8 del explore externo. Las reproduje en producción, en WebKit a
+414 px, con la canasta del INDEC para 2 adultos y 2 chicos en Lomas de Zamora.
+- **El "+" no se veía en el celular.** La caja del control medía 77 px y el
+  contenido 106 px, y el "+" caía en x=117, fuera del `overflow-hidden`. En
+  Pan desaparecía el "−". La regla que lleva los campos a 16 px, para que iOS
+  no haga zoom, agrandaba el número, y el control se encogía dentro de la fila.
+  El campo, además, era `type=number` y mostraba "20.86" con punto.
+- **El mapa del paso 4 abría en el Obelisco** con la zona en Lomas. Si se
+  tocaba el centro del mapa, recomendaba sucursales de San Telmo y daba "en
+  una sucursal $ 738.063".
+- **Dos totales que parecían la misma cuenta.** El paso 3 decía "En Maxi te
+  sale unos $ 514.122". Aun con el punto en Lomas, el paso 4 daba Carrefour
+  $ 676.951 (31 categorías), y el paso 3 tenía a Carrefour en $ 556.269. La
+  diferencia: el paso 3 suma solo las 25 de 32 categorías que venden todas las
+  cadenas, para comparar parejo. Quedan afuera azúcar, papa, verduras, frutas,
+  pollo, pescado y huevos, y eso se decía en letra chica.
+
+**Lo que se cambió.**
+- **El control de cantidades:**
+  - No se encoge. En el celular comparte la fila con la gama, que baja de línea
+    si no entra; en la computadora queda la grilla de siempre (`sm:contents`).
+  - El campo es de texto con teclado decimal. Muestra "20,86", acepta coma o
+    punto y aplica el valor al salir del campo, para no pelear con lo que se
+    está escribiendo.
+  - Medido en WebKit: 32 de 32 filas enteras a 375 y a 414 px.
+- **El paso 4 arranca en el centro de la zona** y calcula sin tocar nada. Tocar
+  el mapa lo mueve; cambiar la zona lo lleva a la nueva. En Lomas, las
+  sucursales quedaron a menos de 1,5 km.
+- **El paso 3 dice qué suma.** Su titular empieza "En las 25 categorías que
+  venden todas, …". Debajo, una línea visible dice que verduras, frutas, pollo,
+  huevos y 3 más no entran ahí y que el paso 4 sí las suma. El total de la
+  canasta entera es uno solo, el del paso 4.
+
+**Lo que no se hizo:** completar el paso 3 con las 7 categorías que faltan al
+precio de la zona, igual en todas las cadenas. Los números se habrían parecido,
+pero diría "en Maxi te sale $ X" contando verdura que Maxi no informa.
+
+**Un caso que queda así a propósito:** una canasta guardada con otra localidad
+(Córdoba con la zona en Rosario) compara cadenas en Córdoba y busca sucursales
+en Rosario. El paso 4 es "cerca tuyo", y tu zona es dónde estás.
+
+---
+
 ## Tests
 
 Además de los genéricos, hay tests singulares de dbt para lo que sólo se

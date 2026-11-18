@@ -3,6 +3,7 @@ import { cotizarCanastaPorCadena } from "../api/client";
 import { formatearPesos, porcentajeEntero } from "../utils/formato";
 import { nombreCategoria } from "../utils/nombres";
 import { listarConY } from "../utils/texto";
+import { encabezadoComparacion, lineaCategoriasAfuera } from "../utils/canastaPorCadena";
 import type { CanastaPorCadena as Resultado, ItemCanastaIA, LocalidadOpcion } from "../types";
 
 /*
@@ -83,8 +84,11 @@ function CanastaPorCadena({ items, localidades }: Props) {
       </div>
 
       <p className="text-lg sm:text-xl text-tinta leading-snug mb-1">
-        {/* Con productos identicos el total es una estimacion (referencia por nivel), no una suma de precios. */}
-        En <strong className="font-bold">{barato.cadena}</strong> te sale{r.metodo === "productos_identicos" ? " unos" : ""}{" "}
+        {/* Con productos identicos el total es una estimacion (referencia por nivel), no una suma de precios.
+            Empieza diciendo sobre cuantas categorias compara: sin eso el total
+            parecia el de la canasta entera (tu-canasta-confiable). */}
+        {encabezadoComparacion(r.categorias_comparadas.length, r.total_categorias)} en{" "}
+        <strong className="font-bold">{barato.cadena}</strong> te sale{r.metodo === "productos_identicos" ? " unos" : ""}{" "}
         <strong className="font-bold numero">{formatearPesos(barato.total)}</strong>
         {ahorro > 0 && (
           <>
@@ -96,6 +100,9 @@ function CanastaPorCadena({ items, localidades }: Props) {
           </>
         )}
       </p>
+      {lineaCategoriasAfuera(r.categorias_afuera) && (
+        <p className="text-sm text-tinta-media leading-snug mt-2">{lineaCategoriasAfuera(r.categorias_afuera)}</p>
+      )}
 
       <ul className="mt-4 space-y-2">
         {visibles.map((c) => {

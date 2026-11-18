@@ -1,6 +1,7 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { optimizarCompra } from "../api/client";
 import MapaZona from "./MapaZona";
+import { useZona } from "../contexto/zona";
 import FilaDeCifras from "./FilaDeCifras";
 import { formatearNumero, formatearPesos } from "../utils/formato";
 import type { ItemCanastaIA, OpcionCompra, ResultadoOptimizacion } from "../types";
@@ -87,7 +88,22 @@ function Opcion({ opcion, referencia }: { opcion: OpcionCompra; referencia: numb
 }
 
 function DondeComprarla({ items }: Props) {
-  const [punto, setPunto] = useState<Punto | null>(null);
+  /*
+    Desde donde se busca (tu-canasta-confiable, 2026-11-18). Con zona, el
+    centro de la zona: antes arrancaba vacio y el mapa abria en el Obelisco, y
+    con la zona en Lomas tocar el centro del mapa recomendaba sucursales de San
+    Telmo. Tocar el mapa o usar la ubicacion lo mueven, pero solo mientras siga
+    la misma zona: cambiar la zona es decir "ahora compro aca".
+  */
+  const { zona } = useZona();
+  const claveZona = zona ? `${zona.provincia}:${zona.nombre}` : "";
+  const [elegido, setElegido] = useState<{ punto: Punto; zona: string } | null>(null);
+  const centroZona = useMemo(
+    () => (zona ? { latitud: zona.latitud, longitud: zona.longitud } : null),
+    [zona?.latitud, zona?.longitud] // eslint-disable-line react-hooks/exhaustive-deps
+  );
+  const punto: Punto | null = elegido && elegido.zona === claveZona ? elegido.punto : centroZona;
+  const setPunto = (nuevo: Punto) => setElegido({ punto: nuevo, zona: claveZona });
   const [radioKm, setRadioKm] = useState(2);
   const [estado, setEstado] = useState<Estado | null>(null);
   const [errorUbicacion, setErrorUbicacion] = useState<string | null>(null);
