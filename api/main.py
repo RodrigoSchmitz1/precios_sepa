@@ -417,6 +417,30 @@ def obtener_promos_mapa(
     )
 
 
+@api.get("/promos/productos")
+def obtener_promos_de_productos(
+    ids: str = Query(..., min_length=1, max_length=2000, description="id_producto separados por coma"),
+    latitud: float = Query(..., ge=-90, le=90, description="Centro de la zona"),
+    longitud: float = Query(..., ge=-180, le=180, description="Centro de la zona"),
+):
+    """Las promos vigentes de unos productos en sucursales cerca de la zona.
+
+    Para Tu lista y el detalle de un producto (openspec promos-de-tu-lista).
+    Sale del indice del mapa, que ya esta en memoria: no consulta BigQuery.
+    Sin @cachear, como /promos/mapa: cada combinacion quedaria guardada.
+    """
+    lista = [i.strip() for i in ids.split(",") if i.strip()]
+    if len(lista) > mapa_promos.MAXIMO_PRODUCTOS:
+        raise HTTPException(status_code=422, detail=f"Hasta {mapa_promos.MAXIMO_PRODUCTOS} productos por pedido")
+    hoy = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).strftime("%Y-%m-%d")
+    return JSONResponse(
+        {
+            "promos": mapa_promos.promos_de_productos(_indice_mapa(), lista, latitud, longitud, hoy),
+            "radio_km": mapa_promos.RADIO_PROMOS_KM,
+        }
+    )
+
+
 @api.get("/gama")
 @cachear
 def obtener_gama(

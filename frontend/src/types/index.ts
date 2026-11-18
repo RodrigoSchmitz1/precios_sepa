@@ -401,3 +401,21 @@ export type ResultadoLista = {
     mas_barato: Record<string, { cadena: string; precio: number }>;
   };
 };
+
+/** Una promo vigente de un producto en una sucursal cerca de la zona
+ *  (GET /promos/productos, openspec promos-de-tu-lista). Los datos de la
+ *  sucursal son los de la mas cercana al centro de la zona. */
+export type PromoCerca = SucursalMapa & {
+  id_producto: string;
+  descripcion: string;
+  distancia_km: number;
+  otras_sucursales_cerca: number;
+  precio_lista: number;
+  precio_promo: number;
+  descuento_pct: number;
+  leyenda: string | null;
+  nivel_evidencia: "leyenda" | "mercado" | "sin_verificar";
+  /** AAAA-MM-DD, o null si la cadena no dice hasta cuando vale. */
+  vigente_hasta: string | null;
+  requiere_compra_multiple: boolean;
+};

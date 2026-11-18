@@ -18,6 +18,7 @@ import { useLista } from "../contexto/lista";
 import { etiquetaFechaPrecio } from "../utils/cadenasDeOtroDia";
 import AvisoCadenasDeOtroDia from "../components/AvisoCadenasDeOtroDia";
 import type { PrecioEnCadena, ProductoComparado, ProductoDetalle } from "../types";
+import PromosCercaDelProducto from "../components/PromosCercaDelProducto";
 
 /*
   El mismo producto: cuanto cuesta el mismo codigo de barras en cada cadena.
@@ -441,6 +442,15 @@ function VistaProducto({
           <BotonLista enLista={enLista(p.id_producto)} onAgregar={() => onAgregar(p)} />
           <span className="text-xs text-tinta-suave">Sumalo con lo que comprás siempre y mirá dónde te conviene la compra entera.</span>
         </div>
+      )}
+
+      {zona && (
+        <PromosCercaDelProducto
+          idProducto={p.id_producto}
+          zona={zona}
+          // Sin cadenas de la zona que lo vendan no hay precio con que comparar.
+          precioZona={deZona ? c.precio : undefined}
+        />
       )}
 
       <div className="mb-3">

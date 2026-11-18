@@ -776,6 +776,62 @@ los logs se revisan unos minutos después del deploy y no enseguida.
 
 ---
 
+## Las promos de tu lista
+
+**El problema (2026-11-18).** Lo que se aprende en el sitio se aprende una
+sola vez: "Maxi", "da casi lo mismo". Lo que cambia cada semana son las promos
+de lo que uno compra, en el súper que tiene cerca, y no estaban conectadas con
+la lista ni con el detalle de un producto. Fue el candidato 5 del explore
+externo.
+
+**Lo que se midió antes de hacerlo.** Con las promos del 17-11, leídas con
+`list_rows` y sin cuota:
+- **Volumen:** había 103.272 promos válidas. 8.963 de los 47.637 productos de
+  Mismo producto tenían al menos una.
+- **Productos comunes con promo cerca:** se tomaron los 400 productos que están
+  en más cadenas y se contó cuántos tienen una promo a menos de 3 km del centro
+  de la zona.
+  - Caballito: 122.
+  - La Plata: 103.
+  - Palermo: 85.
+  - Lomas de Zamora: 62.
+  - Bahía Blanca: 59.
+  - Rafaela: 12.
+- **Si conviene:** en casi 9 de cada 10 de esos casos, la promo queda debajo
+  del precio más bajo del producto.
+- **Quién informa promos:** casi todas las de productos comparables son de
+  Cooperativa Obrera, Carrefour y Día. Coto informó 37, y Disco y Jumbo,
+  ninguna.
+
+**Las reglas.**
+- **Cerca:** a menos de 3 km del centro de la zona (`RADIO_PROMOS_KM` en
+  `api/mapa_promos.py`). Usar las sucursales del lugar dejaba afuera a la de
+  cuatro cuadras que está en el barrio vecino, y en un barrio chico quedaban una
+  o dos.
+- **Vigente:** la fecha de fin se lee de la leyenda ("hasta 23/11/2026", "al
+  30/11/2026", "hasta el 2026-11-20"), y la trae el 98% de las promos. Las
+  vencidas se descartan, porque los datos son del día anterior y una promo
+  "hasta el 17/11" leída el 18 ya no sirve. Las de Día "hasta agotar stock" van
+  sin fecha.
+- **Qué promo se muestra:** solo la que deja el producto más barato que la
+  cadena más barata de la zona. Un café de Carrefour a $ 6.383 en promo no
+  sirve si Maxi lo vende a $ 5.989 sin promo. Es una sola regla
+  (`promosQueConvienen`), la misma en Tu lista y en el detalle.
+- **Por producto:** una promo por cadena, la más barata, y hasta 3 en el
+  detalle. En Tu lista, la mejor.
+
+**Por qué el total no las incluye.** Los totales comparan el precio de cada
+cadena en todo el país. Las promos son por sucursal, y Coto, Disco y Jumbo casi
+no las informan. Sumarlas al total haría ganar a la cadena que más informa, no
+a la que cobra menos. Por eso van aparte, debajo de cada producto.
+
+**Costo y memoria.** Sale del índice del mapa, que ya estaba en memoria. Sumar
+`id_producto` y el índice por producto lo llevó de 18,1 a 22,1 MiB con las
+filas reales. Una lista de 60 productos en Palermo se resuelve en 4 ms y no
+consulta BigQuery.
+
+---
+
 ## Tests
 
 Además de los genéricos, hay tests singulares de dbt para lo que sólo se

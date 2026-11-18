@@ -1,12 +1,14 @@
 import { useEffect, useState } from "react";
-import { cotizarLista } from "../api/client";
+import { cotizarLista, obtenerPromosDeProductos } from "../api/client";
 import { useZona } from "../contexto/zona";
 import { fechaEnPalabras, formatearPesos } from "../utils/formato";
 import { MAXIMO_UNIDADES } from "../utils/lista";
 import { comparacionDeLista, productosComparados, vistaDeLista } from "../utils/listaEnZona";
+import { promosQueConvienen, resumenPromosDeLista } from "../utils/promosCerca";
 import { listarConY } from "../utils/texto";
 import { cadenasVisibles, rotuloZona } from "../utils/zona";
-import type { ItemLista, ResultadoLista } from "../types";
+import type { ItemLista, PromoCerca, ResultadoLista } from "../types";
+import PromoCercana from "./PromoCercana";
 
 /*
   Tu lista (2026-10-08): cuanto sale en cada cadena una lista de productos
@@ -26,6 +28,12 @@ import type { ItemLista, ResultadoLista } from "../types";
   que el usuario tiene cerca, y las del resto del pais van aparte, plegadas y
   sin ahorro: con Lomas de Zamora elegida, el titular decia "ahorras 11%"
   contra la Cooperativa Obrera, que ahi no existe.
+
+  Con zona (2026-11, openspec promos-de-tu-lista), debajo de cada producto va
+  la mejor promo de una sucursal cercana, si lo deja mas barato que la cadena
+  mas barata de la zona. Los totales no las incluyen: las informan sobre todo
+  Cooperativa Obrera, Carrefour y Dia, y mezclarlas haria ganar a quien mas
+  informa, no a quien cobra menos.
 */
 
 type Props = {
@@ -37,6 +45,7 @@ type Props = {
 };
 
 type Estado = { clave: string; resultado?: ResultadoLista; error?: string };
+type EstadoPromos = { clave: string; promos: Record<string, PromoCerca[]> };
 
 /** Las incompletas suelen ser muchas y valen menos: se muestran las primeras. */
 const INCOMPLETAS_VISIBLES = 4;
@@ -50,6 +59,30 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
     lista.length > 0 ? JSON.stringify([lista.map((i) => [i.id_producto, i.cantidad]), zona?.cadenas ?? []]) : "";
   const [estado, setEstado] = useState<Estado | null>(null);
   const [verTodas, setVerTodas] = useState(false);
+  // Las promos dependen de que productos hay y de donde, no de las cantidades.
+  const clavePromos =
+    lista.length > 0 && zona ? JSON.stringify([lista.map((i) => i.id_producto), zona.latitud, zona.longitud]) : "";
+  const [promos, setPromos] = useState<EstadoPromos | null>(null);
+
+  useEffect(() => {
+    if (!clavePromos) return;
+    let cancelado = false;
+    const espera = setTimeout(() => {
+      const [ids, latitud, longitud] = JSON.parse(clavePromos) as [string[], number, number];
+      obtenerPromosDeProductos(ids, { latitud, longitud })
+        .then((respuesta) => {
+          if (!cancelado) setPromos({ clave: clavePromos, promos: respuesta });
+        })
+        // Las promos son un agregado: si fallan, la lista se ve igual.
+        .catch(() => {
+          if (!cancelado) setPromos({ clave: clavePromos, promos: {} });
+        });
+    }, 250);
+    return () => {
+      cancelado = true;
+      clearTimeout(espera);
+    };
+  }, [clavePromos]);
 
   useEffect(() => {
     if (!clave) return;
@@ -94,6 +127,17 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
   const unicaDeLaZona = enZona && completas.length === 1 && incompletas.length === 0;
   const maximo = Math.max(...completas.map((c) => c.total), 1);
   const unidades = lista.reduce((suma, i) => suma + i.cantidad, 0);
+  // Solo con la cotizacion y las promos de esta misma lista y zona: con una
+  // cotizacion vieja, el filtro compararia contra los precios de otra zona.
+  const mejorPromo = new Map<string, PromoCerca>();
+  if (zona && estado?.clave === clave && r?.zona && promos?.clave === clavePromos) {
+    const masBarato = r.zona.mas_barato;
+    for (const item of lista) {
+      const [mejor] = promosQueConvienen(promos.promos[item.id_producto], masBarato[item.id_producto]?.precio);
+      if (mejor) mejorPromo.set(item.id_producto, mejor);
+    }
+  }
+  const resumenPromos = resumenPromosDeLista(mejorPromo.size);
 
   return (
     <section aria-labelledby="titulo-lista" className="mb-10 tarjeta p-4 sm:p-6">
@@ -125,6 +169,7 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
               {comparados === 1 ? "el otro producto" : `los otros ${comparados}`}.
             </p>
           )}
+          {resumenPromos && <p className="text-tinta font-semibold mt-1">🏷️ {resumenPromos}: mirá debajo de cada uno.</p>}
         </div>
       )}
 
@@ -168,42 +213,54 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
         </p>
       )}
       {estado?.error && <p className="text-sm text-alerta mb-4">{estado.error}</p>}
+      {!zona && r && (
+        <p className="text-sm text-tinta-media mb-4">
+          Elegí tu zona arriba y te mostramos qué productos de tu lista están en promo cerca tuyo.
+        </p>
+      )}
 
       <ul className="divide-y divide-linea border-y border-linea mb-5">
         {lista.map((item) => (
-          <li key={item.id_producto} className="flex items-center gap-3 py-2">
-            <button
-              onClick={() => onVer(item.id_producto)}
-              className="flex-1 min-w-0 text-left text-sm text-tinta truncate hover:text-marca"
-            >
-              {item.nombre}
-            </button>
-            <span className="flex items-center gap-1 shrink-0" role="group" aria-label={`Cantidad de ${item.nombre}`}>
+          <li key={item.id_producto} className="py-2">
+            <div className="flex items-center gap-3">
               <button
-                onClick={() => onCambiarCantidad(item.id_producto, item.cantidad - 1)}
-                disabled={item.cantidad <= 1}
-                className="w-7 h-7 rounded-full border border-linea text-tinta-media disabled:opacity-40 hover:border-tinta"
-                aria-label="Una menos"
+                onClick={() => onVer(item.id_producto)}
+                className="flex-1 min-w-0 text-left text-sm text-tinta truncate hover:text-marca"
               >
-                −
+                {item.nombre}
               </button>
-              <span className="w-6 text-center text-sm numero">{item.cantidad}</span>
+              <span className="flex items-center gap-1 shrink-0" role="group" aria-label={`Cantidad de ${item.nombre}`}>
+                <button
+                  onClick={() => onCambiarCantidad(item.id_producto, item.cantidad - 1)}
+                  disabled={item.cantidad <= 1}
+                  className="w-7 h-7 rounded-full border border-linea text-tinta-media disabled:opacity-40 hover:border-tinta"
+                  aria-label="Una menos"
+                >
+                  −
+                </button>
+                <span className="w-6 text-center text-sm numero">{item.cantidad}</span>
+                <button
+                  onClick={() => onCambiarCantidad(item.id_producto, item.cantidad + 1)}
+                  disabled={item.cantidad >= MAXIMO_UNIDADES}
+                  className="w-7 h-7 rounded-full border border-linea text-tinta-media disabled:opacity-40 hover:border-tinta"
+                  aria-label="Una más"
+                >
+                  +
+                </button>
+              </span>
               <button
-                onClick={() => onCambiarCantidad(item.id_producto, item.cantidad + 1)}
-                disabled={item.cantidad >= MAXIMO_UNIDADES}
-                className="w-7 h-7 rounded-full border border-linea text-tinta-media disabled:opacity-40 hover:border-tinta"
-                aria-label="Una más"
+                onClick={() => onQuitar(item.id_producto)}
+                className="w-7 h-7 shrink-0 text-tinta-suave hover:text-alerta"
+                aria-label={`Quitar ${item.nombre}`}
               >
-                +
+                ×
               </button>
-            </span>
-            <button
-              onClick={() => onQuitar(item.id_producto)}
-              className="w-7 h-7 shrink-0 text-tinta-suave hover:text-alerta"
-              aria-label={`Quitar ${item.nombre}`}
-            >
-              ×
-            </button>
+            </div>
+            {mejorPromo.has(item.id_producto) && (
+              <div className="mt-1.5 mb-0.5 pl-3 border-l-2 border-ahorro">
+                <PromoCercana promo={mejorPromo.get(item.id_producto)!} />
+              </div>
+            )}
           </li>
         ))}
       </ul>

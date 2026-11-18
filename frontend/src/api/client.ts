@@ -18,6 +18,7 @@ import type {
   ProductoComparado,
   ProductoDetalle,
   ProductoSugerido,
+  PromoCerca,
   ResultadoLista,
   ResultadoOptimizacion,
 } from "../types";
@@ -262,6 +263,22 @@ export async function cotizarLista(
   });
   if (!respuesta.ok) await fallar(respuesta, "Error al cotizar tu lista");
   return leerJson(respuesta);
+}
+
+/** Las promos vigentes de unos productos cerca de la zona, por id_producto
+ *  (openspec promos-de-tu-lista). Solo trae los productos que tienen alguna. */
+export async function obtenerPromosDeProductos(
+  ids: string[],
+  zona: Pick<Zona, "latitud" | "longitud">,
+): Promise<Record<string, PromoCerca[]>> {
+  const parametros = new URLSearchParams({
+    ids: ids.join(","),
+    latitud: String(zona.latitud),
+    longitud: String(zona.longitud),
+  });
+  const respuesta = await fetch(`${API_BASE}/promos/productos?${parametros}`);
+  if (!respuesta.ok) await fallar(respuesta, "Error al traer las promos");
+  return (await leerJson(respuesta)).promos;
 }
 
 /** De tu canasta a tu lista: los productos mas comunes de cada categoria. */

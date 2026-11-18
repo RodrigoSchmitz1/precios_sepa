@@ -2,6 +2,7 @@
 
 import heapq
 import math
+import re
 import statistics
 from array import array
 from collections import Counter
@@ -23,7 +24,9 @@ CAMPOS_SUCURSAL = (
 # nivel_evidencia entra aca y no como columna aparte: son tres valores
 # repetidos en las 92 mil promos, y el diccionario "unicos" de armar_indice los
 # deja en tres strings internados. Cuesta una referencia por fila.
-CAMPOS_TEXTO = ("descripcion", "marca", "categoria", "rubro", "leyenda", "nivel_evidencia")
+# id_producto entra para las promos de Tu lista y del detalle (openspec
+# promos-de-tu-lista); como texto repetido, tambien lo deduplica "unicos".
+CAMPOS_TEXTO = ("id_producto", "descripcion", "marca", "categoria", "rubro", "leyenda", "nivel_evidencia")
 CAMPOS_NUMERO = ("precio_lista", "precio_promo", "descuento_pct")
 
 
@@ -38,6 +41,9 @@ class IndiceMapa:
         "inicio",
         "miembros",
         "por_sucursal",
+        "multiple",
+        "vigente_hasta",
+        "por_producto",
     )
 
 
@@ -55,15 +61,17 @@ def armar_indice(sucursales, promos) -> IndiceMapa:
     textos = {campo: [] for campo in CAMPOS_TEXTO}
     numeros = {campo: array("d") for campo in CAMPOS_NUMERO}
     inicio, miembros = array("I", [0]), array("I")
+    multiple = bytearray()
     for fila in promos:
         claves = sorted(posicion[c] for c in fila["sucursales"] if c in posicion)
         if not claves:
             continue
         for campo, valores in textos.items():
-            valor = fila[campo]
+            valor = fila.get(campo)
             valores.append(unicos.setdefault(valor, valor) if valor is not None else None)
         for campo, valores in numeros.items():
             valores.append(fila[campo])
+        multiple.append(1 if fila.get("requiere_compra_multiple") else 0)
         miembros.extend(claves)
         inicio.append(len(miembros))
 
@@ -78,6 +86,14 @@ def armar_indice(sucursales, promos) -> IndiceMapa:
     for i in orden:
         indice.miembros.extend(miembros[inicio[i] : inicio[i + 1]])
         indice.inicio.append(len(indice.miembros))
+
+    indice.multiple = bytearray(multiple[i] for i in orden)
+    hasta = {l: vigencia_de(l) for l in set(indice.leyenda) if l is not None}
+    indice.vigente_hasta = [hasta.get(l) for l in indice.leyenda]
+    indice.por_producto = {}
+    for pos, id_producto in enumerate(indice.id_producto):
+        if id_producto is not None:
+            indice.por_producto.setdefault(str(id_producto), array("I")).append(pos)
 
     minusculas = {d: d.lower() for d in set(indice.descripcion) if d is not None}
     indice.texto = [minusculas.get(d) for d in indice.descripcion]
@@ -181,6 +197,101 @@ def buscar(
     grupos = groupby(pares, key=lambda par: par[0])
     seleccion = [(pos, [suc for _, suc in grupo]) for pos, grupo in islice(grupos, limite + 1)]
     return [_fila(indice, pos, sucs) for pos, sucs in seleccion[:limite]], len(seleccion) > limite
+
+
+# ---------------------------------------------------------------------------
+# Promos de unos productos cerca de la zona (openspec promos-de-tu-lista)
+# ---------------------------------------------------------------------------
+
+# "Cerca" de la zona: medido el 2026-11-18, 3 km del centro dan 12 sucursales
+# con promos en Lomas de Zamora, 194 en Palermo y 2 en Rafaela. Las sucursales
+# del lugar no sirven: en un barrio chico son una o dos, y la de cuatro cuadras
+# pero del barrio vecino quedaria afuera.
+RADIO_PROMOS_KM = 3
+PROMOS_POR_PRODUCTO = 3
+MAXIMO_PRODUCTOS = 100
+
+# El 98% de las promos del 2026-11-17 dice hasta cuando vale: "valida desde el
+# 12/11/2026 hasta 17/11/2026" (Carrefour), "Vigencia desde el 10/11/2026 al
+# 18/11/2026" (Dia, Coop. Obrera) o "Vigente hasta el 2026-11-20". El resto son
+# promos de Dia "hasta agotar stock", sin fecha.
+_VIGENCIA = re.compile(r"\b(?:hasta(?: el)?|al)\s+(?:(\d{1,2})/(\d{1,2})/(\d{4})|(\d{4})-(\d{2})-(\d{2}))", re.I)
+
+
+def vigencia_de(leyenda: str | None) -> str | None:
+    """La fecha de fin de la promo como AAAA-MM-DD, o None si la leyenda no la dice."""
+    m = _VIGENCIA.search(leyenda or "")
+    if not m:
+        return None
+    if m.group(1):
+        dia, mes, anio = int(m.group(1)), int(m.group(2)), int(m.group(3))
+    else:
+        anio, mes, dia = int(m.group(4)), int(m.group(5)), int(m.group(6))
+    if not (1 <= mes <= 12 and 1 <= dia <= 31):
+        return None
+    return f"{anio:04d}-{mes:02d}-{dia:02d}"
+
+
+def promos_de_productos(
+    indice: IndiceMapa,
+    ids: list[str],
+    latitud: float,
+    longitud: float,
+    hoy: str,
+    radio_km: float = RADIO_PROMOS_KM,
+) -> dict[str, list[dict]]:
+    """Por producto, sus promos vigentes en sucursales a menos de radio_km.
+
+    Una por cadena (la mas barata de esa cadena), ordenadas por precio y hasta
+    PROMOS_POR_PRODUCTO. Cada una con la sucursal mas cercana al punto, para
+    la direccion, y cuantas otras sucursales cercanas la tienen. Decidir si
+    la promo conviene frente al precio de la zona lo hace el navegador, que
+    ya tiene ese precio (frontend/src/utils/promosCerca.ts).
+
+    hoy es AAAA-MM-DD en la Argentina: los datos son del dia anterior, y una
+    promo "hasta 17/11" leida el 18/11 ya termino.
+    """
+    distancia = {}
+    for i, s in enumerate(indice.sucursales):
+        d = _km(latitud, longitud, s["latitud"], s["longitud"])
+        if d <= radio_km:
+            distancia[i] = d
+    resultado: dict[str, list[dict]] = {}
+    if not distancia:
+        return resultado
+    for id_producto in dict.fromkeys(str(i) for i in ids):
+        mejor_por_cadena: dict[str, dict] = {}
+        for pos in indice.por_producto.get(id_producto, ()):
+            hasta = indice.vigente_hasta[pos]
+            if hasta is not None and hasta < hoy:
+                continue
+            cercanas = [s for s in indice.miembros[indice.inicio[pos] : indice.inicio[pos + 1]] if s in distancia]
+            if not cercanas:
+                continue
+            cercanas.sort(key=lambda s: distancia[s])
+            sucursal = indice.sucursales[cercanas[0]]
+            fila = {
+                "id_producto": id_producto,
+                "descripcion": indice.descripcion[pos],
+                **sucursal,
+                "distancia_km": round(distancia[cercanas[0]], 1),
+                "otras_sucursales_cerca": len(cercanas) - 1,
+                "precio_lista": indice.precio_lista[pos],
+                "precio_promo": indice.precio_promo[pos],
+                "descuento_pct": indice.descuento_pct[pos],
+                "leyenda": indice.leyenda[pos],
+                "nivel_evidencia": indice.nivel_evidencia[pos],
+                "vigente_hasta": hasta,
+                "requiere_compra_multiple": bool(indice.multiple[pos]),
+            }
+            clave = sucursal["cadena"] or ""
+            actual = mejor_por_cadena.get(clave)
+            if actual is None or (fila["precio_promo"], fila["distancia_km"]) < (actual["precio_promo"], actual["distancia_km"]):
+                mejor_por_cadena[clave] = fila
+        if mejor_por_cadena:
+            filas = sorted(mejor_por_cadena.values(), key=lambda f: (f["precio_promo"], f["distancia_km"]))
+            resultado[id_producto] = filas[:PROMOS_POR_PRODUCTO]
+    return resultado
 
 
 # ---------------------------------------------------------------------------
