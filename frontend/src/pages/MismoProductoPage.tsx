@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { buscarProductos, obtenerProducto, obtenerProductosDestacados } from "../api/client";
 import Titular, { Resaltado } from "../components/Titular";
@@ -19,6 +19,8 @@ import { etiquetaFechaPrecio } from "../utils/cadenasDeOtroDia";
 import AvisoCadenasDeOtroDia from "../components/AvisoCadenasDeOtroDia";
 import type { PrecioEnCadena, ProductoComparado, ProductoDetalle } from "../types";
 import PromosCercaDelProducto from "../components/PromosCercaDelProducto";
+import BotonCompartir from "../components/BotonCompartir";
+import { textoParaCompartir } from "../utils/compartir";
 import { claseCambio, textoCambioDetalle } from "../utils/cambioPrecio";
 
 /*
@@ -395,6 +397,8 @@ function VistaProducto({
   // portada de la seccion (sin onVolver), que siguen siendo nacionales.
   const { zona: zonaElegida } = useZona();
   const zona = onVolver ? zonaElegida : null;
+  // El titular ya pintado: es el texto que se comparte (compartir-por-whatsapp).
+  const refTitular = useRef<HTMLSpanElement>(null);
   if (estado === null) return <p className="text-sm text-tinta-suave mb-10">Cargando…</p>;
 
   // Sin onVolver la vista se usa como ejemplo dentro de la portada de la
@@ -426,7 +430,9 @@ function VistaProducto({
     <section className="mb-12">
       {/* Siempre compacto: el producto elegido es el resultado (2026-11). */}
       <Titular antetitulo={deZona ? `${nombre} · ${rotuloZona(zona!)}` : "El mismo producto"} compacto>
-        <TextoTitular p={p} t={t} nombre={nombre} />
+        <span ref={refTitular}>
+          <TextoTitular p={p} t={t} nombre={nombre} />
+        </span>
       </Titular>
       {/* Debajo de la banda y no arriba: la banda sube 40 px (-mt-10) y tapaba
           el boton, que quedaba invisible e intocable en el celular. */}
@@ -446,6 +452,16 @@ function VistaProducto({
       {onAgregar && enLista && (
         <div className="mb-6 flex flex-wrap items-center gap-3">
           <BotonLista enLista={enLista(p.id_producto)} onAgregar={() => onAgregar(p)} />
+          {/* Solo en el producto elegido: la URL ya lleva el producto y la zona. */}
+          {onVolver && (
+            <BotonCompartir
+              datos={() => ({
+                titulo: `${nombre} · Changuito`,
+                texto: textoParaCompartir(nombre, refTitular.current?.textContent ?? "", zona ? rotuloZona(zona) : null),
+                url: window.location.href,
+              })}
+            />
+          )}
           <span className="text-xs text-tinta-suave">Sumalo con lo que comprás siempre y mirá dónde te conviene la compra entera.</span>
         </div>
       )}

@@ -3,12 +3,30 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#5b3df5" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!--
+      La tarjeta de los links compartidos (openspec compartir-por-whatsapp).
+      WhatsApp no ejecuta JavaScript: lee este HTML tal como llega. La API
+      (api/compartir.py) reemplaza el titulo, la descripcion y la URL segun la
+      pagina, y __ORIGEN__ por el host del pedido. No cambiar estas lineas sin
+      correr api/test_compartir.py, que las busca en este archivo.
+    -->
     <title>Changuito — Precios de supermercado en Argentina</title>
-    <meta
-      name="description"
-      content="Precios reales de supermercados argentinos: promociones vigentes, costo de la canasta básica por localidad, qué cadena está más barata e inflación por categoría."
-    />
+    <meta name="description" content="Dónde te conviene comprar: el mismo producto en cada súper de tu zona, con los precios oficiales de SEPA." />
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Changuito" />
+    <meta property="og:locale" content="es_AR" />
+    <meta property="og:title" content="Changuito — Precios de supermercado en Argentina" />
+    <meta property="og:description" content="Dónde te conviene comprar: el mismo producto en cada súper de tu zona, con los precios oficiales de SEPA." />
+    <meta property="og:url" content="__ORIGEN__/" />
+    <meta property="og:image" content="__ORIGEN__/og-changuito.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Changuito: dónde te conviene comprar" />
+    <meta name="twitter:card" content="summary_large_image" />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link

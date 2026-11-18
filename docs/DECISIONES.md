@@ -880,6 +880,64 @@ cuando haya un mes de historia: si una promo es real o si el precio subió antes
 
 ---
 
+## Compartir por WhatsApp
+
+**El problema (2026-11-18).** En la Argentina, un sitio de precios se difunde
+por WhatsApp, en el grupo del barrio o el de la familia. Le pedí un producto a
+producción con el user agent de WhatsApp y llegó el `index.html` genérico, sin
+`og:title`, `og:description` ni `og:image`. WhatsApp no ejecuta JavaScript,
+así que los links llegaban sin tarjeta, solo con una URL de Cloud Run que
+parece un virus. Tampoco había botón para compartir, ni `apple-touch-icon`, ni
+manifest. Y el favicon era el logo por defecto de Vite. Fue el candidato 7 del
+explore externo.
+
+**La tarjeta la arma la API.** `servir_frontend` completa el `<head>` del
+`index.html` compilado según la página (`api/compartir.py`):
+- **Qué cambia:** la descripción, `og:title`, `og:description`, `og:url` y el
+  host de la imagen.
+- **El host** sale del pedido, con https detrás del proxy de Cloud Run. Si un
+  día hay dominio propio, sigue andando sin tocar nada.
+- **Todo texto se escapa:** el código del producto llega por la URL y la
+  descripción viene de SEPA.
+- **El `<title>` de la pestaña no se toca:** la app no lo actualiza al navegar,
+  y entrar por el link de una yerba dejaría su nombre en la pestaña aunque
+  después se pase a Inflación.
+- **Alternativas descartadas:** prerenderizar no sirve para 47 mil productos,
+  y detectar crawlers por user agent es frágil.
+
+**Un producto dice su rango, no la cadena más barata.** "Playadito yerba mate
+suave 500g · de $ 2.490 a $ 2.850 en 14 cadenas", y debajo "Mirá dónde conviene
+en tu zona". La cadena que conviene depende de la zona y esa regla vive en el
+frontend. Repetirla en el servidor sería tenerla en dos lugares, y un link de
+Palermo abierto en Rosario nombraría una cadena que ahí no está.
+
+**Sin esperar.** Si el índice de Mismo producto no está en memoria, va la
+tarjeta general y el índice se carga en segundo plano. En una instancia fría
+la carga tarda unos 4 segundos, y el crawler corta antes.
+
+**El botón Compartir.** Está en el detalle del producto:
+- En el celular abre el menú nativo (`navigator.share`). En la computadora
+  copia el link.
+- El texto es el nombre del producto y el titular que muestra la página,
+  tomado de la pantalla. Así dice exactamente lo mismo, sin una segunda regla.
+- "En tu zona" pasa a ser la zona de quien comparte ("En Palermo, CABA cuesta
+  casi lo mismo..."): para quien lo recibe, "tu zona" no es la suya.
+
+**Íconos.** El favicon es ahora el chango de la marca. `apple-touch-icon`, los
+íconos del manifest y la imagen de 1200x630 se generan una vez con
+`frontend/scripts/generar_iconos.py` (Playwright) y quedan commiteados. No
+van en el build porque casi nunca cambian.
+
+**Queda afuera:**
+- **Dominio propio:** cuesta plata y es decisión de Rodrigo.
+- **Una imagen por producto.**
+- **Compartir Tu lista entera:** primero hay que decidir si reemplaza o suma a
+  la lista de quien la recibe.
+- **Pedidos HEAD:** el sitio responde 405, igual que antes. WhatsApp pide con
+  GET.
+
+---
+
 ## Tests
 
 Además de los genéricos, hay tests singulares de dbt para lo que sólo se

@@ -1,5 +1,6 @@
 import functools
 import json
+import mimetypes
 import os
 import threading
 import time
@@ -7,7 +8,7 @@ from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, HTTPException, Query, Request
-from fastapi.responses import FileResponse, JSONResponse
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.gzip import GZipMiddleware
 from google.api_core.exceptions import GoogleAPICallError
@@ -18,6 +19,7 @@ from pydantic import BaseModel
 from typing import Optional
 from interpretar_canasta import CATEGORIAS, interpretar_descripcion
 from calcular_canasta import calcular_costo_canasta
+import compartir
 import mapa_promos
 import mismo_producto
 import precios_por_sucursal
@@ -1287,11 +1289,63 @@ app.mount("/api", api)
 app.add_middleware(GZipMiddleware, minimum_size=1000)
 
 ESTATICOS = os.path.join(os.path.dirname(os.path.abspath(__file__)), "static")
+# El manifest de la app (compartir-por-whatsapp): sin esto mimetypes no conoce
+# la extension y FileResponse lo sirve como application/octet-stream.
+mimetypes.add_type("application/manifest+json", ".webmanifest")
 CACHE_INMUTABLE = "public, max-age=31536000, immutable"
 
 
+_plantilla_index: dict = {}
+
+
+def _leer_index(ruta_index: str) -> str:
+    """El index.html compilado, leido una vez por version (se relee si cambia)."""
+    modificado = os.path.getmtime(ruta_index)
+    guardado = _plantilla_index.get(ruta_index)
+    if guardado and guardado[0] == modificado:
+        return guardado[1]
+    with open(ruta_index, encoding="utf-8") as archivo:
+        texto = archivo.read()
+    _plantilla_index[ruta_index] = (modificado, texto)
+    return texto
+
+
+def _indice_si_esta_cargado():
+    """El indice de Mismo producto si ya esta en memoria, o None.
+
+    La tarjeta de un link no espera la carga: en una instancia fria tarda unos
+    4 s y el crawler de WhatsApp corta antes. Sin indice va la tarjeta general
+    y se carga en segundo plano, para que el proximo link ya la tenga."""
+    guardado = _cache.get(("_cargar_indice_mismo_producto", (), ()))
+    if guardado:
+        return guardado[1]
+    if not _candado_mismo_producto.locked():
+        threading.Thread(target=_precargar_mismo_producto, daemon=True).start()
+    return None
+
+
+def _precargar_mismo_producto():
+    try:
+        _indice_mismo_producto()
+    except Exception as error:  # noqa: BLE001
+        print(f"No se pudo precargar Mismo producto para las tarjetas ({error!r})")
+
+
+def _pagina_con_tarjeta(ruta_index: str, ruta: str, request: Request) -> str:
+    """index.html con el titulo, la descripcion y la imagen de la pagina pedida
+    (openspec compartir-por-whatsapp). Ver api/compartir.py."""
+    id_producto = request.query_params.get("p")
+    producto = None
+    if ruta.strip("/") == "mismo-producto" and id_producto:
+        indice = _indice_si_esta_cargado()
+        producto = indice.get(str(id_producto)) if indice else None
+    titulo, descripcion, canonica = compartir.tarjeta(ruta, id_producto, producto)
+    origen = compartir.origen_del_pedido(str(request.base_url), request.headers.get("x-forwarded-proto"))
+    return compartir.completar_head(_leer_index(ruta_index), origen, titulo, descripcion, canonica)
+
+
 @app.get("/{ruta:path}")
-def servir_frontend(ruta: str):
+def servir_frontend(ruta: str, request: Request):
     """Sirve el frontend, con el fallback que necesita cualquier SPA.
 
     Si la ruta corresponde a un archivo real (el bundle, el css, el favicon) se
@@ -1331,8 +1385,9 @@ def servir_frontend(ruta: str):
                 "sugerencia": "En desarrollo usa el dev server de Vite; la API vive bajo /api.",
             },
         )
-    # no-cache no es "no guardar": obliga a revalidar con el ETag en cada visita,
-    # que cuesta un 304 sin cuerpo. Sin esto el navegador aplicaba su heuristica
-    # y podia seguir usando el index.html de antes de un deploy, que pide un
-    # bundle que ya no existe. Safari en iPhone es de los que mas lo guardan.
-    return FileResponse(indice, headers={"Cache-Control": "no-cache"})
+    # no-cache: sin esto el navegador aplicaba su heuristica y podia seguir
+    # usando el index.html de antes de un deploy, que pide un bundle que ya no
+    # existe. Safari en iPhone es de los que mas lo guardan. Desde que cada
+    # pagina lleva su tarjeta (compartir-por-whatsapp) el HTML se arma en cada
+    # pedido y ya no hay ETag ni 304: son ~3 KB, menos con gzip.
+    return HTMLResponse(_pagina_con_tarjeta(indice, ruta, request), headers={"Cache-Control": "no-cache"})
