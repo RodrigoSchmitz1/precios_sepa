@@ -22,6 +22,7 @@ import PromosCercaDelProducto from "../components/PromosCercaDelProducto";
 import BotonCompartir from "../components/BotonCompartir";
 import { textoParaCompartir } from "../utils/compartir";
 import { claseCambio, textoCambioDetalle } from "../utils/cambioPrecio";
+import { agruparFormatos, nombrarCadenas } from "../utils/formatosDeCadena";
 
 /*
   El mismo producto: cuanto cuesta el mismo codigo de barras en cada cadena.
@@ -67,11 +68,6 @@ type Destacados = { productos?: ProductoComparado[]; error?: string };
 
 function porcentaje(valor: number): string {
   return `${Math.round(valor).toLocaleString("es-AR")}%`;
-}
-
-/** "Coto" o "Coto y 2 mas" cuando varias cadenas empatan en el extremo. */
-function nombrarCadenas(lista: PrecioEnCadena[]): string {
-  return lista.length === 1 ? lista[0].cadena : `${lista[0].cadena} y ${lista.length - 1} más`;
 }
 
 function textoSucursales(n: number): string {
@@ -150,7 +146,7 @@ function EjemploComparacion({ p, onVer }: { p: ProductoDetalle; onVer: (id: stri
         {hayDiferencia ? (
           <>
             <span className="text-alerta font-medium">{porcentaje(p.diferencia_pct)} más caro</span> en{" "}
-            {nombrarCadenas(caros)} que en {nombrarCadenas(baratos)} · {p.cadenas} cadenas
+            {nombrarCadenas(caros.map((x) => x.cadena))} que en {nombrarCadenas(baratos.map((x) => x.cadena))} · {p.cadenas} cadenas
           </>
         ) : (
           <>El mismo precio en las {p.cadenas} cadenas</>
@@ -174,15 +170,19 @@ function EjemploComparacion({ p, onVer }: { p: ProductoDetalle; onVer: (id: stri
 
 /** Las filas de precios de un grupo de cadenas. */
 export function FilasDePrecios({ precios, fechaDatos }: { precios: PrecioEnCadena[]; fechaDatos?: string }) {
+  // Los formatos de una cadena con el mismo precio van en una fila
+  // (formatos-de-una-cadena): "Changomás · HiperChangomás".
   return (
       <ul className="tarjeta divide-y divide-linea">
-      {precios.map((x) => (
+      {agruparFormatos(precios).map((x) => (
         <li
           key={x.cadena}
           className={`flex items-baseline gap-3 sm:gap-4 px-4 py-2.5 ${x.precio_creible ? "" : "bg-papel-hundido"}`}
         >
           <span className="flex-1 min-w-0">
-            <span className="block text-base text-tinta truncate">{x.cadena}</span>
+            {/* Una fila de varios formatos puede partirse en dos lineas: recortada
+                ("Changomás · HiperChango…") no decia cuales eran. */}
+            <span className={`block text-base text-tinta ${x.cadenas.length > 1 ? "leading-snug" : "truncate"}`}>{x.cadena}</span>
             {/*
               Segunda linea: por que esta atenuado y, en el celular, las
               sucursales. Un renglon en gris sin explicacion parece un error del
@@ -311,16 +311,11 @@ function TextoTitular({ p, t, nombre }: { p: ProductoDetalle; t: TitularProducto
     default:
       return (
         <>
-          {nombre}: <Resaltado>{porcentaje(c.diferenciaPct)} más caro</Resaltado> en {nombrarLista(c.caras)} que en{" "}
-          {nombrarLista(c.baratas)}
+          {nombre}: <Resaltado>{porcentaje(c.diferenciaPct)} más caro</Resaltado> en {nombrarCadenas(c.caras)} que en{" "}
+          {nombrarCadenas(c.baratas)}
         </>
       );
   }
-}
-
-/** "Coto" o "Coto y 2 más", como nombrarCadenas pero desde nombres. */
-function nombrarLista(nombres: string[]): string {
-  return nombres.length === 1 ? nombres[0] : `${nombres[0]} y ${nombres.length - 1} más`;
 }
 
 /** Agregar un producto a Tu lista, o avisar que ya esta. */
@@ -484,8 +479,8 @@ function VistaProducto({
                   { etiqueta: "Cadenas", valor: formatearNumero(p.cadenas), detalle: "lo venden en el país" },
                 ]
               : [
-                  { etiqueta: `Más barato${sufijo}`, valor: formatearPesos(c.precio), detalle: nombrarLista(c.baratas) },
-                  { etiqueta: `Más caro${sufijo}`, valor: formatearPesos(c.precioCaro), detalle: nombrarLista(c.caras) },
+                  { etiqueta: `Más barato${sufijo}`, valor: formatearPesos(c.precio), detalle: nombrarCadenas(c.baratas) },
+                  { etiqueta: `Más caro${sufijo}`, valor: formatearPesos(c.precioCaro), detalle: nombrarCadenas(c.caras) },
                   { etiqueta: `Diferencia${sufijo}`, valor: formatearPesos(c.precioCaro - c.precio), detalle: "por el mismo producto" },
                   deZona
                     ? { etiqueta: "Cadenas en tu zona", valor: formatearNumero(c.cadenas), detalle: `de ${formatearNumero(p.cadenas)} en el país` }
@@ -498,8 +493,8 @@ function VistaProducto({
       <div className="mb-6 text-xs text-tinta-suave leading-relaxed space-y-1">
         {deZona && hayDiferencia && (
           <p>
-            En todo el país, de {formatearPesos(p.precio_mas_bajo)} en {nombrarCadenas(p.precios.filter((x) => x.precio_mediano === p.precio_mas_bajo))} a{" "}
-            {formatearPesos(p.precio_mas_alto)} en {nombrarCadenas(p.precios.filter((x) => x.precio_mediano === p.precio_mas_alto))}.
+            En todo el país, de {formatearPesos(p.precio_mas_bajo)} en {nombrarCadenas(p.precios.filter((x) => x.precio_mediano === p.precio_mas_bajo).map((x) => x.cadena))} a{" "}
+            {formatearPesos(p.precio_mas_alto)} en {nombrarCadenas(p.precios.filter((x) => x.precio_mediano === p.precio_mas_alto).map((x) => x.cadena))}.
           </p>
         )}
         <p>

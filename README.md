@@ -106,7 +106,7 @@ responder lo que prometía: [DECISIONES.md](docs/DECISIONES.md).
   otras carnes, que la gama económica no salga más cara que la media, que el
   crudo no se atrase respecto del calendario.
 - **Python:** 236 tests sobre la API y la ingesta, sin BigQuery.
-- **Frontend:** 184 tests (Vitest). Se validaron metiendo 20 errores a propósito
+- **Frontend:** 193 tests (Vitest). Se validaron metiendo 20 errores a propósito
   en el código: cada uno hizo fallar al menos un test.
 - **CI:** todo lo que no necesita BigQuery corre en cada push.
 - **Auditoría con agentes:** `/auditar` en Claude Code lanza tres auditores en

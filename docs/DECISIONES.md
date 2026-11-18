@@ -1036,6 +1036,54 @@ Vea, y la otra cadena más cercana está a una mediana de 50 km.
 
 ---
 
+## Formatos de una cadena
+
+**El problema (2026-11-18).** Mismo producto mostraba Changomás,
+SuperChangomás e HiperChangomás en tres filas, y Carrefour, Market y Express
+en otras tres. El titular decía "3% más caro en Coto que en Changomás y 1 más",
+que no se entiende. El explore externo propuso juntarlos: "Changomás (3
+formatos)", "Carrefour (Market, Express, Hiper)" y Maxi aparte. Fue el
+candidato 10.
+
+**Lo que se midió antes.** Sobre los 47.740 productos de Mismo producto, las
+banderas de una empresa no cobran lo mismo:
+
+| Par | Productos | Mismo precio | Diferencia |
+|---|---|---|---|
+| Carrefour y Market | 18.425 | 89% | — |
+| Carrefour y Express | 5.599 | 44% | p90 de 8% |
+| Changomás y SuperChangomás | 27.696 | 36% | SuperChangomás 4% más barata de mediana |
+| Changomás e HiperChangomás | 27.725 | 38% | — |
+| Vea y Disco | 9.320 | 9% | Vea 4% más cara |
+
+Juntar cada empresa en una fila habría escondido diferencias reales.
+SuperChangomás es una de las dos cadenas que explican el ahorro por comparar
+(ver "Dispersión y reglas de precio").
+
+**La decisión: agrupar solo lo que cobra exactamente lo mismo.** En el detalle,
+los formatos de una cadena con el mismo precio, la misma marca de creíble y la
+misma fecha van en una fila: "Changomás · HiperChangomás", con las sucursales
+sumadas (`utils/formatosDeCadena.ts`).
+- **Los que cobran distinto siguen separados.** En el aceite Cocinero, Carrefour
+  y Market ($ 6.925) van juntos, y los tres Changomás ($ 6.649, $ 6.929 y
+  $ 7.069) y Express ($ 7.129) quedan en sus filas.
+- **Quedan afuera:** Maxi, porque tiene otra lógica de precio (−5% de mediana
+  contra Carrefour), y Vea, Disco y Jumbo, porque para la gente son súper
+  distintos.
+- **Las filas por producto** bajan de 4,29 a 3,48, y de 14 a 12,4 en los 400
+  productos más comunes.
+- **Los titulares y extremos** nombran las cadenas: hasta tres con "y", y "y N
+  más" solo con más de tres. Los formatos al mismo precio se nombran juntos. En
+  10.501 productos, el precio más bajo lo comparten formatos de una misma
+  empresa, y de ahí venía el "y 1 más".
+
+**Qué no cambia:** ningún precio, total ni porcentaje. Tu lista, Más barato y
+Tu canasta siguen por bandera, porque sus totales sí difieren. Las cadenas de
+una zona también siguen por bandera: una zona puede tener un Express y no un
+Carrefour.
+
+---
+
 ## Tests
 
 Además de los genéricos, hay tests singulares de dbt para lo que sólo se
