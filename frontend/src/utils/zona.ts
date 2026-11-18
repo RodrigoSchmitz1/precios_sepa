@@ -19,7 +19,11 @@ export type Zona = {
   provincia: string;
   latitud: number;
   longitud: number;
+  /** Las cadenas cerca: con sucursal en el lugar o a menos de 3 km de su
+   *  centro (cadenas-cerca-de-tu-zona). */
   cadenas: string[];
+  /** Solo si hay una sola cadena cerca: la sucursal mas cercana de otra. */
+  otra_cadena_cerca?: { cadena: string; km: number };
 };
 
 const CLAVE_STORAGE = "changuito.zona";

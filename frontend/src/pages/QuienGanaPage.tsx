@@ -126,7 +126,7 @@ function QuienGanaPage() {
 
       {zona && !zonaComparable && (
         <p className="mb-6 text-sm text-tinta-media">
-          En tu zona ({rotuloZona(zona)}) hay una sola cadena, {zona.cadenas.map(nombreCadena).join("")}: no hay con qué compararla ahí.
+          Cerca de tu zona ({rotuloZona(zona)}) hay una sola cadena, {zona.cadenas.map(nombreCadena).join("")}: no hay con qué compararla ahí.
           Esto es todo el país.
         </p>
       )}

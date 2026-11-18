@@ -374,6 +374,9 @@ def obtener_lugares_del_mapa():
     return mapa_promos.lugares(_indice_mapa())
 
 
+_zonas_armadas: dict = {}
+
+
 @api.get("/zonas")
 def obtener_zonas():
     """Los lugares que se pueden elegir como zona, con las cadenas de cada uno.
@@ -384,7 +387,12 @@ def obtener_zonas():
     zona". Sale del indice del mapa, que ya esta en memoria: no consulta
     BigQuery.
     """
-    return mapa_promos.lugares(_indice_mapa(), con_cadenas=True)
+    # Se arma una vez por indice del mapa (cadenas-cerca-de-tu-zona): sumar las
+    # cadenas cercanas recorre las sucursales de cada lugar.
+    indice = _indice_mapa()
+    if _zonas_armadas.get("indice") is not indice:
+        _zonas_armadas.update(indice=indice, zonas=mapa_promos.lugares(indice, con_cadenas=True))
+    return _zonas_armadas["zonas"]
 
 
 @api.get("/promos/mapa")

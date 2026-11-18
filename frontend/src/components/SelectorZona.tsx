@@ -138,7 +138,7 @@ function SelectorZona() {
                       >
                         <span className="text-base text-tinta">{rotuloZona(opcion)}</span>
                         <span className="text-xs text-tinta-suave shrink-0">
-                          {formatearNumero(opcion.cadenas.length)} {opcion.cadenas.length === 1 ? "cadena" : "cadenas"}
+                          {formatearNumero(opcion.cadenas.length)} {opcion.cadenas.length === 1 ? "cadena cerca" : "cadenas cerca"}
                         </span>
                       </button>
                     </li>

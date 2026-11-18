@@ -73,6 +73,29 @@ describe("cifrasDePortada", () => {
     expect(cifras[2].detalle).toContain("precios de la cadena en todo el país");
   });
 
+  it("Rafaela: a cuánto está la otra cadena y lo que cuesta no tener opciones", () => {
+    // cadenas-cerca-de-tu-zona: con una sola cadena la API cotiza el país, que trae a la más barata.
+    const pais = canasta([["Maxi (Carrefour)", 142056], ["Día", 153613], ["La Anónima", 161836]]);
+    const cifras = cifrasDePortada({ inflacion: INFLACION, canasta: pais, canastaDeZona: false }, ["La Anonima"], {
+      cadena: "Cooperativa Obrera",
+      km: 35,
+    });
+    expect(cifras[0].detalle).toBe("La otra cadena más cercana, Cooperativa Obrera, está a unos 35 km");
+    expect(cifras[2].detalle).toMatch(/En Maxi \(Carrefour\), la más barata del país, sale 12% menos$/);
+    expect(cifras.some((c) => /ahorr/i.test(c.etiqueta + c.detalle))).toBe(false);
+  });
+
+  it("sin dato de la otra cadena, lo dice sin inventar distancia", () => {
+    const cifras = cifrasDePortada({ inflacion: INFLACION, canasta: CANASTA_PAIS, canastaDeZona: false }, ["La Anonima"], null);
+    expect(cifras[0].detalle).toBe("SEPA no informa otra cadena cerca de tu zona");
+  });
+
+  it("si la única cadena es la más barata del país, no hay costo que decir", () => {
+    const pais = canasta([["Maxi (Carrefour)", 142056], ["La Anónima", 161836]]);
+    const cifras = cifrasDePortada({ inflacion: INFLACION, canasta: pais, canastaDeZona: false }, ["Maxi (Carrefour)"]);
+    expect(cifras[2].detalle).not.toMatch(/más barata del país/);
+  });
+
   it("zona con una sola cadena que no está en la canasta: sin tarjeta de canasta", () => {
     const cifras = cifrasDePortada({ inflacion: INFLACION, canasta: CANASTA_PAIS, canastaDeZona: false }, ["Cooperativa Obrera"]);
     expect(cifras.map((c) => c.etiqueta)).toEqual(["Tu única cadena cerca", "Lo que más subió"]);

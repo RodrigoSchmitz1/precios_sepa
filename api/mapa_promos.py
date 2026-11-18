@@ -1,6 +1,7 @@
 """Promos del mapa resueltas en memoria: mover el mapa no consulta BigQuery."""
 
 import heapq
+from bisect import bisect_left, bisect_right
 import math
 import re
 import statistics
@@ -207,7 +208,11 @@ def buscar(
 # con promos en Lomas de Zamora, 194 en Palermo y 2 en Rafaela. Las sucursales
 # del lugar no sirven: en un barrio chico son una o dos, y la de cuatro cuadras
 # pero del barrio vecino quedaria afuera.
-RADIO_PROMOS_KM = 3
+#
+# Es tambien el radio de "las cadenas de tu zona" (cadenas-cerca-de-tu-zona,
+# 2026-11-18): una sola definicion de "cerca" para todo el sitio.
+RADIO_CERCA_KM = 3
+RADIO_PROMOS_KM = RADIO_CERCA_KM  # nombre anterior, lo usa /promos/productos
 PROMOS_POR_PRODUCTO = 3
 MAXIMO_PRODUCTOS = 100
 
@@ -328,6 +333,43 @@ def _km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     return math.hypot((lat2 - lat1) * 111.0, (lng2 - lng1) * 111.0 * math.cos(math.radians((lat1 + lat2) / 2)))
 
 
+# Una franja de latitud un poco mas ancha que el radio: 1 grado son ~111 km.
+_FRANJA_GRADOS = RADIO_CERCA_KM / 111.0 * 1.05
+
+
+def _sumar_cadenas_cerca(indice: IndiceMapa, lugares_: list) -> None:
+    """Las cadenas de cada lugar pasan a ser las que estan CERCA: las del lugar
+    mas las que tienen una sucursal a menos de RADIO_CERCA_KM de su centro
+    (cadenas-cerca-de-tu-zona, 2026-11-18).
+
+    Hasta ese dia eran solo las del barrio o la localidad: 331 de 559 zonas
+    tenian "una sola cadena", y en 147 habia otra empresa a menos de 3 km. En
+    Villa Soldati la portada decia "Tu unica cadena cerca: Dia" con cuatro
+    empresas o mas a unas cuadras. El barrio es un limite administrativo; la
+    gente compra cerca, cruce o no el limite.
+
+    Si un lugar queda con una sola cadena, se agrega otra_cadena_cerca: la
+    sucursal mas cercana de otra cadena, para decir cuanto hay que viajar.
+    Se compara solo contra las sucursales de una franja de latitud: 559 lugares
+    por 2.500 sucursales en cada armado sobraba."""
+    puntos = sorted(
+        (s["latitud"], s["longitud"], s["cadena"]) for s in indice.sucursales
+        if s.get("cadena") and s.get("latitud") is not None and s.get("longitud") is not None
+    )
+    latitudes = [p[0] for p in puntos]
+    for lugar in lugares_:
+        lat, lng = lugar["latitud"], lugar["longitud"]
+        desde, hasta = bisect_left(latitudes, lat - _FRANJA_GRADOS), bisect_right(latitudes, lat + _FRANJA_GRADOS)
+        cerca = set(lugar["cadenas"]) | {
+            c for la, ln, c in puntos[desde:hasta] if _km(lat, lng, la, ln) <= RADIO_CERCA_KM
+        }
+        lugar["cadenas"] = sorted(cerca)
+        if len(cerca) == 1:
+            otra = min(((_km(lat, lng, la, ln), c) for la, ln, c in puntos if c not in cerca), default=None)
+            if otra:
+                lugar["otra_cadena_cerca"] = {"cadena": otra[1], "km": round(otra[0])}
+
+
 # Nombres que en CABA no son un lugar sino la ciudad entera. Sirven para mover
 # el mapa, pero no como zona: "Capital Federal" juntaba las sucursales de Dia
 # que escriben eso en el barrio, y como zona decia que en toda CABA hay una sola
@@ -338,8 +380,9 @@ GENERICOS_CABA = {"capital federal", "caba", "ciudad autonoma de buenos aires", 
 def lugares(indice: IndiceMapa, con_cadenas: bool = False) -> list[dict]:
     """Localidades y barrios con sucursales, para que el mapa pueda ir a uno.
 
-    Con `con_cadenas`, cada lugar trae tambien las cadenas con sucursal en el,
-    sin repetir, y quedan afuera los nombres genericos de CABA: es la lista de
+    Con `con_cadenas`, cada lugar trae tambien las cadenas cerca: las que
+    tienen sucursal en el o a menos de RADIO_CERCA_KM de su centro, sin repetir
+    (ver _sumar_cadenas_cerca), y quedan afuera los nombres genericos de CABA: es la lista de
     zonas del sitio (ver /zonas). Va aparte para no agrandar /promos/lugares,
     que el mapa pide igual que antes.
 
@@ -411,6 +454,7 @@ def lugares(indice: IndiceMapa, con_cadenas: bool = False) -> list[dict]:
             }
         )
     if con_cadenas:
+        _sumar_cadenas_cerca(indice, resultado)
         resultado = [l for l in resultado if not (l["provincia"] == "AR-C" and normalizar(l["nombre"]) in GENERICOS_CABA)]
     resultado.sort(key=lambda l: (-l["sucursales"], l["nombre"]))
     return resultado

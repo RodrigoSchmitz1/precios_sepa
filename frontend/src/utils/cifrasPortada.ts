@@ -1,6 +1,6 @@
 import type { CanastaPorCadena, InflacionResumen, QuienGana } from "../types";
 import { ahorroEnCadenas } from "./ahorroCanasta";
-import { formatearPesos, formatearVariacion, mesEnPalabras } from "./formato";
+import { formatearPesos, formatearVariacion, mesEnPalabras, porcentajeEntero } from "./formato";
 import { liderEn } from "./liderazgo";
 import { nombreCadena, nombreCategoria } from "./nombres";
 
@@ -31,8 +31,15 @@ export type DatosPortada = {
   canastaDeZona?: boolean;
 };
 
-/** zonaCadenas: las cadenas con sucursal en la zona (Zona.cadenas), o null sin zona. */
-export function cifrasDePortada(datos: DatosPortada, zonaCadenas: string[] | null): CifraPortada[] {
+/** La sucursal mas cercana de otra cadena, para una zona con una sola cadena cerca (/zonas). */
+export type OtraCadenaCerca = { cadena: string; km: number };
+
+/** zonaCadenas: las cadenas cerca de la zona (Zona.cadenas), o null sin zona. */
+export function cifrasDePortada(
+  datos: DatosPortada,
+  zonaCadenas: string[] | null,
+  otraCadenaCerca?: OtraCadenaCerca | null
+): CifraPortada[] {
   const cifras: CifraPortada[] = [];
   const conZona = zonaCadenas !== null;
   const unaSola = conZona && zonaCadenas.length === 1;
@@ -42,7 +49,10 @@ export function cifrasDePortada(datos: DatosPortada, zonaCadenas: string[] | nul
     cifras.push({
       etiqueta: "Tu única cadena cerca",
       valor: nombreCadena(zonaCadenas[0]),
-      detalle: "SEPA informa una sola cadena en tu zona",
+      // Cuanto hay que viajar para tener otra opcion (cadenas-cerca-de-tu-zona).
+      detalle: otraCadenaCerca
+        ? `La otra cadena más cercana, ${nombreCadena(otraCadenaCerca.cadena)}, está a unos ${otraCadenaCerca.km} km`
+        : "SEPA no informa otra cadena cerca de tu zona",
       chip: "📍 tu zona",
       chipClase: "bg-marca/10 text-marca",
     });
@@ -91,7 +101,8 @@ export function cifrasDePortada(datos: DatosPortada, zonaCadenas: string[] | nul
         valor: formatearPesos(unica.total),
         detalle:
           queSeCompara(canasta) +
-          (datos.canastaDeZona ? ", en las sucursales de tu zona" : ", con los precios de la cadena en todo el país"),
+          (datos.canastaDeZona ? ", en las sucursales de tu zona" : ", con los precios de la cadena en todo el país") +
+          costoDeNoTenerOpciones(canasta, unica, datos.canastaDeZona),
         chip: "🧺 canasta básica",
         chipClase: "bg-ahorro-tenue text-ahorro",
       });
@@ -111,6 +122,24 @@ export function cifrasDePortada(datos: DatosPortada, zonaCadenas: string[] | nul
     });
   }
   return cifras;
+}
+
+/**
+ * Lo que cuesta no tener opciones (cadenas-cerca-de-tu-zona, 2026-11-18): la
+ * misma canasta en la cadena mas barata del pais. Medido ese dia: Dia +8%,
+ * La Anonima +14% contra Maxi. Se dice como un costo, no como un "ahorras":
+ * la mas barata del pais no esta a mano. Solo con el ranking del pais, que es
+ * el que trae a todas las cadenas.
+ */
+function costoDeNoTenerOpciones(
+  canasta: CanastaPorCadena,
+  unica: CanastaPorCadena["cadenas"][number],
+  canastaDeZona: boolean | undefined
+): string {
+  if (canastaDeZona || canasta.ambito !== "pais") return "";
+  const barata = canasta.cadenas.reduce((menor, c) => (c.total < menor.total ? c : menor), canasta.cadenas[0]);
+  if (!barata || barata.cadena === unica.cadena || barata.total >= unica.total) return "";
+  return `. En ${barata.cadena}, la más barata del país, sale ${porcentajeEntero((unica.total - barata.total) / unica.total)} menos`;
 }
 
 function queSeCompara(canasta: CanastaPorCadena): string {

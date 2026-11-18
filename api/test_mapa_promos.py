@@ -215,8 +215,9 @@ class TestLugares(unittest.TestCase):
         self.assertEqual(len(lugares(self.indice(mendoza + pba))), 2)
 
     def test_las_zonas_traen_sus_cadenas_sin_repetir(self):
-        # Zona compartida (2026-11): "las cadenas de tu zona" son las que tienen
-        # sucursal en ese barrio o localidad.
+        # Zona compartida (2026-11): "las cadenas de tu zona" incluyen las que
+        # tienen sucursal en ese barrio o localidad (y, desde el 18-11, las que
+        # estan a menos de 3 km: ver el test siguiente).
         palermo = [
             sucursal_en("d1", "Palermo", "AR-C", -34.58, -58.42, cadena="Dia"),
             sucursal_en("d2", "Palermo", "AR-C", -34.581, -58.421, cadena="Dia"),
@@ -224,6 +225,36 @@ class TestLugares(unittest.TestCase):
         ]
         (lugar,) = lugares(self.indice(palermo), con_cadenas=True)
         self.assertEqual(lugar["cadenas"], ["Coto", "Dia"])
+
+    def test_las_cadenas_de_la_zona_incluyen_las_de_a_menos_de_3_km(self):
+        # cadenas-cerca-de-tu-zona (2026-11-18): Villa Soldati tiene adentro solo
+        # Dia, pero a unas cuadras, del otro lado del limite del barrio, hay
+        # Coto. Antes la zona decia "una sola cadena".
+        soldati = [
+            sucursal_en("d1", "Villa Soldati", "AR-C", -34.665, -58.445, cadena="Dia"),
+            sucursal_en("d2", "Villa Soldati", "AR-C", -34.666, -58.446, cadena="Dia"),
+            # A ~2 km, en otro barrio.
+            sucursal_en("c1", "Parque Chacabuco", "AR-C", -34.647, -58.445, cadena="Coto"),
+            # A ~3,5 km: no entra.
+            sucursal_en("j1", "Caballito", "AR-C", -34.634, -58.445, cadena="Jumbo"),
+        ]
+        zonas = {l["nombre"]: l for l in lugares(self.indice(soldati), con_cadenas=True)}
+        self.assertEqual(zonas["Villa Soldati"]["cadenas"], ["Coto", "Dia"])
+        self.assertNotIn("otra_cadena_cerca", zonas["Villa Soldati"])
+
+    def test_una_ciudad_sin_otra_cadena_cerca_dice_a_cuanto_esta(self):
+        rafaela = [sucursal_en(f"a{i}", "Rafaela", "AR-S", -31.25 + i * 0.001, -61.49, cadena="La Anonima") for i in range(3)]
+        # Santa Fe capital, a ~90 km.
+        santa_fe = [sucursal_en("c1", "Santa Fe", "AR-S", -31.63, -60.7, cadena="Coto")]
+        zonas = {l["nombre"]: l for l in lugares(self.indice(rafaela + santa_fe), con_cadenas=True)}
+        self.assertEqual(zonas["Rafaela"]["cadenas"], ["La Anonima"])
+        self.assertEqual(zonas["Rafaela"]["otra_cadena_cerca"]["cadena"], "Coto")
+        self.assertTrue(80 <= zonas["Rafaela"]["otra_cadena_cerca"]["km"] <= 100, zonas["Rafaela"]["otra_cadena_cerca"])
+
+    def test_el_radio_de_la_zona_es_el_de_las_promos(self):
+        from mapa_promos import RADIO_CERCA_KM, RADIO_PROMOS_KM
+        self.assertEqual(RADIO_PROMOS_KM, RADIO_CERCA_KM)
+        self.assertEqual(RADIO_CERCA_KM, 3)
 
     def test_capital_federal_no_es_una_zona(self):
         # Sirve para mover el mapa, pero como zona diria que en toda CABA hay

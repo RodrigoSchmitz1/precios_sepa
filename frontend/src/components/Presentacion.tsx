@@ -379,7 +379,8 @@ function Presentacion() {
       canasta: !zona ? datos.canastaPorCadena : canastaZona ? (canastaZona.datos ?? datos.canastaPorCadena) : undefined,
       canastaDeZona: canastaZona?.alcance === "zona",
     },
-    zona ? zona.cadenas : null
+    zona ? zona.cadenas : null,
+    zona?.otra_cadena_cerca
   );
 
   const buscar = (e: FormEvent) => {

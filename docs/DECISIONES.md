@@ -985,6 +985,57 @@ en Rosario. El paso 4 es "cerca tuyo", y tu zona es dónde estás.
 
 ---
 
+## Las cadenas cerca de tu zona
+
+**El problema (2026-11-18).** Para el sitio, "las cadenas de tu zona" eran las
+que tienen sucursal dentro del barrio o de la localidad. Medido en `/zonas`,
+331 de las 559 zonas (59%) tenían una sola cadena. En 147 de ellas había otra
+empresa a menos de 3 km del centro, entre ellas las 10 de CABA. En Villa
+Soldati la portada decía "Tu única cadena cerca: Día — SEPA informa una sola
+cadena en tu zona", con cuatro empresas o más a unas cuadras. Más barato decía
+que no había con qué comparar. El barrio es un límite administrativo, y la
+gente compra cerca, cruce o no el límite. Fue el candidato 9 del explore
+externo, que pedía "decirle la verdad al que no tiene opciones". Medirlo mostró
+que primero había que dejar de decir que no tenía opciones a quien sí las
+tiene.
+
+**La regla.** Las cadenas de una zona son las que tienen sucursal en el lugar
+más las que tienen una sucursal a menos de 3 km de su centro
+(`RADIO_CERCA_KM` en `api/mapa_promos.py`). Es el mismo radio de las promos
+cercanas: una sola definición de "cerca". El cambio está en `/zonas`, así que lo
+toman juntos la portada, Más barato, Mismo producto y Tu lista. Con 5 km
+quedaban 176 zonas de una sola cadena, casi lo mismo que con 3. Con 3 se suman
+menos cadenas lejanas en el conurbano denso.
+- **Antes:** 331 zonas con una cadena, 90 con dos y 138 con tres o más.
+- **Después:** 186, 85 y 288. Ninguna de CABA queda con una sola.
+- **Villa Soldati:** pasa a tener Coto, Día, Express y Jumbo, y Más barato dice
+  "En tu zona, Coto es la más barata en 34 de las 47 categorías".
+- **Costo:** armar `/zonas` pasó de 25 a 267 ms, y por eso se arma una vez por
+  carga del índice del mapa. Antes se armaba en cada pedido.
+
+**Lo que cuesta no tener opciones.** Las 186 zonas que siguen con una sola
+cadena son 90 de Día, 40 de La Anónima, 34 de la Cooperativa Obrera y 12 de
+Vea, y la otra cadena más cercana está a una mediana de 50 km.
+- **La portada dice a cuánto está:** en Rafaela, "La otra cadena más cercana,
+  Cooperativa Obrera, está a unos 35 km"; en Esquel, a 195 km.
+- **Y cuánto saldría la misma canasta** en la cadena más barata del país:
+  "En Maxi (Carrefour), la más barata del país, sale 12% menos".
+- **Se presenta como un costo, no como un "ahorrás":** la más barata del país
+  no está a mano. Es el dato de "lo que sí pesa es qué cadenas hay cerca", que
+  estaba medido desde octubre y no se había publicado. Con el ranking del
+  18-11, Día está +8% sobre Maxi y La Anónima +14%.
+- **Sin total nacional, sin cifra:** la Cooperativa Obrera y Vea no venden el
+  80% de la canasta y no tienen total nacional. Ahí la portada dice solo la
+  distancia.
+
+**Queda como estaba:**
+- **Tu canasta** sigue cotizando por localidad, como dice su spec. En Villa
+  Soldati el paso 3 puede comparar el país, rotulado como tal.
+- **El ahorro de la portada,** cuando la localidad no alcanza para cotizar,
+  sigue siendo el del país, y lo dice.
+
+---
+
 ## Tests
 
 Además de los genéricos, hay tests singulares de dbt para lo que sólo se
