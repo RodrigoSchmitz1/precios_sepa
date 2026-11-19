@@ -36,6 +36,7 @@ class IndiceMapa:
     # promo es su orden en el resultado. 1,5 M filas como dicts no entran en 512 MiB.
     __slots__ = (
         "sucursales",
+        "es_farmacia",
         *CAMPOS_TEXTO,
         *CAMPOS_NUMERO,
         "texto",
@@ -53,10 +54,16 @@ def armar_indice(sucursales, promos) -> IndiceMapa:
     """sucursales: filas de mart_mapa_sucursales. promos: filas de mart_mapa_promos."""
     indice = IndiceMapa()
     indice.sucursales = []
+    indice.es_farmacia = bytearray()
     posicion = {}
     for fila in sucursales:
         posicion[fila["sucursal"]] = len(indice.sucursales)
         indice.sucursales.append({campo: fila[campo] for campo in CAMPOS_SUCURSAL})
+        # Una farmacia no arma zonas ni cuenta como cadena cerca: va en
+        # "farmacias" (openspec comercios-regionales-y-farmacity). Aparte y no
+        # en la sucursal, que se copia entera en cada fila de promo. .get: el
+        # mart trae formato desde la corrida siguiente al deploy.
+        indice.es_farmacia.append(1 if fila.get("formato") == "farmacia" else 0)
 
     # La misma leyenda o descripcion llega como un string nuevo en cada fila.
     unicos: dict = {}
@@ -512,11 +519,18 @@ def _sumar_cadenas_cerca(indice: IndiceMapa, lugares_: list) -> None:
     sucursal mas cercana de otra cadena, para decir cuanto hay que viajar.
     Se compara solo contra las sucursales de una franja de latitud: 559 lugares
     por 2.500 sucursales en cada armado sobraba."""
-    puntos = sorted(
-        (s["latitud"], s["longitud"], s["cadena"]) for s in indice.sucursales
-        if s.get("cadena") and s.get("latitud") is not None and s.get("longitud") is not None
-    )
+    def ordenados(farmacia: bool):
+        return sorted(
+            (s["latitud"], s["longitud"], s["cadena"]) for i, s in enumerate(indice.sucursales)
+            if s.get("cadena") and bool(indice.es_farmacia[i]) == farmacia
+            and s.get("latitud") is not None and s.get("longitud") is not None
+        )
+
+    # Las farmacias van aparte (openspec comercios-regionales-y-farmacity): no
+    # cuentan como cadena cerca, ni sacan a una zona de "una sola cadena".
+    puntos, farmacias = ordenados(False), ordenados(True)
     latitudes = [p[0] for p in puntos]
+    latitudes_farmacias = [p[0] for p in farmacias]
     for lugar in lugares_:
         lat, lng = lugar["latitud"], lugar["longitud"]
         desde, hasta = bisect_left(latitudes, lat - _FRANJA_GRADOS), bisect_right(latitudes, lat + _FRANJA_GRADOS)
@@ -524,6 +538,10 @@ def _sumar_cadenas_cerca(indice: IndiceMapa, lugares_: list) -> None:
             c for la, ln, c in puntos[desde:hasta] if _km(lat, lng, la, ln) <= RADIO_CERCA_KM
         }
         lugar["cadenas"] = sorted(cerca)
+        desde, hasta = bisect_left(latitudes_farmacias, lat - _FRANJA_GRADOS), bisect_right(latitudes_farmacias, lat + _FRANJA_GRADOS)
+        farmacias_cerca = {c for la, ln, c in farmacias[desde:hasta] if _km(lat, lng, la, ln) <= RADIO_CERCA_KM}
+        if farmacias_cerca:
+            lugar["farmacias"] = sorted(farmacias_cerca)
         if len(cerca) == 1:
             otra = min(((_km(lat, lng, la, ln), c) for la, ln, c in puntos if c not in cerca), default=None)
             if otra:
@@ -557,6 +575,10 @@ def lugares(indice: IndiceMapa, con_cadenas: bool = False) -> list[dict]:
     """
     grupos: dict = {}
     for i, s in enumerate(indice.sucursales):
+        # Una zona es un lugar con supermercados: un pueblo con solo un
+        # Farmacity no es una zona donde comparar la compra.
+        if indice.es_farmacia[i]:
+            continue
         for campo in ("barrio", "localidad"):
             nombre = (s.get(campo) or "").strip()
             if len(nombre) < 3 or not any(c.isalpha() for c in nombre):

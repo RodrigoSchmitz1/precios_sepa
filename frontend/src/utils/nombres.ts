@@ -61,6 +61,10 @@ const CADENAS: Record<string, string> = {
   SuperChangomas: "SuperChangomás",
   HiperChangomas: "HiperChangomás",
   Dia: "Día",
+  // Regionales sumados el 2026-11-19 (openspec comercios-regionales-y-farmacity).
+  Comodin: "Comodín",
+  "Maxi Comodin": "Maxi Comodín",
+  "La Agricola Regional": "La Agrícola Regional",
 };
 
 export function nombreCadena(cadena: string): string {

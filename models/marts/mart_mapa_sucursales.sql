@@ -3,6 +3,8 @@
 SELECT
     CONCAT(s.id_comercio, "-", s.id_sucursal) AS sucursal,
     c.nombre_comercial AS cadena,
+    -- supermercado o farmacia: /zonas no cuenta las farmacias como cadena cerca.
+    COALESCE(c.formato, 'supermercado') AS formato,
     s.nombre_sucursal,
     s.calle,
     s.numero,

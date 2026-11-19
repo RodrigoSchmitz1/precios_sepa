@@ -16,7 +16,14 @@ HEADERS = {
 }
 
 # Las cadenas que queremos (comercioId). Editá esta lista para escalar.
-COMERCIOS_OBJETIVO = [2, 9, 10, 11, 12, 13, 15, 16]  # La Anónima, Cencosud, Carrefour, Coto, DIA
+# Todos los supermercados de SEPA minoristas mas Farmacity (2026-11-19, openspec
+# comercios-regionales-y-farmacity). Medido sobre los ZIP del 13 al 19-11: cada dia
+# trae 17-18 comercios. Quedan afuera a proposito las tiendas de estaciones de
+# servicio (3 Deheza, 4 Estacion Lima, 23 Axion: unos cientos de productos, nada
+# de una compra de super) y el 36, que llega vacio. 16 (Libertad) no vino en toda
+# esa semana; queda por si vuelve. El nombre y el formato de cada bandera estan
+# en seeds/mapeo_cadenas.csv.
+COMERCIOS_OBJETIVO = [2, 5, 6, 8, 9, 10, 11, 12, 13, 15, 16, 20, 21, 24, 47]
 
 # Mapa día-de-semana (Python: lunes=0) -> nombre del recurso en SEPA
 DIAS_SEMANA = {

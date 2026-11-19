@@ -11,7 +11,8 @@ from google.cloud.exceptions import NotFound
 CREDENCIALES = "credenciales.json"
 PROYECTO = "proyecto-precios-504221"
 DATASET = "sepa"
-COMERCIOS = ["sepa2", "sepa9", "sepa10", "sepa11", "sepa12", "sepa13", "sepa15", "sepa16"]
+# Los mismos de COMERCIOS_OBJETIVO en descargar_sepa.py (ver ahi por que).
+COMERCIOS = [f"sepa{i}" for i in (2, 5, 6, 8, 9, 10, 11, 12, 13, 15, 16, 20, 21, 24, 47)]
 
 # productos se maneja aparte (particionada + fecha); las dimensiones van como snapshot
 TABLA_HECHOS = "productos"

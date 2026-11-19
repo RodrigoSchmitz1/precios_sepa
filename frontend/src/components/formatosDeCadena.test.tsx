@@ -51,4 +51,13 @@ describe("FilasDePrecios con formatos", () => {
     expect(filas[1]).toContain("84 sucursales");
     expect(filas[2]).toContain("Maxi (Carrefour)");
   });
+
+  it("la farmacia se dice como farmacia (openspec comercios-regionales-y-farmacity)", async () => {
+    await act(async () => {
+      raiz.render(<FilasDePrecios fechaDatos="2026-11-17" precios={[{ ...precio("Farmacity", 4500, 300), farmacia: true }, precio("Coto", 5000, 40)]} />);
+    });
+    const filas = [...contenedor.querySelectorAll("li")].map((li) => li.textContent ?? "");
+    expect(filas[0]).toContain("Farmacity · farmacia");
+    expect(filas[1]).not.toContain("farmacia");
+  });
 });

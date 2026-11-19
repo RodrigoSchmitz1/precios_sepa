@@ -64,6 +64,8 @@ WITH productos_filtrados AS (
     JOIN {{ ref("stg_comercio") }} AS com
         ON s.id_comercio = com.id_comercio AND s.id_bandera = com.id_bandera
     WHERE p.fecha_datos = DATE('{{ fecha }}')
+        -- Tu canasta compara supermercados (ver mart_precio_categoria_localidad).
+        AND com.formato = 'supermercado'
         AND s.localidad IS NOT NULL
         -- Sin coordenadas la sucursal no sirve para esta feature: no se puede
         -- saber si esta dentro del radio que elige el usuario.

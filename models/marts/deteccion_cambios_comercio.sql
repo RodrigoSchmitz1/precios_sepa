@@ -16,7 +16,13 @@ comparacion AS (
         CASE
             WHEN ayer.id_comercio IS NULL THEN 'alta'
             WHEN hoy.id_comercio IS NULL THEN 'baja'
-            WHEN TO_JSON_STRING(hoy) IS DISTINCT FROM TO_JSON_STRING(ayer) THEN 'modificacion'
+            -- Solo las columnas que vienen de SEPA. Comparar la fila entera marcaba
+            -- los 21 comercios como modificados todos los dias: stg_comercio suma
+            -- columnas propias (nombre_comercial del seed, y desde el 2026-11-19
+            -- formato e informe_diario) que la foto de ayer no tiene.
+            WHEN TO_JSON_STRING(STRUCT(hoy.cuit, hoy.razon_social, hoy.bandera_nombre))
+                IS DISTINCT FROM TO_JSON_STRING(STRUCT(ayer.cuit, ayer.razon_social, ayer.bandera_nombre))
+                THEN 'modificacion'
             ELSE 'sin_cambio'
         END AS tipo_cambio
     FROM hoy

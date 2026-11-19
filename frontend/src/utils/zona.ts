@@ -27,6 +27,10 @@ export type Zona = {
   /** Otros nombres del mismo lugar ("Gregorio de Laferrere" para Laferrere):
    *  se buscan y resuelven links viejos (arreglos-segundo-explore). */
   alias?: string[];
+  /** Farmacias a menos de 3 km (Farmacity). No son cadenas cerca: no cuentan
+   *  para comparar la compra, solo en el detalle de un producto (openspec
+   *  comercios-regionales-y-farmacity). Solo si hay alguna. */
+  farmacias?: string[];
 };
 
 /** "Cerca": el mismo radio que las cadenas de la zona y las promos
@@ -43,6 +47,15 @@ export function rotuloZona(zona: Pick<Zona, "nombre" | "provincia">): string {
 /** Los nombres de cadena como se muestran, para comparar con las respuestas ya convertidas. */
 export function cadenasVisibles(zona: Zona): Set<string> {
   return new Set(zona.cadenas.map(nombreCadena));
+}
+
+/**
+ * Las cadenas y las farmacias cerca, para el detalle de UN producto: ahí un
+ * shampoo más barato en el Farmacity de la esquina es información útil. Para
+ * comparar la compra (Tu lista, Más barato, la portada) va cadenasVisibles.
+ */
+export function cadenasDelDetalle(zona: Zona): Set<string> {
+  return new Set([...zona.cadenas, ...(zona.farmacias ?? [])].map(nombreCadena));
 }
 
 function mismaZona(a: Pick<Zona, "nombre" | "provincia" | "alias">, b: Pick<Zona, "nombre" | "provincia">): boolean {

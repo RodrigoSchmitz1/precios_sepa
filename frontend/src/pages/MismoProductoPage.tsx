@@ -13,7 +13,7 @@ import { listarConY, nombreLegible } from "../utils/texto";
 import { useZona } from "../contexto/zona";
 import { partirPorZona } from "../utils/precioEnZona";
 import { titularDelProducto, type TitularProducto } from "../utils/titularProducto";
-import { cadenasVisibles, rotuloZona, type Zona } from "../utils/zona";
+import { cadenasDelDetalle, rotuloZona, type Zona } from "../utils/zona";
 import { useLista } from "../contexto/lista";
 import { etiquetaFechaPrecio } from "../utils/cadenasDeOtroDia";
 import AvisoCadenasDeOtroDia from "../components/AvisoCadenasDeOtroDia";
@@ -187,7 +187,12 @@ export function FilasDePrecios({ precios, fechaDatos, deZona = false }: { precio
           <span className="flex-1 min-w-0">
             {/* Una fila de varios formatos puede partirse en dos lineas: recortada
                 ("Changomás · HiperChango…") no decia cuales eran. */}
-            <span className={`block text-base text-tinta ${x.cadenas.length > 1 ? "leading-snug" : "truncate"}`}>{x.cadena}</span>
+            <span className={`block text-base text-tinta ${x.cadenas.length > 1 ? "leading-snug" : "truncate"}`}>
+              {x.cadena}
+              {/* Farmacity compara el producto, pero no es un súper: se dice
+                  para que no parezca una cadena más donde hacer la compra. */}
+              {x.farmacia && <span className="text-xs text-tinta-suave"> · farmacia</span>}
+            </span>
             {/*
               Segunda linea: por que esta atenuado y, en el celular, las
               sucursales. Un renglon en gris sin explicacion parece un error del
@@ -247,7 +252,7 @@ export function FilasDePrecios({ precios, fechaDatos, deZona = false }: { precio
  *  Con zona, las cadenas de la zona van primero y aparte (2026-11). */
 function ListaDePrecios({ p, zona }: { p: ProductoDetalle; zona?: Zona | null }) {
   const descartes = explicarDescartes(p);
-  const { enZona, resto } = zona ? partirPorZona(p.precios, cadenasVisibles(zona)) : { enZona: [], resto: p.precios };
+  const { enZona, resto } = zona ? partirPorZona(p.precios, cadenasDelDetalle(zona)) : { enZona: [], resto: p.precios };
   return (
     <>
       {zona && enZona.length > 0 && (
@@ -423,7 +428,7 @@ function VistaProducto({
 
   const p = estado.producto;
   const nombre = nombreConTamano(p);
-  const t = titularDelProducto(p, zona ? cadenasVisibles(zona) : null);
+  const t = titularDelProducto(p, zona ? cadenasDelDetalle(zona) : null);
   const c = t.cifras;
   const hayDiferencia = p.precio_mas_alto > p.precio_mas_bajo;
   const deZona = t.alcance === "zona" && t.tipo !== "no_en_zona" && t.tipo !== "sin_creible_en_zona";
@@ -450,7 +455,7 @@ function VistaProducto({
       {(deZona ? c.precioCaro > c.precio : hayDiferencia) && (
         <div className="mb-6">
           <TiraDePuntos
-            puntos={puntosComparables(p, deZona ? cadenasVisibles(zona!) : null)}
+            puntos={puntosComparables(p, deZona ? cadenasDelDetalle(zona!) : null)}
             formatear={formatearPesos}
             descripcion={`Precio de ${nombre} en cada cadena${sufijo}, de ${formatearPesos(c.precio)} a ${formatearPesos(c.precioCaro)}`}
           />

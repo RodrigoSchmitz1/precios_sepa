@@ -1216,6 +1216,73 @@ como antes.
 
 ---
 
+## Todos los supermercados de SEPA y Farmacity
+
+**Lo que se midió (2026-11-19).** Se bajaron a la PC los 7 ZIP diarios de SEPA
+minoristas del 13 al 19 de noviembre, sin tocar BigQuery. El portal no acepta
+descargas parciales, así que se bajaron enteros, unos 330 MB cada uno.
+- **SEPA trae 17 o 18 comercios por día, no decenas.** Los 8 que se cargaban
+  eran el 96% de las filas: 14,4 millones de precios por día.
+- **Lo que faltaba** son unas 540.000 filas por día (4%) y 506 sucursales:
+  - seis supermercados regionales: Toledo (Mar del Plata, 28), Comodín y Maxi
+    Comodín (Jujuy, 26), Mariano Max (Córdoba, 11), California (Misiones, 7),
+    La Agrícola Regional (Crespo, 4) y Unicoop (Patagones y Viedma, 3);
+  - Farmacity y Simplicity: 335 sucursales en 17 provincias, unos 1.950
+    códigos de barras;
+  - tres tiendas de estaciones de servicio (Axion, Deheza, Estación Lima), con
+    unos cientos de productos.
+- **Casi no abren territorio nuevo:** muy pocas de esas sucursales quedan a más
+  de 3 km de una que ya estaba. Suman una cadena más en ciudades grandes fuera
+  de CABA, que es lo que Rodrigo prioriza. Para crecer de verdad en cobertura
+  haría falta otra fuente: SEPA solo obliga a las cadenas grandes.
+- **Libertad (comercio 16)** estaba en la lista y no vino ningún día de esa
+  semana. Queda por si vuelve.
+- **Costo:** +4% de filas, dentro del plan gratuito. Eran 7,2 GiB guardados y
+  unos 405 GiB por mes de consultas en noviembre.
+
+**Qué entra y cómo.**
+- **Los seis regionales entran como cadenas plenas.**
+- **Las estaciones de servicio quedan afuera.**
+- **Farmacity entra como farmacia**, por decisión de Rodrigo. Compara sus
+  productos en El mismo producto, con "farmacia" junto al nombre, y compite en
+  Más barato solo en Higiene y Bebés. No cuenta como cadena cerca, no arma
+  zonas y no entra en los totales de Tu lista ni en Tu canasta.
+- **La regla vive en un solo lugar.** El formato y si el comercio informa
+  todos los días están en `seeds/mapeo_cadenas.csv`. Los rubros de la farmacia
+  están en la variable `rubros_farmacia` y en la macro `compite_en_rubro`. El
+  test `farmacia_solo_en_sus_rubros` lo vigila desde afuera.
+
+**Comercios que no informan todos los días.** En la semana medida, Farmacity
+faltó 1 día y La Agrícola 2. El control `cadenas_del_ultimo_dia_completas`
+habría puesto el pipeline en rojo cada vez, así que esos dos están marcados con
+`informe_diario = false` y el control no los cuenta. Esos días El mismo
+producto usa su último precio dentro del tope de arrastre, como con cualquier
+cadena que falta. El control sigue igual para el resto.
+
+**Inflación no salta.** Las series se encadenan por cadena y categoría, y solo
+cuentan las que tienen el mes completo. Una cadena nueva entra al mes de
+llegar, y una intermitente no entra.
+
+**Un bug viejo que apareció de paso.** `deteccion_cambios_comercio` marcaba los
+21 comercios como "modificación" todos los días, porque comparaba la fila
+entera y `stg_comercio` suma columnas propias que la foto anterior no tiene.
+Ahora compara solo lo que viene de SEPA (CUIT, razón social y bandera).
+`deteccion_cambios_sucursales` marca 1.122 de 2.510 sucursales con las mismas
+columnas a los dos lados, así que ahí la causa es otra. Queda para revisar
+aparte.
+
+**Cómo se probó sin tocar producción.**
+- Los modelos se construyeron vacíos (`--empty`, 0 bytes procesados) en un
+  dataset aparte, `dbt_prueba_comercios`.
+- Los tests unitarios corrieron ahí, incluido uno nuevo con una farmacia que
+  gana Perfumería y no aparece en Golosinas.
+- Que `dbt seed` sin `--full-refresh` acepta las columnas nuevas del seed se
+  verificó cargando primero la versión vieja.
+- La memoria del índice de El mismo producto se estimó con los ZIP: unas 13.400
+  filas de precio más sobre unas 205.000, un 6,5%.
+
+---
+
 ## Tests
 
 Además de los genéricos, hay tests singulares de dbt para lo que sólo se

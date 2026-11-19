@@ -64,6 +64,7 @@ WITH recientes AS (
         id_producto,
         cadena,
         empresa,
+        formato,
         precio_mediano,
         precio_minimo,
         precio_maximo,
@@ -316,6 +317,9 @@ SELECT
     cat.categoria,
     cat.rubro,
     ev.cadena,
+    -- supermercado o farmacia (openspec comercios-regionales-y-farmacity): la
+    -- farmacia compara el producto, pero Tu lista no la cuenta en los totales.
+    COALESCE(ev.formato, 'supermercado') AS formato,
     ev.precio_mediano,
     ev.precio_minimo,
     ev.precio_maximo,

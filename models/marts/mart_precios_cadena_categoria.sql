@@ -52,6 +52,8 @@ WITH productos_filtrados AS (
         -- que parear y el factor quedaria nulo. Ver el macro.
         AND p.fecha_datos IN ({{ fechas_a_calcular(ref("stg_productos"), "historico_precios_cadena_categoria", incluir_anterior=true) }})
         AND cat.categoria != "Otros"
+        -- Una farmacia entra solo en sus rubros (macro compite_en_rubro).
+        AND {{ compite_en_rubro("c.formato", "cat.rubro") }}
         AND p.cantidad_normalizada IS NOT NULL
         -- Rango de sanidad y paquetes cargados como "1 unidad": ver el macro
         -- piezas_por_envase.

@@ -100,13 +100,13 @@ responder lo que prometía: [DECISIONES.md](docs/DECISIONES.md).
 
 ## Calidad
 
-- **dbt:** 97 tests (genéricos y singulares) que corren después de cada
-  transformación, más 9 tests unitarios con filas de prueba. Los singulares
+- **dbt:** 115 tests (genéricos y singulares) que corren después de cada
+  transformación, más 14 tests unitarios con filas de prueba. Los singulares
   cubren lo que sólo se ve en el resultado agregado: que la carne no mezcle
   otras carnes, que la gama económica no salga más cara que la media, que el
   crudo no se atrase respecto del calendario.
-- **Python:** 252 tests sobre la API y la ingesta, sin BigQuery.
-- **Frontend:** 217 tests (Vitest). Se validaron metiendo 20 errores a propósito
+- **Python:** 257 tests sobre la API y la ingesta, sin BigQuery.
+- **Frontend:** 219 tests (Vitest). Se validaron metiendo 20 errores a propósito
   en el código: cada uno hizo fallar al menos un test.
 - **CI:** todo lo que no necesita BigQuery corre en cada push.
 - **Auditoría con agentes:** `/auditar` en Claude Code lanza tres auditores en

@@ -34,6 +34,15 @@ models:
         tests: [not_null]
       - name: id_bandera
         tests: [not_null]
+      - name: formato
+        description: supermercado o farmacia, del seed mapeo_cadenas.
+        tests:
+          - accepted_values:
+              values: ['supermercado', 'farmacia']
+      - name: informe_diario
+        description: >
+          false si el comercio no viene en todos los ZIP de SEPA; el control de
+          cadenas completas del ultimo dia no lo cuenta.
       - name: nombre_comercial
         tests: [not_null]
 

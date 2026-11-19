@@ -30,6 +30,8 @@
 -- de un dia para otro sin desaparecer del todo, asi que el corte no da falsas
 -- alarmas y atrapa una carga parcial, que seria el mismo problema a medias.
 --
+-- COMERCIOS INTERMITENTES (2026-11-19): ver el filtro de informe_diario al final.
+--
 -- SEVERIDAD: error, como crudo_al_dia. Un warn no lo lee nadie; el error pone
 -- el workflow en rojo y GitHub manda el mail. Como los tests corren despues de
 -- dbt run (no con build), fallar no impide que el dia entre a los historicos.
@@ -74,3 +76,12 @@ LEFT JOIN por_dia AS u
     AND u.fecha_datos = DATE('{{ ultima }}')
 WHERE a.productos > 1000
     AND COALESCE(u.productos, 0) < a.productos * 0.5
+    -- Los comercios que SEPA no publica todos los dias no cuentan
+    -- (informe_diario en seeds/mapeo_cadenas.csv). En la semana del 13 al
+    -- 19-11, Farmacity falto 1 dia y La Agricola Regional 2: con este control
+    -- el pipeline quedaria en rojo cada vez, por algo que no es un error. Esos
+    -- dias El mismo producto usa su precio mas reciente dentro de
+    -- dias_maximos_arrastre, y arrastre_dentro_del_tope sigue vigilando el tope.
+    AND a.cadena NOT IN (
+        SELECT nombre_comercial FROM {{ ref("stg_comercio") }} WHERE NOT informe_diario
+    )

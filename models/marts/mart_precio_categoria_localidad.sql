@@ -45,7 +45,12 @@ WITH productos_filtrados AS (
         AND p.unidad_normalizada = gama.unidad_normalizada
     JOIN {{ ref("stg_sucursales") }} AS s
         ON p.id_comercio = s.id_comercio AND p.id_sucursal = s.id_sucursal
+    -- Tu canasta compara supermercados: una farmacia no vende la mayor parte de
+    -- la compra del mes (openspec comercios-regionales-y-farmacity).
+    JOIN {{ ref("stg_comercio") }} AS com
+        ON p.id_comercio = com.id_comercio AND p.id_bandera = com.id_bandera
     WHERE p.fecha_datos = DATE('{{ fecha }}')
+        AND com.formato = 'supermercado'
         AND s.localidad IS NOT NULL
         AND p.cantidad_normalizada IS NOT NULL
         -- Rango de sanidad y paquetes cargados como "1 unidad": ver el macro

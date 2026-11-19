@@ -282,6 +282,11 @@ def armar_indice(filas, cambios: dict | None = None) -> dict:
                 # puede no traer la columna hasta la corrida siguiente al deploy.
                 "fecha_precio": str(fila.get("fecha_precio") or fila["fecha_datos"]),
                 "cambio": cambios.get((clave, fila["cadena"])) if cambios else None,
+                # Solo en las farmacias (openspec comercios-regionales-y-
+                # farmacity): comparan el producto, pero Tu lista no las cuenta.
+                # Va como clave opcional y no en cada precio: son unas 200 mil
+                # filas en memoria y casi todas de supermercado.
+                **({"farmacia": True} if fila.get("formato") == "farmacia" else {}),
             }
         )
 
@@ -556,11 +561,16 @@ def cotizar_lista(indice: dict, items: list[dict], cadenas: list[str] | None = N
     productos, no_encontrados = [], []
     for clave, cantidad in pedidos.items():
         producto = indice.get(clave)
-        precios = {p["cadena"]: p["precio_mediano"] for p in producto["precios"] if p["precio_creible"]} if producto else {}
+        # Tu lista compara supermercados: una farmacia vende el shampoo, no la
+        # compra (openspec comercios-regionales-y-farmacity). Se filtra aca y no
+        # solo con las cadenas de la zona, para que la cuenta nacional tampoco
+        # la cuente.
+        cuentan = [p for p in producto["precios"] if p["precio_creible"] and not p.get("farmacia")] if producto else []
+        precios = {p["cadena"]: p["precio_mediano"] for p in cuentan}
         if not precios:
             no_encontrados.append(clave)
             continue
-        cambios = {p["cadena"]: p.get("cambio") for p in producto["precios"] if p["precio_creible"]}
+        cambios = {p["cadena"]: p.get("cambio") for p in cuentan}
         cadena_barata = min(precios, key=lambda c: (precios[c], c))
         productos.append({
             **_resumen(producto),

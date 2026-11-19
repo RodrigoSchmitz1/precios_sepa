@@ -6,6 +6,7 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import {
   buscarZonas,
+  cadenasDelDetalle,
   cadenasVisibles,
   localidadDeZona,
   guardarZona,
@@ -152,5 +153,13 @@ describe("la zona en Tu canasta", () => {
 describe("cadenas de la zona", () => {
   it("se comparan con los nombres que se muestran", () => {
     expect(cadenasVisibles(PALERMO)).toEqual(new Set(["Coto", "Día"]));
+  });
+
+  it("las farmacias no son cadenas cerca, pero entran en el detalle de un producto", () => {
+    // openspec comercios-regionales-y-farmacity
+    const conFarmacia = { ...PALERMO, farmacias: ["Farmacity"] };
+    expect(cadenasVisibles(conFarmacia)).toEqual(new Set(["Coto", "Día"]));
+    expect(cadenasDelDetalle(conFarmacia)).toEqual(new Set(["Coto", "Día", "Farmacity"]));
+    expect(cadenasDelDetalle(PALERMO)).toEqual(new Set(["Coto", "Día"]));
   });
 });

@@ -104,6 +104,9 @@ vars:
   # int_precio_producto_cadena (3 dias): mas atras no hay filas de donde sacarlo.
   # Los historicos no arrastran nada. Ver docs/DECISIONES.md.
   dias_maximos_arrastre: 2
+  # Rubros en los que compite una farmacia en Mas barato y en la comparacion
+  # por categoria (macro compite_en_rubro; openspec comercios-regionales-y-farmacity).
+  rubros_farmacia: ["Higiene", "Bebes"]
 
   # Que cambio de precio se cuenta en el detalle y en Tu lista (mart_cambio_precio,
   # openspec historia-de-precio). Medido el 2026-11-18 entre el 16 y el 17-11:

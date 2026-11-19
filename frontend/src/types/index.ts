@@ -301,6 +301,9 @@ export type PrecioEnCadena = {
   fecha_precio?: string;
   /** Opcional: una API anterior no lo manda. null sin cambio para mostrar. */
   cambio?: CambioDePrecio | null;
+  /** Solo en una farmacia (Farmacity): compara el producto, pero no compite en
+   *  Tu lista (openspec comercios-regionales-y-farmacity). */
+  farmacia?: boolean;
 };
 
 export type ProductoDetalle = ProductoComparado & {

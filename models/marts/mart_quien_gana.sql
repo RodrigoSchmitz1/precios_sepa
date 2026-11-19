@@ -42,15 +42,20 @@ WITH precio_por_producto_cadena AS (
     -- mart_mismo_producto la reuse sin volver a escanear stg_productos. Misma
     -- mediana y mismo join por id_comercio + id_bandera.
     SELECT
-        fecha_datos,
-        id_producto,
-        cadena,
-        precio_mediano
-    FROM {{ ref("int_precio_producto_cadena") }}
+        i.fecha_datos,
+        i.id_producto,
+        i.cadena,
+        i.precio_mediano
+    FROM {{ ref("int_precio_producto_cadena") }} AS i
+    -- Una farmacia compite solo en sus rubros (macro compite_en_rubro): afuera
+    -- de ellos no gana ni cuenta como oferta. Sin categoria, el producto no
+    -- entra en ninguna categoria igual (con_categoria lo descarta).
+    LEFT JOIN {{ ref("stg_categorias") }} AS cat_f ON i.id_producto = cat_f.id_producto
     -- Solo las fechas que faltan en el historico, mas la ultima. Recalcular las
     -- que ya estan da el mismo resultado y se paga todos los dias.
     -- Ver el macro para el detalle y para que hacer si cambia una metodologia.
-    WHERE fecha_datos IN ({{ fechas }})
+    WHERE i.fecha_datos IN ({{ fechas }})
+        AND {{ compite_en_rubro("i.formato", "cat_f.rubro") }}
 ),
 
 productos_comparables AS (

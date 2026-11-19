@@ -48,6 +48,8 @@ SELECT
     -- cuando puede estar en una sola. Se lleva desde aca para no tener que volver
     -- a unir con stg_comercio aguas abajo.
     MIN(p.id_comercio) AS empresa,
+    -- supermercado o farmacia, de stg_comercio (2026-11-19).
+    MIN(c.formato) AS formato,
     APPROX_QUANTILES(p.precio, 2)[OFFSET(1)] AS precio_mediano,
     MIN(p.precio) AS precio_minimo,
     MAX(p.precio) AS precio_maximo,
