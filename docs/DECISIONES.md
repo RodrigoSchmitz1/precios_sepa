@@ -1084,6 +1084,56 @@ Carrefour.
 
 ---
 
+## Arreglos del segundo explore
+
+**El problema (2026-11-19).** Un segundo explore externo, con un agente sin
+contexto que usó el sitio en el celular antes de leer el código, encontró ocho
+errores concretos. Los verifiqué contra la API y el código, y se confirmaron
+todos.
+
+**Los arreglos.**
+- **Unidades escritas en el buscador.** "leche la serenisima 1 litro" daba 0
+  resultados, porque los tamaños se indexan como "1l" y "1lt", y "litro" no es
+  el comienzo de ninguna palabra. `normalizar` lee "litro(s)", "kilo(s)",
+  "gramo(s)" y "mililitro(s)" después de un número como su abreviatura. El
+  índice no cambia.
+- **Buscar zona por palabras.** "lomas zamora" no encontraba Lomas de Zamora,
+  porque se buscaba el texto entero dentro del nombre. Ahora cada palabra tiene
+  que ser el comienzo de una palabra del nombre o de un alias, sin contar "de",
+  "la", etc.
+- **Un mismo lugar con nombres parecidos es una zona.** Laferrere aparecía tres
+  veces ("Laferrere", "Gregorio de Laferrere" y "Gregorio Laferrere"). Se
+  juntan los lugares de la misma provincia a menos de 2 km cuando las palabras
+  de un nombre están contenidas en las del otro. Medido con los datos del día:
+  las zonas pasan de 559 a 531, y 26 quedan con alias (Villa Lugano con Lugano,
+  José C. Paz con y sin punto, Paternal y La Paternal, Bariloche, Escobar,
+  Derqui...). Alguno es un barrio y su ciudad (Nueva Córdoba en Córdoba). Con
+  las cadenas a 3 km dice casi lo mismo, y "nueva cordoba" sigue encontrando
+  la zona. Un link viejo con un alias abre la zona.
+- **El ejemplo de la portada, con zona.** La Coca Cola comparaba todas las
+  cadenas del país sin decirlo. Con zona compara las cadenas cerca, si al menos
+  dos venden el producto. En Palermo pasa de +26% (Maxi a La Anónima) a +7%,
+  entre Vea y Market. Si no alcanzan, dice "en todo el país".
+- **"N sucursales en el país"** en la sección "En tu zona" del detalle: el
+  conteo es de toda la cadena.
+- **"Ninguna cadena cerca informa precio de"** en vez de "No se consigue en tu
+  zona", en Tu lista y en el titular del detalle. SEPA es una lista de precios,
+  no de existencias.
+- **El paso 4 de Tu canasta compara lo comparable.** El "Mejor total" es el que
+  cubre más categorías y, a igual cobertura, el más barato, igual que el orden
+  de la API. "Contra una sola" solo resta si cubren lo mismo, y cada opción
+  incompleta dice qué le falta ("sin Papa y tubérculos").
+- **El paso 4 arranca en 3 km,** el radio de "cerca" de la zona y las promos.
+  Con 2 km, el Maxi de Lomas, a 2,5 km, estaba en la zona y no en este paso.
+  Ahora entra en la opción de 3 sucursales.
+
+**Lo que queda para otro change:** un total "con las promos de tu súper
+cerca". En Tres Arroyos, la Playadito de 1 kg sale $ 4.890 en Vea frente a
+$ 5.199 en la Coope (precio de lista), pero la Coope de calle Colón la tiene en
+promo a $ 4.080. El titular recomienda Vea con la promo más barata a la vista.
+
+---
+
 ## Tests
 
 Además de los genéricos, hay tests singulares de dbt para lo que sólo se

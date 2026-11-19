@@ -169,7 +169,10 @@ function EjemploComparacion({ p, onVer }: { p: ProductoDetalle; onVer: (id: stri
 }
 
 /** Las filas de precios de un grupo de cadenas. */
-export function FilasDePrecios({ precios, fechaDatos }: { precios: PrecioEnCadena[]; fechaDatos?: string }) {
+export function FilasDePrecios({ precios, fechaDatos, deZona = false }: { precios: PrecioEnCadena[]; fechaDatos?: string; deZona?: boolean }) {
+  // En el grupo "En tu zona" el conteo es de toda la cadena: se dice "en el
+  // país" para que no se lea como las sucursales de la zona (arreglos-segundo-explore).
+  const sucursales = (n: number) => textoSucursales(n) + (deZona ? " en el país" : "");
   // Los formatos de una cadena con el mismo precio van en una fila
   // (formatos-de-una-cadena): "Changomás · HiperChangomás".
   return (
@@ -192,7 +195,7 @@ export function FilasDePrecios({ precios, fechaDatos }: { precios: PrecioEnCaden
             */}
             <span className="block text-xs">
               <span className={`sm:hidden ${x.sucursales < SUCURSALES_MINIMAS ? "text-aviso" : "text-tinta-suave"}`}>
-                {textoSucursales(x.sucursales)}
+                {sucursales(x.sucursales)}
               </span>
               {!x.precio_creible && (
                 <span className="text-aviso">
@@ -222,7 +225,7 @@ export function FilasDePrecios({ precios, fechaDatos }: { precios: PrecioEnCaden
           <span
             className={`text-xs shrink-0 hidden sm:inline ${x.sucursales < SUCURSALES_MINIMAS ? "text-aviso" : "text-tinta-suave"}`}
           >
-            {textoSucursales(x.sucursales)}
+            {sucursales(x.sucursales)}
           </span>
           <span
             className={`numero text-sm w-20 sm:w-24 text-right shrink-0 ${
@@ -248,7 +251,7 @@ function ListaDePrecios({ p, zona }: { p: ProductoDetalle; zona?: Zona | null })
       {zona && enZona.length > 0 && (
         <>
           <h3 className="text-sm font-bold text-tinta mb-2">En tu zona · {zona.nombre}</h3>
-          <FilasDePrecios precios={enZona} fechaDatos={p.fecha_datos} />
+          <FilasDePrecios precios={enZona} fechaDatos={p.fecha_datos} deZona />
           {resto.length > 0 && <h3 className="text-sm font-bold text-tinta mt-5 mb-2">Otras cadenas del país</h3>}
         </>
       )}
@@ -270,11 +273,12 @@ function TextoTitular({ p, t, nombre }: { p: ProductoDetalle; t: TitularProducto
   if (t.alcance === "zona") {
     switch (t.tipo) {
       case "no_en_zona":
-        return <>{nombre}: en tu zona no se consigue</>;
+        // SEPA es una lista de precios, no de stock (arreglos-segundo-explore).
+        return <>{nombre}: ninguna cadena cerca informa su precio</>;
       case "sin_creible_en_zona":
         return <>{nombre}: en tu zona el precio puede estar mal cargado</>;
       case "una_cadena":
-        return <>En tu zona solo lo vende {t.cadena}, a {pesos(t.precio)}</>;
+        return <>Cerca tuyo solo {t.cadena} informa su precio: {pesos(t.precio)}</>;
       case "igual":
         return <>En tu zona sale {pesos(c.precio)} en todas las cadenas</>;
       case "casi_igual":

@@ -174,12 +174,14 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
           <p className="text-xs font-bold text-ahorro uppercase tracking-wide">📍 En tu zona · {rotuloZona(zona)}</p>
           {vista.nadaEnZona && (
             <p className="text-tinta-media mt-1">
-              Ninguna cadena de tu zona vende tus productos. Abajo, cuánto salen en las cadenas del país.
+              Ninguna cadena cerca informa precios de tus productos. Abajo, cuánto salen en las cadenas del país.
             </p>
           )}
           {enZona && vista.noEnZona.length > 0 && (
             <p className="text-aviso mt-1">
-              No se consigue en tu zona: {nombrar(vista.noEnZona)}. La comparación es con{" "}
+              {/* SEPA es una lista de precios, no de stock: no se puede decir que
+                  "no se consigue" (arreglos-segundo-explore). */}
+              Ninguna cadena cerca informa precio de: {nombrar(vista.noEnZona)}. La comparación es con{" "}
               {comparados === 1 ? "el otro producto" : `los otros ${comparados}`}.
             </p>
           )}

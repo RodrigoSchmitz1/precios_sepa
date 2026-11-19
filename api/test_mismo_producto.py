@@ -253,6 +253,23 @@ class TestBuscarTamano(unittest.TestCase):
         self.assertEqual([p["id_producto"] for p in buscar(indice, "natura 1,5 lt")], ["2"])
         self.assertEqual(buscar(indice, "playadito 1kg"), [])
 
+    def test_las_unidades_escritas_con_palabras(self):
+        # arreglos-segundo-explore: "leche la serenisima 1 litro" daba 0 resultados.
+        leche = producto("1", CUATRO_CADENAS, descripcion="LA SERENISIMA LECHE ENTERA 1L", marca="LA SERENISIMA")
+        yerba = producto("2", CUATRO_CADENAS, descripcion="PLAYADITO YERBA CON")
+        for f in yerba:
+            f.update(cantidad_normalizada=500.0, unidad_normalizada="g")
+        cafe = producto("3", CUATRO_CADENAS, descripcion="CAFE LA VIRGINIA 1 KG")
+        aceite = producto("4", CUATRO_CADENAS, descripcion="NATURA ACEITE")
+        for f in aceite:
+            f.update(cantidad_normalizada=1500.0, unidad_normalizada="cc")
+        indice = armar_indice(leche + yerba + cafe + aceite)
+        self.assertEqual([p["id_producto"] for p in buscar(indice, "leche la serenisima 1 litro")], ["1"])
+        self.assertEqual([p["id_producto"] for p in buscar(indice, "playadito 500 gramos")], ["2"])
+        self.assertEqual([p["id_producto"] for p in buscar(indice, "cafe la virginia 1 kilo")], ["3"])
+        self.assertEqual([p["id_producto"] for p in buscar(indice, "natura 1,5 litros")], ["4"])
+        self.assertEqual(normalizar("2 Litros"), "2l")
+
     def test_se_encuentra_por_el_nombre_de_cualquier_cadena(self):
         # Una cadena lo informa como "YERBA" de marca "PLAYA"; las demas, con el nombre.
         filas = producto("1", CUATRO_CADENAS, descripcion="YERBA")

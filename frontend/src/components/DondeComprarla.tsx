@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { optimizarCompra } from "../api/client";
 import MapaZona from "./MapaZona";
 import { useZona } from "../contexto/zona";
+import { RADIO_CERCA_KM } from "../utils/zona";
+import { categoriasQueFaltan, comparableConUnaSola, mejorOpcion } from "../utils/opcionesCompra";
 import FilaDeCifras from "./FilaDeCifras";
 import { formatearNumero, formatearPesos } from "../utils/formato";
 import type { ItemCanastaIA, OpcionCompra, ResultadoOptimizacion } from "../types";
@@ -19,7 +21,9 @@ import { nombreCategoria } from "../utils/nombres";
   sucursales que cuestan lo mismo, y ahi elige la mas cercana.
 */
 
-const RADIOS_KM = [1, 2, 5];
+// Arranca en el radio de "cerca" de la zona (RADIO_CERCA_KM): con 2 km, el
+// Maxi de Lomas, a 2,5 km, estaba en la zona y no en este paso.
+const RADIOS_KM = [1, RADIO_CERCA_KM, 5];
 
 type Props = {
   items: ItemCanastaIA[];
@@ -42,7 +46,7 @@ function resumirItems(nombres: string[]): string {
   return `${nombres.slice(0, 3).join(", ")} y ${nombres.length - 3} más`;
 }
 
-function Opcion({ opcion, referencia }: { opcion: OpcionCompra; referencia: number | null }) {
+function Opcion({ opcion, referencia, faltan }: { opcion: OpcionCompra; referencia: number | null; faltan: string[] }) {
   const ahorro = referencia !== null ? referencia - opcion.total : 0;
 
   return (
@@ -55,6 +59,11 @@ function Opcion({ opcion, referencia }: { opcion: OpcionCompra; referencia: numb
           <p className="font-display text-2xl text-tinta leading-none">{formatearPesos(opcion.total)}</p>
           {ahorro > 0 && (
             <p className="numero text-xs text-ahorro">ahorrás {formatearPesos(ahorro)}</p>
+          )}
+          {/* Un total sin todas las categorias no se compara con uno que las
+              tiene: se dice que falta (arreglos-segundo-explore). */}
+          {faltan.length > 0 && (
+            <p className="text-xs text-aviso">sin {resumirItems(faltan.map(nombreCategoria))}</p>
           )}
         </div>
       </div>
@@ -104,7 +113,7 @@ function DondeComprarla({ items }: Props) {
   );
   const punto: Punto | null = elegido && elegido.zona === claveZona ? elegido.punto : centroZona;
   const setPunto = (nuevo: Punto) => setElegido({ punto: nuevo, zona: claveZona });
-  const [radioKm, setRadioKm] = useState(2);
+  const [radioKm, setRadioKm] = useState(RADIO_CERCA_KM);
   const [estado, setEstado] = useState<Estado | null>(null);
   const [errorUbicacion, setErrorUbicacion] = useState<string | null>(null);
 
@@ -129,11 +138,12 @@ function DondeComprarla({ items }: Props) {
 
   const vigente = firma && estado?.firma === firma ? estado : null;
   const resultado = vigente?.resultado;
-  const mejor = resultado?.opciones.reduce(
-    (mejor: OpcionCompra | null, o) => (mejor === null || o.total < mejor.total ? o : mejor),
-    null
-  );
+  // Primero la cobertura y despues el costo, igual que la API (utils/opcionesCompra).
+  const mejor = resultado ? mejorOpcion(resultado.opciones) : null;
   const unaSola = resultado?.opciones.find((o) => o.max_sucursales === 1) ?? null;
+  const sinPrecio = new Set(resultado?.items_sin_precio.map((i) => i.categoria) ?? []);
+  const conPrecio = items.map((i) => i.categoria).filter((c) => !sinPrecio.has(c));
+  const mejorComparable = mejor !== null && mejor !== undefined && comparableConUnaSola(mejor, unaSola);
 
   const ubicarme = () => {
     setErrorUbicacion(null);
@@ -229,8 +239,22 @@ function DondeComprarla({ items }: Props) {
                 },
                 {
                   etiqueta: "Contra una sola",
-                  valor: unaSola.total > mejor.total ? formatearPesos(unaSola.total - mejor.total) : "—",
-                  detalle: unaSola.total > mejor.total ? "de diferencia" : "ya es la mejor",
+                  valor:
+                    mejor === unaSola
+                      ? "—"
+                      : !mejorComparable
+                        ? `${unaSola.items_cubiertos} de ${conPrecio.length}`
+                        : unaSola.total > mejor.total
+                          ? formatearPesos(unaSola.total - mejor.total)
+                          : "—",
+                  detalle:
+                    mejor === unaSola
+                      ? "ya es la mejor"
+                      : !mejorComparable
+                        ? "categorías cubre una sola"
+                        : unaSola.total > mejor.total
+                          ? "de diferencia"
+                          : "ya es la mejor",
                 },
                 {
                   etiqueta: "Sucursales en la zona",
@@ -248,7 +272,12 @@ function DondeComprarla({ items }: Props) {
 
           <ul className="border-t border-linea">
             {resultado.opciones.map((opcion) => (
-              <Opcion key={opcion.max_sucursales} opcion={opcion} referencia={unaSola.total} />
+              <Opcion
+                key={opcion.max_sucursales}
+                opcion={opcion}
+                referencia={comparableConUnaSola(opcion, unaSola) ? unaSola.total : null}
+                faltan={categoriasQueFaltan(opcion, conPrecio)}
+              />
             ))}
           </ul>
 

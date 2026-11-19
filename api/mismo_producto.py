@@ -58,11 +58,21 @@ CAMPOS_RESUMEN = (
 TAMANO_SEPARADO = re.compile(r"(\d)\s+(kg|kgs|gr|grs|g|lt|lts|l|ml|cc|un|u)\b")
 
 
+# Las unidades escritas con palabras, despues de un numero (arreglos-segundo-
+# explore, 2026-11-19): "leche la serenisima 1 litro" no encontraba nada,
+# porque los tamanos se indexan como "1l" y "1lt" y "litro" no es el comienzo
+# de ninguna palabra. Se leen como su abreviatura antes de pegar el tamano.
+UNIDAD_ESCRITA = re.compile(r"(\d)\s*(litros?|kilogramos?|kilos?|gramos?|mililitros?)\b")
+_ABREVIATURA = {"litro": "l", "litros": "l", "kilo": "kg", "kilos": "kg", "kilogramo": "kg", "kilogramos": "kg",
+                "gramo": "g", "gramos": "g", "mililitro": "ml", "mililitros": "ml"}
+
+
 def normalizar(texto: str | None) -> str:
-    """Minusculas, sin tildes y con el tamano pegado: "Café 1 KG" y "cafe 1kg"
-    tienen que encontrarse igual."""
+    """Minusculas, sin tildes y con el tamano pegado: "Café 1 KG", "cafe 1kg" y
+    "cafe 1 kilo" tienen que encontrarse igual."""
     descompuesto = unicodedata.normalize("NFD", texto or "")
     plano = "".join(c for c in descompuesto if unicodedata.category(c) != "Mn").lower()
+    plano = UNIDAD_ESCRITA.sub(lambda m: m.group(1) + _ABREVIATURA[m.group(2)], plano)
     return TAMANO_SEPARADO.sub(r"\1\2", plano)
 
 

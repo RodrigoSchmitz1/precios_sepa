@@ -24,7 +24,14 @@ export type Zona = {
   cadenas: string[];
   /** Solo si hay una sola cadena cerca: la sucursal mas cercana de otra. */
   otra_cadena_cerca?: { cadena: string; km: number };
+  /** Otros nombres del mismo lugar ("Gregorio de Laferrere" para Laferrere):
+   *  se buscan y resuelven links viejos (arreglos-segundo-explore). */
+  alias?: string[];
 };
+
+/** "Cerca": el mismo radio que las cadenas de la zona y las promos
+ *  (RADIO_CERCA_KM en api/mapa_promos.py). */
+export const RADIO_CERCA_KM = 3;
 
 const CLAVE_STORAGE = "changuito.zona";
 export const PARAMETRO_URL = "zona";
@@ -38,8 +45,11 @@ export function cadenasVisibles(zona: Zona): Set<string> {
   return new Set(zona.cadenas.map(nombreCadena));
 }
 
-function mismaZona(a: Pick<Zona, "nombre" | "provincia">, b: Pick<Zona, "nombre" | "provincia">): boolean {
-  return a.provincia === b.provincia && normalizar(a.nombre) === normalizar(b.nombre);
+function mismaZona(a: Pick<Zona, "nombre" | "provincia" | "alias">, b: Pick<Zona, "nombre" | "provincia">): boolean {
+  if (a.provincia !== b.provincia) return false;
+  const buscado = normalizar(b.nombre);
+  // Un link viejo puede traer un nombre que ahora es alias (Gregorio Laferrere).
+  return [a.nombre, ...(a.alias ?? [])].some((nombre) => normalizar(nombre) === buscado);
 }
 
 /** La zona de la lista que corresponde a un nombre y provincia, o undefined. */
@@ -134,12 +144,34 @@ export function localidadDeZona<T extends { localidad: string; provincia: string
 /* ---------- buscar ---------- */
 
 /** Sin mayusculas ni tildes; las que empiezan con lo buscado van primero. */
+const VACIAS = new Set(["de", "del", "la", "las", "los", "el", "y"]);
+
+function palabrasDe(texto: string): string[] {
+  return normalizar(texto)
+    .split(/[^a-z0-9]+/)
+    .filter((p) => p && !VACIAS.has(p));
+}
+
+/**
+ * Zonas donde cada palabra tipeada es el comienzo de una palabra del nombre o
+ * de un alias (arreglos-segundo-explore, 2026-11-19). Antes se buscaba el texto
+ * entero dentro del nombre: "lomas zamora", sin el "de", no encontraba nada.
+ * Primero las que empiezan con la primera palabra; si no, el orden de la lista
+ * (de mas a menos sucursales).
+ */
 export function buscarZonas(zonas: Zona[], texto: string, limite = 8): Zona[] {
-  const buscado = normalizar(texto.trim());
-  if (buscado.length < 2) return [];
-  const coinciden = zonas.filter((z) => normalizar(z.nombre).includes(buscado));
-  const empieza = (z: Zona) => (normalizar(z.nombre).startsWith(buscado) ? 0 : 1);
-  return coinciden.sort((a, b) => empieza(a) - empieza(b)).slice(0, limite);
+  if (normalizar(texto.trim()).length < 2) return [];
+  const buscadas = palabrasDe(texto);
+  if (buscadas.length === 0) return [];
+  const coincide = (nombre: string) => {
+    const palabras = palabrasDe(nombre);
+    return buscadas.every((b) => palabras.some((p) => p.startsWith(b)));
+  };
+  const empieza = (z: Zona) => ([z.nombre, ...(z.alias ?? [])].some((n) => palabrasDe(n)[0]?.startsWith(buscadas[0])) ? 0 : 1);
+  return zonas
+    .filter((z) => [z.nombre, ...(z.alias ?? [])].some(coincide))
+    .sort((a, b) => empieza(a) - empieza(b))
+    .slice(0, limite);
 }
 
 /** Distancia sobre la esfera, en km. */

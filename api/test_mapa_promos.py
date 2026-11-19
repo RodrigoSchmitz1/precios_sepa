@@ -251,6 +251,35 @@ class TestLugares(unittest.TestCase):
         self.assertEqual(zonas["Rafaela"]["otra_cadena_cerca"]["cadena"], "Coto")
         self.assertTrue(80 <= zonas["Rafaela"]["otra_cadena_cerca"]["km"] <= 100, zonas["Rafaela"]["otra_cadena_cerca"])
 
+    def test_un_lugar_con_nombres_parecidos_es_una_zona_con_alias(self):
+        # arreglos-segundo-explore (2026-11-19): el selector ofrecia Laferrere tres veces.
+        laferrere = [sucursal_en(f"l{i}", "Laferrere", "AR-B", -34.749 + i * 0.001, -58.598, cadena="Dia") for i in range(4)]
+        laferrere += [sucursal_en("g1", "Gregorio de Laferrere", "AR-B", -34.751, -58.583, cadena="Coto")]
+        laferrere += [sucursal_en("g2", "Gregorio Laferrere", "AR-B", -34.751, -58.586, cadena="Dia")]
+        zonas = lugares(self.indice(laferrere), con_cadenas=True)
+        self.assertEqual([z["nombre"] for z in zonas], ["Laferrere"])
+        self.assertEqual(sorted(zonas[0]["alias"]), ["Gregorio Laferrere", "Gregorio de Laferrere"])
+        self.assertEqual(zonas[0]["sucursales"], 6)
+        self.assertEqual(zonas[0]["cadenas"], ["Coto", "Dia"])
+
+    def test_signos_y_articulos_no_hacen_otro_lugar(self):
+        paz = [sucursal_en("a", "Jose C. Paz", "AR-B", -34.52, -58.76), sucursal_en("b", "Jose C Paz", "AR-B", -34.523, -58.763)]
+        paternal = [sucursal_en("c", "Paternal", "AR-C", -34.597, -58.468), sucursal_en("d", "La Paternal", "AR-C", -34.6, -58.47)]
+        self.assertEqual(len(lugares(self.indice(paz + paternal), con_cadenas=True)), 2)
+
+    def test_lejos_o_en_otra_provincia_no_se_juntan(self):
+        # A ~3,3 km: no.
+        lejos = [sucursal_en("a", "Lugano", "AR-C", -34.67, -58.47), sucursal_en("b", "Villa Lugano", "AR-C", -34.7, -58.47)]
+        self.assertEqual(len(lugares(self.indice(lejos), con_cadenas=True)), 2)
+        provincias = [sucursal_en("a", "San Martin", "AR-B", -34.57, -58.54), sucursal_en("b", "Villa San Martin", "AR-X", -34.571, -58.541)]
+        self.assertEqual(len(lugares(self.indice(provincias), con_cadenas=True)), 2)
+
+    def test_el_mapa_sin_cadenas_no_junta_ni_trae_alias(self):
+        laferrere = [sucursal_en("a", "Laferrere", "AR-B", -34.749, -58.598), sucursal_en("b", "Gregorio Laferrere", "AR-B", -34.751, -58.586)]
+        lugares_mapa = lugares(self.indice(laferrere))
+        self.assertEqual(len(lugares_mapa), 2)
+        self.assertTrue(all("alias" not in l for l in lugares_mapa))
+
     def test_el_radio_de_la_zona_es_el_de_las_promos(self):
         from mapa_promos import RADIO_CERCA_KM, RADIO_PROMOS_KM
         self.assertEqual(RADIO_PROMOS_KM, RADIO_CERCA_KM)

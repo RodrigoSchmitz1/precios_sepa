@@ -333,6 +333,59 @@ def _km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:
     return math.hypot((lat2 - lat1) * 111.0, (lng2 - lng1) * 111.0 * math.cos(math.radians((lat1 + lat2) / 2)))
 
 
+# Dos zonas con nombres parecidos a menos de esto son el mismo lugar
+# (arreglos-segundo-explore, 2026-11-19). Ver _juntar_nombres_parecidos.
+DISTANCIA_ALIAS_KM = 2
+
+
+def _palabras_del_lugar(nombre: str) -> frozenset:
+    return frozenset(w for w in re.findall(r"[a-z0-9]+", normalizar(nombre)) if w not in PALABRAS_EN_MINUSCULA)
+
+
+def _juntar_nombres_parecidos(indice: IndiceMapa, lugares_: list, centro) -> list:
+    """Un mismo lugar cargado con nombres parecidos es una sola zona.
+
+    El selector ofrecia "Laferrere", "Gregorio de Laferrere" y "Gregorio
+    Laferrere", a menos de 1,5 km entre si: la fusion por nombre solo juntaba
+    nombres identicos. Se juntan los de la misma provincia con centros a menos
+    de DISTANCIA_ALIAS_KM cuando las palabras de un nombre (sin "de", "la",
+    etc.) estan contenidas en las del otro. Medido el 2026-11-19: 30 pares, casi
+    todos duplicados reales (Villa Lugano y Lugano, Jose C. Paz con y sin punto,
+    Paternal y La Paternal); algunos son un barrio y su ciudad (Nueva Cordoba y
+    Cordoba), que con las cadenas a 3 km dicen casi lo mismo.
+
+    Queda el nombre del que tiene mas sucursales; los demas van a "alias", que
+    el buscador de zonas y los links viejos siguen encontrando.
+    """
+    orden = sorted(lugares_, key=lambda l: (-l["sucursales"], l["nombre"]))
+    juntos: list = []
+    for lugar in orden:
+        palabras = _palabras_del_lugar(lugar["nombre"])
+        destino = next(
+            (
+                j for j in juntos
+                if j["provincia"] == lugar["provincia"]
+                and palabras and j["_palabras"]
+                and (palabras <= j["_palabras"] or j["_palabras"] <= palabras)
+                and _km(j["latitud"], j["longitud"], lugar["latitud"], lugar["longitud"]) < DISTANCIA_ALIAS_KM
+            ),
+            None,
+        )
+        if destino is None:
+            juntos.append({**lugar, "_palabras": palabras, "alias": []})
+            continue
+        destino["alias"].append(lugar["nombre"])
+        destino["_sucursales"] = destino["_sucursales"] | lugar["_sucursales"]
+        destino["sucursales"] = len(destino["_sucursales"])
+        destino["latitud"], destino["longitud"] = centro(destino["_sucursales"])
+        destino["cadenas"] = sorted(set(destino["cadenas"]) | set(lugar["cadenas"]))
+    for j in juntos:
+        del j["_palabras"], j["_sucursales"]
+        if not j["alias"]:
+            del j["alias"]
+    return juntos
+
+
 # Una franja de latitud un poco mas ancha que el radio: 1 grado son ~111 km.
 _FRANJA_GRADOS = RADIO_CERCA_KM / 111.0 * 1.05
 
@@ -451,11 +504,13 @@ def lugares(indice: IndiceMapa, con_cadenas: bool = False) -> list[dict]:
                 "longitud": lng,
                 "sucursales": len(puntos),
                 **({"cadenas": sorted({p["cadena"] for p in puntos if p["cadena"]})} if con_cadenas else {}),
+                **({"_sucursales": grupo["sucursales"]} if con_cadenas else {}),
             }
         )
     if con_cadenas:
-        _sumar_cadenas_cerca(indice, resultado)
         resultado = [l for l in resultado if not (l["provincia"] == "AR-C" and normalizar(l["nombre"]) in GENERICOS_CABA)]
+        resultado = _juntar_nombres_parecidos(indice, resultado, centro)
+        _sumar_cadenas_cerca(indice, resultado)
     resultado.sort(key=lambda l: (-l["sucursales"], l["nombre"]))
     return resultado
 

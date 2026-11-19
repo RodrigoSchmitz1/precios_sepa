@@ -14,7 +14,8 @@ import {
 import { fechaEnPalabras, formatearPesos, tamanoQueFalta } from "../utils/formato";
 import { cifrasDePortada } from "../utils/cifrasPortada";
 import { useZona } from "../contexto/zona";
-import { localidadDeZona, zonaAParametro } from "../utils/zona";
+import { ejemploDePortada } from "../utils/ejemploPortada";
+import { cadenasVisibles, localidadDeZona, zonaAParametro, type Zona } from "../utils/zona";
 import { categoriasGanadas } from "../utils/liderazgo";
 import { nombreLegible } from "../utils/texto";
 import AvisoCadenasDeOtroDia from "./AvisoCadenasDeOtroDia";
@@ -184,15 +185,15 @@ function MiniBrechas({ diferencias }: { diferencias: number[] }) {
 /** Un producto real con su precio en tres cadenas: la mas barata, una del medio
  *  y la mas cara. Va sobre el degrade, en una tarjeta translucida. Solo cuentan
  *  los precios creibles, igual que en Mismo producto. */
-function TarjetaEjemplo({ producto }: { producto: ProductoDetalle }) {
-  const precios = producto.precios
-    .filter((p) => p.precio_creible)
-    .sort((a, b) => a.precio_mediano - b.precio_mediano);
-  if (precios.length < 2) return null;
-  const filas =
-    precios.length >= 3
-      ? [precios[0], precios[Math.floor(precios.length / 2)], precios[precios.length - 1]]
-      : precios;
+function TarjetaEjemplo({ producto, zona }: { producto: ProductoDetalle; zona: Zona | null }) {
+  // Con zona, las cadenas cerca; si no alcanzan, las del país y lo dice
+  // (arreglos-segundo-explore, utils/ejemploPortada).
+  const ejemplo = ejemploDePortada(producto.precios, zona ? cadenasVisibles(zona) : null);
+  if (!ejemplo) return null;
+  const { filas } = ejemplo;
+  const pct = ejemplo.deZona ? ejemplo.diferenciaPct : producto.diferencia_pct;
+  const alcance = ejemplo.deZona ? " cerca tuyo" : "";
+  const nacionalConZona = zona && !ejemplo.deZona ? " · en todo el país" : "";
   const maximo = filas[filas.length - 1].precio_mediano;
   const tamano = tamanoQueFalta(producto.descripcion, producto.cantidad_normalizada, producto.unidad_normalizada);
   const nombre = nombreLegible(producto.descripcion, producto.marca) + (tamano ? ` (${tamano})` : "");
@@ -202,9 +203,9 @@ function TarjetaEjemplo({ producto }: { producto: ProductoDetalle }) {
       className="block rounded-[1.75rem] bg-white/12 border border-white/25 backdrop-blur-md p-5 sm:p-6 text-white hover:bg-white/16 transition-colors"
     >
       <p className="text-sm font-semibold text-white/85 line-clamp-1">{nombre}</p>
-      <p className="font-display text-5xl sm:text-6xl leading-none mt-2">+{Math.round(producto.diferencia_pct)}%</p>
+      <p className="font-display text-5xl sm:text-6xl leading-none mt-2">+{Math.round(pct)}%</p>
       <p className="text-sm font-semibold text-white/85 mt-1">
-        según dónde la compres · {producto.cadenas} cadenas
+        según dónde la compres{alcance} · {ejemplo.deZona ? ejemplo.cadenas : producto.cadenas} cadenas{nacionalConZona}
       </p>
       <ul className="mt-4 space-y-3">
         {filas.map((p) => (
@@ -430,7 +431,7 @@ function Presentacion() {
               </button>
             </form>
           </div>
-          {datos.ejemplo && <TarjetaEjemplo producto={datos.ejemplo} />}
+          {datos.ejemplo && <TarjetaEjemplo producto={datos.ejemplo} zona={zona} />}
         </div>
       </div>
 

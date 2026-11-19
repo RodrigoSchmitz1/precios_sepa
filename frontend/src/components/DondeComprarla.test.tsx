@@ -61,14 +61,14 @@ async function mostrar(zona: Zona | null) {
 describe("DondeComprarla", () => {
   it("con zona calcula desde su centro sin tocar el mapa", async () => {
     await mostrar(LOMAS);
-    expect(optimizarCompra).toHaveBeenCalledWith(ITEMS, -34.76, -58.4, 2);
+    expect(optimizarCompra).toHaveBeenCalledWith(ITEMS, -34.76, -58.4, 3);
     expect(puntosDelMapa.at(-1)).toEqual({ latitud: -34.76, longitud: -58.4 });
   });
 
   it("al cambiar la zona pasa a la nueva", async () => {
     await mostrar(LOMAS);
     await mostrar(ROSARIO);
-    expect(optimizarCompra).toHaveBeenLastCalledWith(ITEMS, -32.95, -60.65, 2);
+    expect(optimizarCompra).toHaveBeenLastCalledWith(ITEMS, -32.95, -60.65, 3);
   });
 
   it("sin zona espera a que se elija un punto", async () => {

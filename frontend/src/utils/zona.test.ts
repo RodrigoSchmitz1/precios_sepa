@@ -97,6 +97,27 @@ describe("buscar la zona", () => {
   it("no busca con menos de dos letras", () => {
     expect(buscarZonas(ZONAS, "p")).toEqual([]);
   });
+
+  // arreglos-segundo-explore (2026-11-19)
+  const LOMAS = zona("Lomas de Zamora", "AR-B", -34.76, -58.4);
+  const LAFERRERE: Zona = { ...zona("Laferrere", "AR-B", -34.75, -58.59), alias: ["Gregorio de Laferrere", "Gregorio Laferrere"] };
+  const CORDOBA: Zona = { ...zona("Córdoba", "AR-X", -31.42, -64.18), alias: ["Nueva Córdoba"] };
+  const MAS = [...ZONAS, LOMAS, LAFERRERE, CORDOBA];
+
+  it("por palabras: sin el 'de' y con comienzos de palabra", () => {
+    expect(buscarZonas(MAS, "lomas zamora")).toEqual([LOMAS]);
+    expect(buscarZonas(MAS, "lom zam")).toEqual([LOMAS]);
+    expect(buscarZonas(MAS, "zamora")).toEqual([LOMAS]);
+  });
+
+  it("por alias", () => {
+    expect(buscarZonas(MAS, "gregorio laferrere")).toEqual([LAFERRERE]);
+    expect(buscarZonas(MAS, "nueva cordoba")).toEqual([CORDOBA]);
+  });
+
+  it("un link con un alias abre la zona", () => {
+    expect(zonaInicial(MAS, "?zona=AR-B%3AGregorio%20Laferrere", null)).toEqual({ zona: LAFERRERE, desconocida: null });
+  });
 });
 
 describe("usar mi ubicacion", () => {
