@@ -15,7 +15,7 @@
   - unit tests: un precio que no cambia, uno que cambia, la primera vez, uno no creíble, un cambio chico, uno viejo
 - [x] 1.5 Dry run de las dos consultas. Después, `dbt run --select historico_precio_producto mart_cambio_precio` y `dbt test`, con los bytes procesados anotados
 - [x] 1.6 Medir el tamaño de la historia después de la primera corrida (`__TABLES__`)
-- [ ] 1.7 Medir después de la segunda corrida y anotar las filas sumadas por día
+- [x] 1.7 Medir después de la segunda corrida y anotar las filas sumadas por día
 
 ## 2. API
 

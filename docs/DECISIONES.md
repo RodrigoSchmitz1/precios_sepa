@@ -856,9 +856,11 @@ dos consultas chicas sobre `int_precio_producto_cadena` del 16 y 17-11, unos
 
 **La decisión: un registro de cambios.** `historico_precio_producto` guarda una
 fila por producto y cadena solo cuando el precio cambia (o la primera vez). La
-primera corrida guardó 204.719 filas en 10,2 MiB; después suma unos 4 mil por
-día, unos 0,2 MiB. Una foto semanal ocupaba unos 440 MiB por año y perdía el
-día del cambio.
+primera corrida guardó 204.719 filas en 10,2 MiB. La segunda (datos del 18-11)
+sumó 6.962 filas en 0,34 MiB, más que los 4 mil estimados: 5.814 precios que
+cambiaron (3.948 de ellos en 3% o más) y 1.148 productos nuevos, casi todos de
+Día. Son unos 125 MiB por año. Una foto semanal ocupaba unos 440 MiB por año y
+perdía el día del cambio.
 - **La fuente es `mart_mismo_producto`:** el mismo precio creíble que muestra
   la página. Los saltos de más del 50%, que son errores de carga, no entran, y
   el "antes $ X" coincide con lo que la página mostró ese día.
