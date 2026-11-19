@@ -1181,6 +1181,41 @@ va aparte:
 
 ---
 
+## La lista en el centro
+
+**El problema (2026-11-19).** Tu lista es la tarea con más valor del sitio:
+armar lo que compro siempre y ver dónde me conviene, ahora también con las
+promos cerca. Pero en el celular se llegaba solo por un changuito sin texto. La
+barra de abajo tenía Inflación, la sección más analítica, y la portada no
+arrancaba por la lista. Lo marcaron los dos explores externos.
+
+**La barra.** Rodrigo decidió que "Mi lista" ocupe el lugar de Inflación en la
+barra del celular, con el número de productos. Inflación sigue en el menú de la
+computadora, en "¿Qué querés saber?" de la portada y en `/inflacion`.
+
+**El armado rápido.** Son 40 básicos en seis grupos (almacén, desayuno,
+lácteos, bebidas, limpieza, higiene), y cada uno se suma o se saca con un toque.
+- **De dónde salen:** de una lista fija de búsquedas (`BASICOS` en
+  `api/mismo_producto.py`) que la API resuelve con el buscador del sitio, una
+  vez por día.
+- **Por qué búsquedas y no categorías:** el producto "más común" de cada
+  categoría de la canasta del INDEC daba una polenta para Harina, un
+  endulzante para Azúcar, una crema para Quesos y un postre para Yogur. Con el
+  texto que tipea la gente salen Playadito 1 kg, Natura 1,5 L, Ala o Favorita,
+  casi siempre en 13 o 14 cadenas.
+- **Un detalle que apareció al probarlo:** con la lista vacía, el primer toque
+  la convertía en "lista con productos" y el armado se plegaba, justo cuando se
+  estaba armando. Ahora, si se entró con la lista vacía, el armado queda arriba
+  y abierto toda la visita, y la comparación aparece debajo. Con productos al
+  entrar, queda plegado en "Sumar básicos".
+
+**La portada.** Con productos guardados, debajo del buscador aparece "Tu lista
+· 3 productos: en Vea te sale $ 13.465", con el mismo pedido y la misma vista
+que Tu lista. Con zona compara las cadenas cerca. Sin lista, la portada queda
+como antes.
+
+---
+
 ## Tests
 
 Además de los genéricos, hay tests singulares de dbt para lo que sólo se

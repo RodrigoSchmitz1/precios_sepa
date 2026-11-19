@@ -1271,6 +1271,20 @@ def obtener_productos_destacados(limite: int = Query(12, ge=1, le=30)):
 
 
 @cachear
+def _basicos() -> list:
+    # Una pasada por BASICOS con el buscador en memoria; cambia con el indice.
+    return mismo_producto.basicos(_indice_mismo_producto())
+
+
+@api.get("/mismo-producto/basicos")
+def obtener_basicos():
+    """Los basicos del armado rapido de Tu lista (openspec lista-en-el-centro):
+    unos 40 productos comunes, agrupados, resueltos con el buscador del sitio.
+    Antes de /{id_producto}: si no, "basicos" se tomaria como un id."""
+    return _basicos()
+
+
+@cachear
 def _niveles_por_cadena() -> dict:
     # Una pasada por el indice de El mismo producto; se calcula una vez por refresco.
     return mismo_producto.niveles_por_cadena(_indice_mismo_producto())

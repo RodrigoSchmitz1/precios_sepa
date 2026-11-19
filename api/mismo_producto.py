@@ -420,6 +420,67 @@ def destacados(indice: dict, limite: int = 12) -> list[dict]:
     return [_resumen(p) for p in candidatos[:limite]]
 
 
+# Los basicos del armado rapido de Tu lista (lista-en-el-centro, 2026-11-19).
+# Busquedas y no categorias: medido ese dia, el producto "mas comun" de cada
+# categoria de la canasta del INDEC daba una polenta para Harina, un endulzante
+# para Azucar, una crema para Quesos y un postre para Yogur. El primer resultado
+# del buscador, con el texto que tipea la gente, da lo esperable (Playadito 1 kg,
+# Natura 1,5 L, Ala, Favorita...), casi siempre en 13 o 14 cadenas.
+BASICOS = (
+    ("Almacén", "Yerba", "yerba 1 kg"),
+    ("Almacén", "Aceite", "aceite girasol 1,5 litros"),
+    ("Almacén", "Azúcar", "azucar 1 kg"),
+    ("Almacén", "Harina", "harina 000 1 kg"),
+    ("Almacén", "Arroz", "arroz largo fino 1 kg"),
+    ("Almacén", "Fideos", "fideos spaghetti 500 g"),
+    ("Almacén", "Polenta", "polenta"),
+    ("Almacén", "Puré de tomate", "pure de tomate"),
+    ("Almacén", "Atún", "atun"),
+    ("Almacén", "Arvejas", "arvejas"),
+    ("Almacén", "Sal", "sal fina"),
+    ("Almacén", "Vinagre", "vinagre"),
+    ("Almacén", "Mayonesa", "mayonesa"),
+    ("Desayuno", "Pan lactal", "pan lactal"),
+    ("Desayuno", "Galletitas de agua", "galletitas de agua"),
+    ("Desayuno", "Galletitas dulces", "galletitas dulces"),
+    ("Desayuno", "Café", "cafe molido"),
+    ("Desayuno", "Té", "te en saquitos"),
+    ("Desayuno", "Mate cocido", "mate cocido"),
+    ("Desayuno", "Dulce de leche", "dulce de leche"),
+    ("Desayuno", "Mermelada", "mermelada"),
+    ("Lácteos", "Leche", "leche entera 1 litro"),
+    ("Lácteos", "Manteca", "manteca 200 g"),
+    ("Lácteos", "Queso cremoso", "queso cremoso"),
+    ("Lácteos", "Queso rallado", "queso rallado"),
+    ("Lácteos", "Yogur", "yogur entero"),
+    ("Lácteos", "Huevos", "huevos"),
+    ("Bebidas", "Gaseosa", "gaseosa cola 2,25 litros"),
+    ("Bebidas", "Agua", "agua mineral"),
+    ("Bebidas", "Jugo en polvo", "jugo en polvo"),
+    ("Bebidas", "Cerveza", "cerveza"),
+    ("Bebidas", "Vino", "vino tinto"),
+    ("Limpieza", "Papel higiénico", "papel higienico"),
+    ("Limpieza", "Detergente", "detergente"),
+    ("Limpieza", "Lavandina", "lavandina"),
+    ("Limpieza", "Jabón en polvo", "jabon en polvo"),
+    ("Higiene", "Shampoo", "shampoo"),
+    ("Higiene", "Pasta dental", "pasta dental"),
+    ("Higiene", "Desodorante", "desodorante"),
+    ("Higiene", "Jabón de tocador", "jabon de tocador"),
+)
+
+
+def basicos(indice: dict) -> list[dict]:
+    """El primer resultado del buscador para cada basico, en el orden de BASICOS.
+    Una busqueda sin resultados se saltea."""
+    resultado = []
+    for grupo, nombre, consulta in BASICOS:
+        encontrados = buscar(indice, consulta, limite=1)
+        if encontrados:
+            resultado.append({"grupo": grupo, "nombre": nombre, "producto": encontrados[0]})
+    return resultado
+
+
 # De tu canasta a tu lista: Tu canasta cotiza categorias ("yerba, 2 kg por
 # mes"); aca se elige la marca exacta de cada una.
 MAXIMO_CATEGORIAS_SUGERIDAS = 80

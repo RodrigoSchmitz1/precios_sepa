@@ -20,7 +20,7 @@ import type {
   ProductoSugerido,
   PromoCerca,
   ResultadoLista,
-  ResultadoOptimizacion, PromosDeLista } from "../types";
+  ResultadoOptimizacion, PromosDeLista, Basico } from "../types";
 import { conNombresDeCadena } from "../utils/nombres";
 import type { CadenasDeOtroDia } from "../utils/cadenasDeOtroDia";
 
@@ -292,6 +292,13 @@ export async function obtenerPromosDeLista(
     body: JSON.stringify({ items, cadenas: zona.cadenas, latitud: zona.latitud, longitud: zona.longitud }),
   });
   if (!respuesta.ok) await fallar(respuesta, "Error al calcular la lista con promos");
+  return leerJson(respuesta);
+}
+
+/** Los basicos del armado rapido de Tu lista (openspec lista-en-el-centro). */
+export async function obtenerBasicos(): Promise<Basico[]> {
+  const respuesta = await fetch(`${API_BASE}/mismo-producto/basicos`);
+  if (!respuesta.ok) await fallar(respuesta, "Error al traer los básicos");
   return leerJson(respuesta);
 }
 

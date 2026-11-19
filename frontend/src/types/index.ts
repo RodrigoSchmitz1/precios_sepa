@@ -30,6 +30,9 @@ export type SucursalMapa = {
   longitud: number;
 };
 
+/** Un producto basico del armado rapido de Tu lista (openspec lista-en-el-centro). */
+export type Basico = { grupo: string; nombre: string; producto: ProductoComparado };
+
 /** Tu lista en una sucursal de una cadena, con sus promos vigentes
  *  (openspec total-con-promos-cerca). */
 export type ListaConPromos = SucursalMapa & {

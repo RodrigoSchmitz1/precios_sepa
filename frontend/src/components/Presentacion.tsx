@@ -19,6 +19,7 @@ import { cadenasVisibles, localidadDeZona, zonaAParametro, type Zona } from "../
 import { categoriasGanadas } from "../utils/liderazgo";
 import { nombreLegible } from "../utils/texto";
 import AvisoCadenasDeOtroDia from "./AvisoCadenasDeOtroDia";
+import TarjetaTuLista from "./TarjetaTuLista";
 import type { CanastaPorCadena, InflacionResumen, ProductoComparado, ProductoDetalle, QuienGana } from "../types";
 
 /*
@@ -430,6 +431,8 @@ function Presentacion() {
                 Buscar
               </button>
             </form>
+            {/* Si hay lista guardada, la portada arranca por ahi (lista-en-el-centro). */}
+            <TarjetaTuLista />
           </div>
           {datos.ejemplo && <TarjetaEjemplo producto={datos.ejemplo} zona={zona} />}
         </div>

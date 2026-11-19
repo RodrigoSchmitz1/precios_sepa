@@ -4,6 +4,7 @@ import ProveedorZona from "./ProveedorZona";
 import ProveedorLista from "./ProveedorLista";
 import AccesoLista from "./AccesoLista";
 import SelectorZona from "./SelectorZona";
+import { useLista } from "../contexto/lista";
 
 const SECCIONES = [
   { ruta: "/", nombre: "Promos", corto: "Promos", icono: "🔥" },
@@ -12,6 +13,30 @@ const SECCIONES = [
   { ruta: "/mismo-producto", nombre: "Mismo producto", corto: "Producto", icono: "🔎" },
   { ruta: "/inflacion", nombre: "Inflación", corto: "Inflación", icono: "📊" },
 ];
+
+/*
+  En el celular, "Mi lista" ocupa el lugar de Inflacion (lista-en-el-centro,
+  decidido por Rodrigo el 2026-11-19): es la tarea con mas valor y solo se
+  llegaba por un changuito sin texto. Inflacion sigue en el menu de la
+  computadora, en la portada y en /inflacion.
+*/
+const SECCIONES_CELULAR = SECCIONES.map((s) =>
+  s.ruta === "/inflacion" ? { ruta: "/lista", nombre: "Mi lista", corto: "Mi lista", icono: "🛒" } : s
+);
+
+/** El numero de productos de la lista, sobre el icono de "Mi lista". */
+function ContadorLista() {
+  const { lista } = useLista();
+  if (lista.length === 0) return null;
+  return (
+    <span
+      aria-hidden="true"
+      className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-ahorro text-white text-[11px] font-bold leading-5 text-center numero"
+    >
+      {lista.length}
+    </span>
+  );
+}
 
 function Layout() {
   return (
@@ -101,7 +126,7 @@ function Layout() {
         className="sm:hidden fixed bottom-0 inset-x-0 z-[1200] bg-papel shadow-[0_-4px_20px_rgb(20_20_80/0.08)] pb-[env(safe-area-inset-bottom)]"
       >
         <ul className="grid grid-cols-5">
-          {SECCIONES.map((seccion) => (
+          {SECCIONES_CELULAR.map((seccion) => (
             <li key={seccion.ruta}>
               <NavLink
                 to={seccion.ruta}
@@ -117,9 +142,10 @@ function Layout() {
                   <>
                     <span
                       aria-hidden="true"
-                      className={`grid place-items-center w-11 h-7 rounded-full text-lg ${isActive ? "bg-marca-tenue" : ""}`}
+                      className={`relative grid place-items-center w-11 h-7 rounded-full text-lg ${isActive ? "bg-marca-tenue" : ""}`}
                     >
                       {seccion.icono}
+                      {seccion.ruta === "/lista" && <ContadorLista />}
                     </span>
                     {seccion.corto}
                   </>
