@@ -1,14 +1,15 @@
 import { useEffect, useState } from "react";
-import { cotizarLista, obtenerPromosDeProductos } from "../api/client";
+import { cotizarLista, obtenerPromosDeLista, obtenerPromosDeProductos } from "../api/client";
 import { useZona } from "../contexto/zona";
 import { fechaEnPalabras, formatearPesos } from "../utils/formato";
 import { MAXIMO_UNIDADES } from "../utils/lista";
 import { comparacionDeLista, productosComparados, vistaDeLista } from "../utils/listaEnZona";
 import { claseCambio, textoCambioLista } from "../utils/cambioPrecio";
 import { promosQueConvienen, resumenPromosDeLista } from "../utils/promosCerca";
+import { lineaPromosDeLista } from "../utils/promosDeLista";
 import { listarConY } from "../utils/texto";
 import { cadenasVisibles, rotuloZona } from "../utils/zona";
-import type { ItemLista, PromoCerca, ResultadoLista } from "../types";
+import type { ItemLista, PromoCerca, PromosDeLista, ResultadoLista } from "../types";
 import PromoCercana from "./PromoCercana";
 
 /*
@@ -47,6 +48,7 @@ type Props = {
 
 type Estado = { clave: string; resultado?: ResultadoLista; error?: string };
 type EstadoPromos = { clave: string; promos: Record<string, PromoCerca[]> };
+type EstadoConPromos = { clave: string; datos: PromosDeLista | null };
 
 /** Las incompletas suelen ser muchas y valen menos: se muestran las primeras. */
 const INCOMPLETAS_VISIBLES = 4;
@@ -64,6 +66,7 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
   const clavePromos =
     lista.length > 0 && zona ? JSON.stringify([lista.map((i) => i.id_producto), zona.latitud, zona.longitud]) : "";
   const [promos, setPromos] = useState<EstadoPromos | null>(null);
+  const [conPromos, setConPromos] = useState<EstadoConPromos | null>(null);
 
   useEffect(() => {
     if (!clavePromos) return;
@@ -118,6 +121,38 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
   const completas = vista?.completas ?? [];
   const incompletas = vista?.incompletas ?? [];
   const comparados = r && vista ? productosComparados(r, vista) : lista.length;
+  // El total con las promos cerca (total-con-promos-cerca): con los mismos
+  // productos que el total de la zona, sin los que no tiene ninguna cadena cerca.
+  const claveConPromos =
+    zona && enZona && estado?.clave === clave
+      ? JSON.stringify([
+          lista.filter((i) => !vista!.noEnZona.includes(i.id_producto)).map((i) => [i.id_producto, i.cantidad]),
+          zona.cadenas,
+          zona.latitud,
+          zona.longitud,
+        ])
+      : "";
+
+  useEffect(() => {
+    if (!claveConPromos) return;
+    let cancelado = false;
+    const [pares, cadenas, latitud, longitud] = JSON.parse(claveConPromos) as [[string, number][], string[], number, number];
+    if (pares.length === 0) return;
+    obtenerPromosDeLista(
+      pares.map(([id_producto, cantidad]) => ({ id_producto, cantidad })),
+      { cadenas, latitud, longitud }
+    )
+      .then((datos) => {
+        if (!cancelado) setConPromos({ clave: claveConPromos, datos });
+      })
+      // Es un agregado: si falla, la lista se ve igual, sin la linea.
+      .catch(() => {
+        if (!cancelado) setConPromos({ clave: claveConPromos, datos: null });
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [claveConPromos]);
   const nombrar = (ids: string[]) => listarConY(ids.map((id) => nombres.get(id) ?? id));
   // El titular es la mas barata de todas, Maxi incluido (ver CanastaPorCadena).
   const barata = completas[0];
@@ -139,6 +174,10 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
     }
   }
   const resumenPromos = resumenPromosDeLista(mejorPromo.size);
+  const lineaPromos =
+    claveConPromos && conPromos?.clave === claveConPromos && completas[0]
+      ? lineaPromosDeLista(conPromos.datos, { cadena: completas[0].cadena, total: completas[0].total })
+      : null;
   // El cambio de precio de la cadena mas barata de la zona (historia-de-precio).
   // Misma condicion que las promos: solo con la cotizacion de esta lista y zona.
   const cambioDeZona = new Map<string, string>();
@@ -219,6 +258,14 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
               Comprando cada producto donde está más barato{enZona && " en tu zona"}, {formatearPesos(vista.combinando)},
               aunque eso es ir a varias cadenas.
             </p>
+          )}
+          {/* Debajo y aparte del total de siempre, que sigue a precio de lista
+              (total-con-promos-cerca). */}
+          {lineaPromos && (
+            <div className="mt-3 pl-3 border-l-2 border-ahorro text-sm">
+              <p className={lineaPromos.cambia ? "text-tinta font-semibold" : "text-tinta"}>{lineaPromos.texto}</p>
+              {lineaPromos.aviso && <p className="text-xs text-tinta-suave mt-0.5">{lineaPromos.aviso}</p>}
+            </div>
           )}
         </div>
       )}

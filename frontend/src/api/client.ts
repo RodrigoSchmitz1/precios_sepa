@@ -20,8 +20,7 @@ import type {
   ProductoSugerido,
   PromoCerca,
   ResultadoLista,
-  ResultadoOptimizacion,
-} from "../types";
+  ResultadoOptimizacion, PromosDeLista } from "../types";
 import { conNombresDeCadena } from "../utils/nombres";
 import type { CadenasDeOtroDia } from "../utils/cadenasDeOtroDia";
 
@@ -279,6 +278,21 @@ export async function obtenerPromosDeProductos(
   const respuesta = await fetch(`${API_BASE}/promos/productos?${parametros}`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer las promos");
   return (await leerJson(respuesta)).promos;
+}
+
+/** Cuanto sale Tu lista en cada cadena cerca con sus promos, en una sola
+ *  sucursal por cadena (openspec total-con-promos-cerca). */
+export async function obtenerPromosDeLista(
+  items: { id_producto: string; cantidad: number }[],
+  zona: Pick<Zona, "latitud" | "longitud" | "cadenas">,
+): Promise<PromosDeLista> {
+  const respuesta = await fetch(`${API_BASE}/promos/lista`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items, cadenas: zona.cadenas, latitud: zona.latitud, longitud: zona.longitud }),
+  });
+  if (!respuesta.ok) await fallar(respuesta, "Error al calcular la lista con promos");
+  return leerJson(respuesta);
 }
 
 /** De tu canasta a tu lista: los productos mas comunes de cada categoria. */

@@ -2,7 +2,7 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cotizarLista, obtenerPromosDeProductos } from "../api/client";
+import { cotizarLista, obtenerPromosDeLista, obtenerPromosDeProductos } from "../api/client";
 import { ContextoZona, type EstadoZona } from "../contexto/zona";
 import type { ItemLista, PromoCerca, ResultadoLista } from "../types";
 import type { Zona } from "../utils/zona";
@@ -14,7 +14,11 @@ import TuLista from "./TuLista";
   promos-de-tu-lista). Sin testing-library: react-dom y jsdom alcanzan.
 */
 
-vi.mock("../api/client", () => ({ cotizarLista: vi.fn(), obtenerPromosDeProductos: vi.fn() }));
+vi.mock("../api/client", () => ({
+  cotizarLista: vi.fn(),
+  obtenerPromosDeProductos: vi.fn(),
+  obtenerPromosDeLista: vi.fn(() => Promise.resolve({ cadenas: [], poco_informan: [], radio_km: 3 })),
+}));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -142,6 +146,26 @@ describe("Tu lista con promos cerca", () => {
     expect(texto).toContain("$ 9.489");
     expect(texto).not.toContain("en promo cerca");
     expect(texto).not.toContain("caida");
+  });
+
+  it("total con promos: aparte, con la sucursal y las cadenas que no informan, sin tocar el total", async () => {
+    // total-con-promos-cerca
+    vi.mocked(obtenerPromosDeLista).mockResolvedValue({
+      cadenas: [
+        {
+          cadena: "Carrefour", nombre_sucursal: "Carrefour 1", calle: "Av. Santa Fe", numero: "3253", barrio: "Palermo",
+          localidad: "CABA", provincia: "AR-C", latitud: 0, longitud: 0, distancia_km: 0.6,
+          total_con_promos: 9000, total_lista: 9900, productos_en_promo: 2, vigente_hasta: "2026-11-23",
+        },
+      ],
+      poco_informan: ["Coto"],
+      radio_km: 3,
+    });
+    const texto = await mostrarLista(PALERMO);
+    expect(texto).toContain("Con las promos de esta semana conviene Carrefour (Av. Santa Fe 3253 · Palermo): te sale $ 9.000, 2 de tus productos en promo, hasta el 23/11.");
+    expect(texto).toContain("Coto casi no informa promos en SEPA");
+    // El total de siempre sigue siendo el de la cotización.
+    expect(texto).toContain("$ 9.489");
   });
 
   it("sin zona invita a elegirla y no pide promos", async () => {

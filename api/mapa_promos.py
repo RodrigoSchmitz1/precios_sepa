@@ -45,6 +45,7 @@ class IndiceMapa:
         "multiple",
         "vigente_hasta",
         "por_producto",
+        "promos_por_sucursal",
     )
 
 
@@ -105,6 +106,15 @@ def armar_indice(sucursales, promos) -> IndiceMapa:
     for pos in range(len(orden)):
         for suc in indice.miembros[indice.inicio[pos] : indice.inicio[pos + 1]]:
             indice.por_sucursal[suc].append(pos)
+
+    # Cuantas promos informa cada cadena por sucursal (total-con-promos-cerca):
+    # para decir cuales casi no informan. Ver POCAS_PROMOS_POR_SUCURSAL.
+    sucursales_por_cadena: Counter = Counter()
+    promos_por_cadena: Counter = Counter()
+    for suc, s in enumerate(indice.sucursales):
+        sucursales_por_cadena[s["cadena"]] += 1
+        promos_por_cadena[s["cadena"]] += len(indice.por_sucursal[suc])
+    indice.promos_por_sucursal = {c: promos_por_cadena[c] / n for c, n in sucursales_por_cadena.items() if n}
     return indice
 
 
@@ -326,6 +336,103 @@ def _nombre_legible(nombre: str) -> str:
     return " ".join(
         p if i > 0 and p in PALABRAS_EN_MINUSCULA else p.capitalize() for i, p in enumerate(palabras)
     )
+
+
+# Una cadena que informa menos promos que esto por sucursal "casi no informa
+# promos" (total-con-promos-cerca, 2026-11-19). Medido ese dia: Dia 960,
+# Carrefour 956, Cooperativa Obrera 707, Market 224, La Anonima 214, Express 69;
+# Coto 33, Maxi 26, y cero los tres Changomas, Vea, Disco y Jumbo.
+POCAS_PROMOS_POR_SUCURSAL = 50
+MAXIMO_PRODUCTOS_LISTA = 50
+
+
+def poco_informan(indice: IndiceMapa, cadenas) -> list[str]:
+    """Las cadenas pedidas que casi no informan promos en SEPA."""
+    return sorted(c for c in set(cadenas) if indice.promos_por_sucursal.get(c, 0) < POCAS_PROMOS_POR_SUCURSAL)
+
+
+def promos_de_lista(
+    indice: IndiceMapa,
+    items: list[dict],
+    precios: dict,
+    cadenas,
+    latitud: float,
+    longitud: float,
+    hoy: str,
+    radio_km: float = RADIO_CERCA_KM,
+) -> list[dict]:
+    """Cuanto sale una lista en cada cadena cerca si se aprovechan sus promos
+    (total-con-promos-cerca, 2026-11-19).
+
+    Una sola sucursal por cadena, a menos de radio_km: la que deja la lista mas
+    barata. Cada producto cuenta al menor entre su precio de lista en la cadena
+    (precios[id][cadena], el mismo de Tu lista) y la promo vigente de esa
+    sucursal; las de compra multiple no cuentan. Una cadena que no tiene precio
+    de lista para todos los productos no compite, como en el total de siempre.
+
+    items: [{"id_producto", "cantidad"}]. Devuelve una fila por cadena, de la
+    mas barata a la mas cara con promos.
+    """
+    pedidos: dict[str, int] = {}
+    for item in items[:MAXIMO_PRODUCTOS_LISTA]:
+        cantidad = item.get("cantidad", 1)
+        if isinstance(cantidad, bool) or not isinstance(cantidad, int):
+            cantidad = 1
+        pedidos[str(item.get("id_producto", ""))] = max(1, min(cantidad, 99))
+    cadenas = set(cadenas)
+    completas = [c for c in cadenas if pedidos and all(c in precios.get(i, {}) for i in pedidos)]
+    if not completas:
+        return []
+    distancia = {}
+    for s, suc in enumerate(indice.sucursales):
+        if suc["cadena"] in completas:
+            d = _km(latitud, longitud, suc["latitud"], suc["longitud"])
+            if d <= radio_km:
+                distancia[s] = d
+    # La promo mas barata de cada producto en cada sucursal cercana: (precio, pos).
+    promo: dict = {}
+    for id_producto in pedidos:
+        for pos in indice.por_producto.get(id_producto, ()):
+            hasta = indice.vigente_hasta[pos]
+            if (hasta is not None and hasta < hoy) or indice.multiple[pos]:
+                continue
+            for s in indice.miembros[indice.inicio[pos] : indice.inicio[pos + 1]]:
+                if s in distancia:
+                    actual = promo.get((s, id_producto))
+                    if actual is None or indice.precio_promo[pos] < actual[0]:
+                        promo[(s, id_producto)] = (indice.precio_promo[pos], pos)
+    resultado = []
+    for cadena in completas:
+        total_lista = sum(precios[i][cadena] * n for i, n in pedidos.items())
+        mejor = None
+        for s in (s for s in distancia if indice.sucursales[s]["cadena"] == cadena):
+            total, en_promo, vigencias = 0.0, 0, []
+            for i, n in pedidos.items():
+                lista = precios[i][cadena]
+                p = promo.get((s, i))
+                if p and p[0] < lista:
+                    total += p[0] * n
+                    en_promo += 1
+                    if indice.vigente_hasta[p[1]]:
+                        vigencias.append(indice.vigente_hasta[p[1]])
+                else:
+                    total += lista * n
+            clave = (round(total, 2), distancia[s])
+            if mejor is None or clave < mejor[0]:
+                mejor = (clave, s, total, en_promo, min(vigencias) if vigencias else None)
+        if mejor is None:
+            continue
+        _, s, total, en_promo, vigencia = mejor
+        resultado.append({
+            **indice.sucursales[s],
+            "distancia_km": round(distancia[s], 2),
+            "total_con_promos": round(total, 2),
+            "total_lista": round(total_lista, 2),
+            "productos_en_promo": en_promo,
+            "vigente_hasta": vigencia,
+        })
+    resultado.sort(key=lambda f: (f["total_con_promos"], f["cadena"]))
+    return resultado
 
 
 def _km(lat1: float, lng1: float, lat2: float, lng2: float) -> float:

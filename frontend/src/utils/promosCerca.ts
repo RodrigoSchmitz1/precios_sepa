@@ -1,5 +1,5 @@
 import type { PromoCerca } from "../types";
-import { fechaCorta } from "./formato";
+import { fechaCorta, formatearPesos } from "./formato";
 
 /*
   Las promos de tus productos cerca de tu zona (openspec promos-de-tu-lista).
@@ -43,7 +43,7 @@ function sinGritar(texto: string): string {
 }
 
 /** "Av. Santa Fe 3253 · Palermo", con la cadena aparte. */
-export function direccionPromo(promo: PromoCerca): string {
+export function direccionPromo(promo: Pick<PromoCerca, "calle" | "numero" | "nombre_sucursal" | "barrio" | "localidad">): string {
   const calle = [promo.calle, promo.numero].filter(Boolean).join(" ").trim();
   return [calle || promo.nombre_sucursal, promo.barrio || promo.localidad]
     .filter(Boolean)
@@ -65,4 +65,18 @@ export function resumenPromosDeLista(productosEnPromo: number): string {
   return productosEnPromo === 1
     ? "Esta semana 1 producto de tu lista está en promo cerca tuyo"
     : `Esta semana ${productosEnPromo} productos de tu lista están en promo cerca tuyo`;
+}
+
+/**
+ * La linea bajo el titular del detalle cuando una promo cerca deja el producto
+ * por debajo del precio mas bajo de la zona (total-con-promos-cerca). El caso:
+ * en Tres Arroyos el titular decia Vea a $ 4.890 y la Cooperativa Obrera de
+ * Colon lo tenia en promo a $ 4.080. El titular de precio de lista no cambia.
+ * Las de compra multiple no cuentan: el titular habla de una unidad.
+ */
+export function avisoPromoEnTitular(promos: PromoCerca[] | null | undefined, precioZona: number | null | undefined): string {
+  const [mejor] = promosQueConvienen((promos ?? []).filter((p) => !p.requiere_compra_multiple), precioZona);
+  if (!mejor || precioZona == null) return "";
+  const vigencia = textoVigencia(mejor);
+  return `Con promo: ${formatearPesos(mejor.precio_promo)} en ${mejor.cadena} (${direccionPromo(mejor)})${vigencia ? `, ${vigencia}` : ""}`;
 }

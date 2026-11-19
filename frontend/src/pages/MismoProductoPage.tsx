@@ -19,6 +19,8 @@ import { etiquetaFechaPrecio } from "../utils/cadenasDeOtroDia";
 import AvisoCadenasDeOtroDia from "../components/AvisoCadenasDeOtroDia";
 import type { PrecioEnCadena, ProductoComparado, ProductoDetalle } from "../types";
 import PromosCercaDelProducto from "../components/PromosCercaDelProducto";
+import { usePromosCerca } from "../contexto/usePromosCerca";
+import { avisoPromoEnTitular } from "../utils/promosCerca";
 import BotonCompartir from "../components/BotonCompartir";
 import { textoParaCompartir } from "../utils/compartir";
 import { claseCambio, textoCambioDetalle } from "../utils/cambioPrecio";
@@ -398,6 +400,8 @@ function VistaProducto({
   const zona = onVolver ? zonaElegida : null;
   // El titular ya pintado: es el texto que se comparte (compartir-por-whatsapp).
   const refTitular = useRef<HTMLSpanElement>(null);
+  // Una sola vez: las usan el bloque de promos y el aviso bajo el titular.
+  const promosCerca = usePromosCerca(zona ? (estado?.producto?.id_producto ?? null) : null, zona);
   if (estado === null) return <p className="text-sm text-tinta-suave mb-10">Cargando…</p>;
 
   // Sin onVolver la vista se usa como ejemplo dentro de la portada de la
@@ -433,6 +437,11 @@ function VistaProducto({
           <TextoTitular p={p} t={t} nombre={nombre} />
         </span>
       </Titular>
+      {/* Si una promo cerca gana, se avisa sin cambiar el titular de precio de
+          lista (total-con-promos-cerca). */}
+      {deZona && avisoPromoEnTitular(promosCerca, c.precio) && (
+        <p className="mb-4 text-sm font-semibold text-ahorro">🏷️ {avisoPromoEnTitular(promosCerca, c.precio)}</p>
+      )}
       {/* Debajo de la banda y no arriba: la banda sube 40 px (-mt-10) y tapaba
           el boton, que quedaba invisible e intocable en el celular. */}
       {volver}
@@ -471,6 +480,7 @@ function VistaProducto({
           zona={zona}
           // Sin cadenas de la zona que lo vendan no hay precio con que comparar.
           precioZona={deZona ? c.precio : undefined}
+          promos={promosCerca}
         />
       )}
 

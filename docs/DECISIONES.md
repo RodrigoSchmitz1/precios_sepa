@@ -1136,6 +1136,51 @@ promo a $ 4.080. El titular recomienda Vea con la promo más barata a la vista.
 
 ---
 
+## El total con las promos cerca
+
+**El problema (2026-11-19).** Tu lista y el titular de un producto comparan el
+precio de lista de cada cadena. Las promos se muestran debajo, pero no entran en
+ninguna cuenta. El segundo explore externo mostró que así la recomendación puede
+salir al revés: en Tres Arroyos, el titular dice que la Playadito de 1 kg
+conviene en Vea a $ 4.890, y más abajo, en la misma pantalla, la Cooperativa
+Obrera de Colón 33 la tiene en promo a $ 4.080.
+
+**Lo que se midió.** Con los índices en memoria, sin cuota:
+- **Canasta de 20 productos genéricos:** las promos no cambian el ganador en
+  ninguna de 63 zonas. Esos productos casi no tienen promos.
+- **Listas realistas** (200 listas de 12 productos al azar entre los 400 más
+  comunes, en 60 zonas), con promos vigentes sin compra múltiple y de una sola
+  sucursal por cadena a menos de 3 km:
+  - la cadena más barata cambia en la mitad de las listas (mediana 52,5%, p75
+    64%);
+  - en 45 de las 60 zonas cambia en el 20% o más;
+  - cuando cambia, la lista sale un 4% menos de mediana (13% en Lanús).
+- **Quién pasa a ganar:** casi siempre Día. Sus promos son precios
+  promocionales de la sucursal, sin club ni tarjeta. Los "2do al 50%" están
+  marcados como compra múltiple y no cuentan.
+- **Promos por sucursal que informa cada cadena:** Día 960, Carrefour 956,
+  Cooperativa Obrera 707, Market 224, La Anónima 214, Express 69, Coto 33, Maxi
+  26. Los tres Changomás, Vea, Disco y Jumbo no informan ninguna.
+
+**La decisión.** El total de siempre sigue a precio de lista: meter las promos
+haría ganar a la que más informa (ver "Las promos de tu lista"). La otra cuenta
+va aparte:
+- **En Tu lista, debajo del total de siempre:** "Con las promos de esta semana
+  conviene Cooperativa Obrera (Colón 33 · Tres Arroyos): te sale $ 34.471, 12 de
+  tus productos en promo, hasta el 30/11".
+  - Se calcula en una sola sucursal real por cadena, la que deja la lista más
+    barata (`promos_de_lista`, `POST /api/promos/lista`). Responde en 17 a 52 ms
+    desde memoria.
+  - Solo aparece si cambia el ganador o baja el total un 1% o más.
+- **Las cadenas que casi no informan se nombran** (menos de 50 promos por
+  sucursal, `POCAS_PROMOS_POR_SUCURSAL`): "Vea casi no informa promos en SEPA:
+  si tiene, no están en esta cuenta".
+- **En el detalle, debajo del titular:** "Con promo: $ 4.080 en Cooperativa
+  Obrera (Colón 33 · Tres Arroyos), hasta el 30/11". El titular de precio de
+  lista no cambia.
+
+---
+
 ## Tests
 
 Además de los genéricos, hay tests singulares de dbt para lo que sólo se

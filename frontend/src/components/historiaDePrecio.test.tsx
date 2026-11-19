@@ -14,7 +14,11 @@ import TuLista from "./TuLista";
   Sin testing-library: react-dom y jsdom alcanzan.
 */
 
-vi.mock("../api/client", () => ({ cotizarLista: vi.fn(), obtenerPromosDeProductos: vi.fn() }));
+vi.mock("../api/client", () => ({
+  cotizarLista: vi.fn(),
+  obtenerPromosDeProductos: vi.fn(),
+  obtenerPromosDeLista: vi.fn(() => Promise.resolve({ cadenas: [], poco_informan: [], radio_km: 3 })),
+}));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { PromoCerca } from "../types";
 import {
+  avisoPromoEnTitular,
   direccionPromo,
   promosQueConvienen,
   resumenPromosDeLista,
@@ -78,6 +79,22 @@ describe("textos de una promo", () => {
     expect(textoOtrasSucursales(promo(2470))).toBe("");
     expect(textoOtrasSucursales(promo(2470, { otras_sucursales_cerca: 1 }))).toBe("y en 1 sucursal más cerca");
     expect(textoOtrasSucursales(promo(2470, { otras_sucursales_cerca: 4 }))).toBe("y en 4 sucursales más cerca");
+  });
+});
+
+describe("avisoPromoEnTitular", () => {
+  it("Tres Arroyos: la promo cerca que baja del precio más bajo de la zona", () => {
+    const coope = promo(4080, { cadena: "Cooperativa Obrera", calle: "Colón", numero: "33", barrio: null, localidad: "Tres Arroyos", vigente_hasta: "2026-11-30" });
+    expect(avisoPromoEnTitular([coope], 4890).replace(/[\u00a0\u202f]/g, " ")).toBe(
+      "Con promo: $ 4.080 en Cooperativa Obrera (Colón 33 · Tres Arroyos), hasta el 30/11",
+    );
+  });
+
+  it("sin promo que gane, de compra múltiple o sin precio de zona, nada", () => {
+    expect(avisoPromoEnTitular([promo(5000)], 4890)).toBe("");
+    expect(avisoPromoEnTitular([promo(3000, { requiere_compra_multiple: true })], 4890)).toBe("");
+    expect(avisoPromoEnTitular([promo(3000)], undefined)).toBe("");
+    expect(avisoPromoEnTitular(null, 4890)).toBe("");
   });
 });
 

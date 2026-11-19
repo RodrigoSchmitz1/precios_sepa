@@ -30,6 +30,25 @@ export type SucursalMapa = {
   longitud: number;
 };
 
+/** Tu lista en una sucursal de una cadena, con sus promos vigentes
+ *  (openspec total-con-promos-cerca). */
+export type ListaConPromos = SucursalMapa & {
+  distancia_km: number;
+  total_con_promos: number;
+  total_lista: number;
+  productos_en_promo: number;
+  /** La vigencia mas corta de las promos usadas, o null. */
+  vigente_hasta: string | null;
+};
+
+export type PromosDeLista = {
+  /** De la mas barata a la mas cara con promos; una sucursal por cadena. */
+  cadenas: ListaConPromos[];
+  /** Cadenas pedidas que casi no informan promos en SEPA (nombres de la API). */
+  poco_informan: string[];
+  radio_km: number;
+};
+
 /** Una localidad o barrio al que el buscador de arriba del mapa puede llevar. */
 export type LugarMapa = {
   nombre: string;

@@ -15,7 +15,7 @@ from google.api_core.exceptions import GoogleAPICallError
 from google.cloud import bigquery
 from google.genai import errors as genai_errors
 from google.oauth2 import service_account
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from typing import Optional
 from interpretar_canasta import CATEGORIAS, interpretar_descripcion
 from calcular_canasta import calcular_costo_canasta
@@ -447,6 +447,43 @@ def obtener_promos_de_productos(
         {
             "promos": mapa_promos.promos_de_productos(_indice_mapa(), lista, latitud, longitud, hoy),
             "radio_km": mapa_promos.RADIO_PROMOS_KM,
+        }
+    )
+
+
+class PromosDeListaRequest(BaseModel):
+    items: list
+    cadenas: list
+    latitud: float = Field(..., ge=-90, le=90)
+    longitud: float = Field(..., ge=-180, le=180)
+
+
+@api.post("/promos/lista")
+def obtener_promos_de_lista(datos: PromosDeListaRequest):
+    """Cuanto sale Tu lista en cada cadena cerca con sus promos vigentes, en una
+    sola sucursal por cadena (openspec total-con-promos-cerca).
+
+    Va aparte del total de siempre, que sigue sin promos: no todas las cadenas
+    las informan, y por eso vuelve tambien cuales casi no informan. Sale de los
+    indices del mapa y de Mismo producto, en memoria: no consulta BigQuery.
+    """
+    if len(datos.items) > mapa_promos.MAXIMO_PRODUCTOS_LISTA:
+        raise HTTPException(status_code=422, detail=f"Hasta {mapa_promos.MAXIMO_PRODUCTOS_LISTA} productos por pedido")
+    items = [i for i in datos.items if isinstance(i, dict)]
+    cadenas = [c for c in datos.cadenas if isinstance(c, str)][:40]
+    indice_mp = _indice_mismo_producto()
+    precios = {}
+    for item in items:
+        producto = indice_mp.get(str(item.get("id_producto", "")))
+        if producto:
+            precios[producto["id_producto"]] = {p["cadena"]: p["precio_mediano"] for p in producto["precios"] if p["precio_creible"]}
+    hoy = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).strftime("%Y-%m-%d")
+    mapa = _indice_mapa()
+    return JSONResponse(
+        {
+            "cadenas": mapa_promos.promos_de_lista(mapa, items, precios, cadenas, datos.latitud, datos.longitud, hoy),
+            "poco_informan": mapa_promos.poco_informan(mapa, cadenas),
+            "radio_km": mapa_promos.RADIO_CERCA_KM,
         }
     )
 
