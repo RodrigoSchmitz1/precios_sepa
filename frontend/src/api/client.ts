@@ -1,5 +1,6 @@
 import type { Zona } from "../utils/zona";
 import type {
+  RenglonInterpretado,
   Promo,
   PromoMapa,
   LugarMapa,
@@ -296,6 +297,18 @@ export async function obtenerPromosDeLista(
 }
 
 /** Los basicos del armado rapido de Tu lista (openspec lista-en-el-centro). */
+/** Una lista escrita (la de un chat) convertida en productos, un renglon por
+ *  producto (openspec compartir-y-pegar-la-lista). */
+export async function interpretarLista(texto: string): Promise<RenglonInterpretado[]> {
+  const respuesta = await fetch(`${API_BASE}/mismo-producto/interpretar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ texto }),
+  });
+  if (!respuesta.ok) await fallar(respuesta, "Error al leer la lista");
+  return leerJson(respuesta);
+}
+
 export async function obtenerBasicos(): Promise<Basico[]> {
   const respuesta = await fetch(`${API_BASE}/mismo-producto/basicos`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer los básicos");

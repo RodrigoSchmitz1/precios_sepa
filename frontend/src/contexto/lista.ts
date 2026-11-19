@@ -12,6 +12,10 @@ export type EstadoLista = {
   cambiarCantidad: (idProducto: string, cantidad: number) => void;
   quitar: (idProducto: string) => void;
   vaciar: () => void;
+  /** Suma una lista recibida: en un producto repetido queda la cantidad mayor. */
+  sumar: (items: ItemLista[]) => void;
+  /** La lista recibida pasa a ser la lista. */
+  reemplazar: (items: ItemLista[]) => void;
   enLista: (idProducto: string) => boolean;
 };
 

@@ -2,7 +2,8 @@ import { useEffect, useState } from "react";
 import { cotizarLista, obtenerPromosDeLista, obtenerPromosDeProductos } from "../api/client";
 import { useZona } from "../contexto/zona";
 import { fechaEnPalabras, formatearPesos } from "../utils/formato";
-import { MAXIMO_UNIDADES } from "../utils/lista";
+import { listaALink, MAXIMO_UNIDADES } from "../utils/lista";
+import { textoDeLista } from "../utils/compartir";
 import { comparacionDeLista, productosComparados, vistaDeLista } from "../utils/listaEnZona";
 import { claseCambio, textoCambioLista } from "../utils/cambioPrecio";
 import { promosQueConvienen, resumenPromosDeLista } from "../utils/promosCerca";
@@ -10,6 +11,7 @@ import { lineaPromosDeLista } from "../utils/promosDeLista";
 import { listarConY } from "../utils/texto";
 import { cadenasVisibles, rotuloZona } from "../utils/zona";
 import type { ItemLista, PromoCerca, PromosDeLista, ResultadoLista } from "../types";
+import BotonCompartir from "./BotonCompartir";
 import PromoCercana from "./PromoCercana";
 
 /*
@@ -206,6 +208,19 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
             vaciar
           </button>
         </p>
+      </div>
+      {/* Mandar la lista por WhatsApp (openspec compartir-y-pegar-la-lista): un
+          texto que se entiende sin abrir el link, mas el link que la rearma. */}
+      <div className="mb-4">
+        <BotonCompartir
+          etiqueta="Compartir lista"
+          copiarTexto
+          datos={() => ({
+            titulo: "Mi lista del súper",
+            texto: textoDeLista(lista, barata ?? null, zona ? rotuloZona(zona) : null, formatearPesos),
+            url: `${window.location.origin}/lista?l=${listaALink(lista)}`,
+          })}
+        />
       </div>
 
       {zona && vista && (

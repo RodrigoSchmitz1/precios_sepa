@@ -1,9 +1,12 @@
-import { useState, type FormEvent } from "react";
-import { Link, useNavigate } from "react-router";
+import { useCallback, useState, type FormEvent } from "react";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import Titular from "../components/Titular";
 import TuLista from "../components/TuLista";
 import ArmadoRapido from "../components/ArmadoRapido";
+import ListaRecibida from "../components/ListaRecibida";
+import PegarLista from "../components/PegarLista";
 import { useLista } from "../contexto/lista";
+import { listaDelLink } from "../utils/lista";
 
 /*
   Tu lista en su pagina (openspec lista-a-mano). Antes vivia solo al fondo de
@@ -18,6 +21,23 @@ function ListaPage() {
   // visita: al sumar el primer basico la pagina pasa a "con productos", y
   // plegarlo ahi escondia los demas justo cuando se estaba armando la lista.
   const [armadoAbierto] = useState(lista.length === 0);
+  // Una lista compartida por link (openspec compartir-y-pegar-la-lista). Se lee
+  // una vez; al resolverla se saca "l" de la URL, asi recargar no repite la
+  // pregunta.
+  const [parametros, setParametros] = useSearchParams();
+  const [recibidos] = useState(() => listaDelLink(parametros.get("l")));
+  const [recibidaAbierta, setRecibidaAbierta] = useState(recibidos.length > 0);
+  const cerrarRecibida = useCallback(() => {
+    setRecibidaAbierta(false);
+    setParametros(
+      (previos) => {
+        const nuevos = new URLSearchParams(previos);
+        nuevos.delete("l");
+        return nuevos;
+      },
+      { replace: true },
+    );
+  }, [setParametros]);
 
   const buscar = (e: FormEvent) => {
     e.preventDefault();
@@ -30,6 +50,8 @@ function ListaPage() {
       <Titular antetitulo="Tu lista" compacto>
         {lista.length > 0 ? "Dónde te conviene la compra de siempre" : "Armá la lista de lo que comprás siempre"}
       </Titular>
+
+      {recibidaAbierta && <ListaRecibida recibidos={recibidos} onListo={cerrarRecibida} />}
 
       {/* Con la lista vacia al entrar, el armado rapido va primero y queda
           arriba toda la visita: si quedara abajo de la comparacion, cada
@@ -78,6 +100,12 @@ function ListaPage() {
           onVer={(id) => navegar(`/mismo-producto?p=${encodeURIComponent(id)}`)}
         />
       )}
+      <details className="tarjeta p-5 sm:p-6 mb-6">
+        <summary className="cursor-pointer text-base font-bold text-tinta">Pegar una lista de WhatsApp</summary>
+        <div className="mt-4">
+          <PegarLista />
+        </div>
+      </details>
       {/* Con productos al entrar, los basicos quedan plegados para no tapar la comparacion. */}
       {!armadoAbierto && lista.length > 0 && (
         <details className="tarjeta p-5 sm:p-6 mb-10">

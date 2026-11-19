@@ -1276,6 +1276,20 @@ def _basicos() -> list:
     return mismo_producto.basicos(_indice_mismo_producto())
 
 
+class TextoPegado(BaseModel):
+    # El tope real lo aplica mismo_producto (MAXIMO_CARACTERES_PEGADOS); este
+    # corta antes un cuerpo enorme.
+    texto: str = Field(..., max_length=10000)
+
+
+@api.post("/mismo-producto/interpretar")
+def interpretar_lista_pegada(datos: TextoPegado):
+    """Una lista escrita (la de un chat) convertida en productos, un renglon por
+    producto, con el buscador en memoria y sin IA (openspec
+    compartir-y-pegar-la-lista). Antes de /{id_producto}."""
+    return mismo_producto.interpretar(_indice_mismo_producto(), datos.texto, _basicos())
+
+
 @api.get("/mismo-producto/basicos")
 def obtener_basicos():
     """Los basicos del armado rapido de Tu lista (openspec lista-en-el-centro):
@@ -1398,7 +1412,7 @@ def _pagina_con_tarjeta(ruta_index: str, ruta: str, request: Request) -> str:
     if ruta.strip("/") == "mismo-producto" and id_producto:
         indice = _indice_si_esta_cargado()
         producto = indice.get(str(id_producto)) if indice else None
-    titulo, descripcion, canonica = compartir.tarjeta(ruta, id_producto, producto)
+    titulo, descripcion, canonica = compartir.tarjeta(ruta, id_producto, producto, request.query_params.get("l"))
     origen = compartir.origen_del_pedido(str(request.base_url), request.headers.get("x-forwarded-proto"))
     return compartir.completar_head(_leer_index(ruta_index), origen, titulo, descripcion, canonica)
 

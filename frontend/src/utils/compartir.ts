@@ -13,7 +13,16 @@ export type ResultadoCompartir = "compartido" | "cancelado" | "copiado" | "fallo
 
 type Navegador = Pick<Navigator, "share" | "clipboard">;
 
-export async function compartir(datos: DatosParaCompartir, nav: Navegador = navigator): Promise<ResultadoCompartir> {
+/**
+ * copiarTexto: donde no hay menu nativo se copian el texto y el link juntos, y
+ * no solo el link. En una lista el texto es el contenido (los productos y donde
+ * sale menos); el link es para rearmarla (openspec compartir-y-pegar-la-lista).
+ */
+export async function compartir(
+  datos: DatosParaCompartir,
+  nav: Navegador = navigator,
+  { copiarTexto = false }: { copiarTexto?: boolean } = {},
+): Promise<ResultadoCompartir> {
   if (typeof nav.share === "function") {
     try {
       await nav.share({ title: datos.titulo, text: datos.texto, url: datos.url });
@@ -26,7 +35,7 @@ export async function compartir(datos: DatosParaCompartir, nav: Navegador = navi
     }
   }
   try {
-    await nav.clipboard.writeText(datos.url);
+    await nav.clipboard.writeText(copiarTexto ? `${datos.texto}\n${datos.url}` : datos.url);
     return "copiado";
   } catch {
     return "fallo";
@@ -48,4 +57,23 @@ export function textoParaCompartir(nombre: string, titular: string, zona: string
   if (!linea) return nombre;
   const conZona = zona ? linea.replace(/\b[Ee]n tu zona\b/g, `en ${zona}`).replace(/^en /, "En ") : linea;
   return `${nombre}: ${conZona}`;
+}
+
+/**
+ * El texto de Tu lista para WhatsApp (openspec compartir-y-pegar-la-lista). Se
+ * entiende sin abrir el link: los productos con sus cantidades y donde sale
+ * menos la lista completa, en la zona de quien comparte. Sin una cadena con
+ * todo, la linea del precio no va.
+ */
+export function textoDeLista(
+  items: { nombre: string; cantidad: number }[],
+  barata: { cadena: string; total: number } | null,
+  zona: string | null,
+  formatearPesos: (valor: number) => string,
+): string {
+  const lineas = [`Mi lista del súper · ${items.length} ${items.length === 1 ? "producto" : "productos"}`];
+  if (barata) lineas.push(`${zona ? `En ${zona}, en` : "En"} ${barata.cadena} sale ${formatearPesos(barata.total)}`);
+  for (const i of items) lineas.push(`• ${i.cantidad} × ${i.nombre}`);
+  lineas.push("Armala y comparala en tu zona:");
+  return lineas.join("\n");
 }

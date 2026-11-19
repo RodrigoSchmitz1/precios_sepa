@@ -97,9 +97,32 @@ def tarjeta_producto(producto: dict) -> tuple[str, str]:
     return titulo, descripcion
 
 
-def tarjeta(ruta: str, id_producto: str | None, producto: dict | None) -> tuple[str, str, str]:
+# Una lista compartida viaja entera en el link: /lista?l=<id>x<cant>-<id>...
+# (openspec compartir-y-pegar-la-lista). El frontend la lee con las mismas
+# reglas (utils/lista.ts, listaDelLink).
+ITEM_DE_LISTA = re.compile(r"^\d{4,14}(?:x\d{1,2})?$")
+MAXIMO_PRODUCTOS_EN_LINK = 50
+
+
+def productos_en_link(valor: str | None) -> int:
+    """Cuantos productos validos (y distintos) trae el parametro l del link."""
+    ids = []
+    for item in (valor or "").split("-"):
+        if ITEM_DE_LISTA.match(item):
+            codigo = item.split("x")[0]
+            if codigo not in ids:
+                ids.append(codigo)
+    return min(len(ids), MAXIMO_PRODUCTOS_EN_LINK)
+
+
+def tarjeta(ruta: str, id_producto: str | None, producto: dict | None, lista: str | None = None) -> tuple[str, str, str]:
     """(titulo, descripcion, ruta canonica) de la pagina pedida."""
     seccion = ruta.strip("/")
+    cantidad = productos_en_link(lista) if seccion == "lista" else 0
+    if cantidad:
+        titulo = f"Lista del súper · {cantidad} producto{'s' if cantidad != 1 else ''}"
+        descripcion = "Te compartieron una lista: mirá en qué súper de tu zona te sale menos. Precios oficiales de SEPA."
+        return titulo, descripcion, f"/lista?l={quote(lista or '', safe='x-')}"
     if seccion == "mismo-producto" and id_producto and producto:
         titulo, descripcion = tarjeta_producto(producto)
         return titulo, descripcion, f"/mismo-producto?p={quote(str(id_producto), safe='')}"

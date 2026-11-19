@@ -2,8 +2,7 @@ import { useEffect, useState } from "react";
 import { obtenerBasicos } from "../api/client";
 import { useLista } from "../contexto/lista";
 import type { Basico } from "../types";
-import { tamanoQueFalta } from "../utils/formato";
-import { nombreLegible } from "../utils/texto";
+import { nombreParaLista } from "../utils/nombreParaLista";
 
 /*
   Armar la lista con productos basicos (openspec lista-en-el-centro). Unos 40
@@ -13,9 +12,7 @@ import { nombreLegible } from "../utils/texto";
 */
 
 function nombreDelProducto(b: Basico): string {
-  const p = b.producto;
-  const tamano = tamanoQueFalta(p.descripcion, p.cantidad_normalizada, p.unidad_normalizada);
-  return nombreLegible(p.descripcion, p.marca) + (tamano ? ` (${tamano})` : "");
+  return nombreParaLista(b.producto);
 }
 
 function ArmadoRapido() {

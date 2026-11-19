@@ -33,6 +33,15 @@ export type SucursalMapa = {
 /** Un producto basico del armado rapido de Tu lista (openspec lista-en-el-centro). */
 export type Basico = { grupo: string; nombre: string; producto: ProductoComparado };
 
+/** Un renglon de una lista pegada (openspec compartir-y-pegar-la-lista): el
+ *  texto original, la cantidad leida y hasta 3 productos, el primero el elegido. */
+export type RenglonInterpretado = {
+  texto: string;
+  busqueda: string;
+  cantidad: number;
+  candidatos: ProductoComparado[];
+};
+
 /** Tu lista en una sucursal de una cadena, con sus promos vigentes
  *  (openspec total-con-promos-cerca). */
 export type ListaConPromos = SucursalMapa & {

@@ -1283,6 +1283,55 @@ aparte.
 
 ---
 
+## Compartir y pegar la lista
+
+**El problema (2026-11-19).** En una familia la compra se arma entre varios,
+pero Tu lista vivía solo en el navegador de quien la armó. Una lista que
+llegaba escrita por WhatsApp había que cargarla producto por producto. Lo marcó
+el segundo explore externo como oportunidad 3.
+
+**Compartir.** "Compartir lista" abre el menú nativo del celular con un texto
+que se entiende sin abrir el link: los productos con sus cantidades y dónde
+sale menos, en la zona de quien comparte. Donde no hay menú nativo, copia el
+texto y el link juntos.
+- **El link lleva la lista entera** (`/lista?l=<id>x<cant>-…`, unos 800
+  caracteres con 50 productos) y no se guarda nada en el servidor.
+- **Separadores:** `x` y `-`, porque WhatsApp y los navegadores no los
+  escapan, y la coma sí.
+
+**Abrir una lista recibida.** Se muestra cotizada en la zona de quien la abre y
+no toca la lista guardada hasta que la persona elija, por decisión de Rodrigo.
+- **Sin lista propia:** se guarda directo.
+- **Con lista propia:** se elige entre sumar (en un producto repetido queda la
+  cantidad mayor) y reemplazar.
+- **Al resolverla,** el parámetro sale de la URL: recargar no repite la
+  pregunta.
+
+**Pegar una lista escrita, sin IA.** Rodrigo eligió el buscador del sitio en
+vez de Gemini: es gratis, instantáneo y no hay nada que abusar. Cada renglón
+pierde las viñetas, los emojis y las palabras de relleno, y separa la cantidad
+del principio o del final. "1 kg" se reconoce como tamaño y no como cantidad.
+Si el renglón nombra solo un básico ("yerba", "leches"), va primero el producto
+de los básicos. La persona ve lo elegido y lo puede cambiar o sacar antes de
+sumar.
+
+**Medido sobre 30 renglones típicos de una lista.**
+- **Antes**, con el buscador solo:
+  - "2 leches" buscaba el 2% de grasa;
+  - "1 docena de huevos" no traía nada;
+  - "yerba" daba primero "Amanda P4 N Trad".
+- **Ahora**, en un solo pedido de 0,13 s, los 30 renglones traen candidatos y
+  en 27 el primero es razonable. Los otros tres se arreglan con un toque:
+  - "galletitas" trae primero unas Saladix de jamón;
+  - "leche la serenisima" trae la Protein;
+  - "atún" ofrece una lata de Whiskas como tercera opción.
+
+**Un detalle del E2E.** WebKit sin interfaz no resuelve el portapapeles, así
+que la prueba usa un portapapeles de prueba y verifica el texto exacto que se
+copia.
+
+---
+
 ## Tests
 
 Además de los genéricos, hay tests singulares de dbt para lo que sólo se

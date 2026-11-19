@@ -486,6 +486,94 @@ def basicos(indice: dict) -> list[dict]:
     return resultado
 
 
+# Pegar una lista escrita (2026-11-19, openspec compartir-y-pegar-la-lista).
+# "- 2 leches / - yerba / - 1 docena de huevos" -> un producto por renglon, con el
+# buscador del sitio y sin IA (lo decidio Rodrigo): gratis, instantaneo y sin
+# nada que abusar. La persona ve lo elegido y lo puede cambiar antes de sumar.
+MAXIMO_CARACTERES_PEGADOS = 2000
+MAXIMO_RENGLONES_PEGADOS = 50
+CANDIDATOS_POR_RENGLON = 3
+
+_VINETA = re.compile(r"^(?:[\s\-\*•·>]+|\d{1,2}[.)]\s+)")
+# Lo que no es letra, numero ni un signo de los que usa una cantidad o un tamano
+# (emojis, flechas, comillas): afuera.
+_SIMBOLOS = re.compile(r"[^\w\s,.%()/-]", re.UNICODE)
+# Un numero al principio es la cantidad ("2 leches", "2x leche", "3 x atun")...
+_CANTIDAD_ADELANTE = re.compile(r"^(\d{1,2})\s*(?:x|u|un|unid|unidades)?\s+(.+)$", re.IGNORECASE)
+# ...salvo que lo siga una unidad: "1 kg de azucar" es el tamano, no la cantidad.
+_UNIDAD_SIGUIENTE = re.compile(r"^(?:kg|kilo|kilos|g|gr|grs|gramos|l|lt|lts|litro|litros|ml|cc|cm3)\b", re.IGNORECASE)
+_CANTIDAD_ATRAS = re.compile(r"^(.+?)\s*(?:\bx\s*(\d{1,2})|\((\d{1,2})\))\s*$", re.IGNORECASE)
+# Palabras de relleno que no ayudan a buscar y si estorban: "1 docena DE huevos".
+_RELLENO = {"de", "del", "la", "el", "los", "las", "un", "una", "unos", "unas", "para", "y", "con"}
+
+
+def _singular(palabra: str) -> str:
+    if len(palabra) > 4 and palabra.endswith("es"):
+        return palabra[:-2]
+    if len(palabra) > 3 and palabra.endswith("s"):
+        return palabra[:-1]
+    return palabra
+
+
+def _clave_basico(texto: str) -> frozenset:
+    return frozenset(_singular(w) for w in palabras(texto) if w not in _RELLENO)
+
+
+def renglones_pegados(texto: str) -> list[str]:
+    """Los renglones de un texto pegado. Uno solo con comas se parte por comas
+    ("yerba, aceite, fideos"). Se cortan los topes de largo y de renglones."""
+    texto = (texto or "")[:MAXIMO_CARACTERES_PEGADOS]
+    lineas = [l.strip() for l in re.split(r"[\r\n;]+", texto) if l.strip()]
+    if len(lineas) == 1 and "," in lineas[0]:
+        lineas = [l.strip() for l in lineas[0].split(",") if l.strip()]
+    return lineas[:MAXIMO_RENGLONES_PEGADOS]
+
+
+def interpretar_renglon(renglon: str) -> tuple[str, int]:
+    """(lo que se busca, cantidad) de un renglon de lista."""
+    t = _SIMBOLOS.sub(" ", renglon)
+    t = _VINETA.sub("", t.strip()).strip()
+    cantidad = 1
+    m = _CANTIDAD_ADELANTE.match(t)
+    if m and not _UNIDAD_SIGUIENTE.match(m.group(2)):
+        cantidad, t = int(m.group(1)), m.group(2)
+    else:
+        m = _CANTIDAD_ATRAS.match(t)
+        if m:
+            cantidad, t = int(m.group(2) or m.group(3)), m.group(1)
+    consulta = " ".join(w for w in t.split() if w.lower() not in _RELLENO)
+    return consulta.strip(" ,.-"), max(1, min(cantidad, MAXIMO_UNIDADES_POR_PRODUCTO))
+
+
+def interpretar(indice: dict, texto: str, basicos_resueltos: list[dict]) -> list[dict]:
+    """Un resultado por renglon: el texto original, la cantidad y hasta
+    CANDIDATOS_POR_RENGLON productos, el primero el elegido.
+
+    Si el renglon nombra solo un basico ("yerba", "leches"), el primero es el de
+    los basicos (Playadito 1 kg y no la primera yerba que traiga el buscador).
+    Si dice algo mas ("yerba playadito 500"), manda el buscador. Medido el
+    2026-11-19 sobre 30 renglones tipicos: ver DECISIONES.md."""
+    por_basico = {_clave_basico(b["nombre"]): b["producto"] for b in basicos_resueltos}
+    resultado = []
+    for renglon in renglones_pegados(texto):
+        consulta, cantidad = interpretar_renglon(renglon)
+        candidatos: list[dict] = []
+        if consulta:
+            basico = por_basico.get(_clave_basico(consulta))
+            if basico:
+                candidatos.append(basico)
+            for p in buscar(indice, consulta, limite=CANDIDATOS_POR_RENGLON + 1):
+                if all(p["id_producto"] != c["id_producto"] for c in candidatos):
+                    candidatos.append(p)
+        resultado.append({
+            "texto": renglon,
+            "busqueda": consulta,
+            "cantidad": cantidad,
+            "candidatos": candidatos[:CANDIDATOS_POR_RENGLON],
+        })
+    return resultado
+
+
 # De tu canasta a tu lista: Tu canasta cotiza categorias ("yerba, 2 kg por
 # mes"); aca se elige la marca exacta de cada una.
 MAXIMO_CATEGORIAS_SUGERIDAS = 80

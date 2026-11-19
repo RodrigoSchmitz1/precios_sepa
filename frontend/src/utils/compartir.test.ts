@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { compartir, textoEnUnaLinea, textoParaCompartir } from "./compartir";
+import { compartir, textoDeLista, textoEnUnaLinea, textoParaCompartir } from "./compartir";
 
 const DATOS = {
   titulo: "Yerba · Changuito",
@@ -63,5 +63,39 @@ describe("textoParaCompartir", () => {
   it("sin zona, el titular tal cual; sin titular, el nombre", () => {
     expect(textoParaCompartir("Yerba", "Más barata en Vea", null)).toBe("Yerba: Más barata en Vea");
     expect(textoParaCompartir("Yerba", "  ", "Palermo, CABA")).toBe("Yerba");
+  });
+});
+
+describe("compartir la lista (openspec compartir-y-pegar-la-lista)", () => {
+  const pesos = (v: number) => `$ ${v.toLocaleString("es-AR")}`;
+
+  it("sin menú nativo copia el texto y el link juntos", async () => {
+    const nav = navegador(undefined);
+    expect(await compartir(DATOS, nav, { copiarTexto: true })).toBe("copiado");
+    expect(nav.clipboard.writeText).toHaveBeenCalledWith(`${DATOS.texto}\n${DATOS.url}`);
+  });
+
+  it("el texto dice los productos, las cantidades y dónde sale menos en la zona", () => {
+    const texto = textoDeLista(
+      [
+        { nombre: "Yerba Playadito suave 1 kg", cantidad: 2 },
+        { nombre: "Aceite Natura girasol 1,5 L", cantidad: 1 },
+      ],
+      { cadena: "Día", total: 24300 },
+      "Lomas de Zamora, Buenos Aires",
+      pesos,
+    );
+    expect(texto.split("\n")).toEqual([
+      "Mi lista del súper · 2 productos",
+      "En Lomas de Zamora, Buenos Aires, en Día sale $ 24.300",
+      "• 2 × Yerba Playadito suave 1 kg",
+      "• 1 × Aceite Natura girasol 1,5 L",
+      "Armala y comparala en tu zona:",
+    ]);
+  });
+
+  it("sin una cadena con todo, no hay línea de precio", () => {
+    const texto = textoDeLista([{ nombre: "Yerba", cantidad: 1 }], null, null, pesos);
+    expect(texto).toBe("Mi lista del súper · 1 producto\n• 1 × Yerba\nArmala y comparala en tu zona:");
   });
 });

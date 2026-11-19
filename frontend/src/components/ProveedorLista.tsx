@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
 import { ContextoLista, type EstadoLista } from "../contexto/lista";
-import { agregarALista, CLAVE_LISTA, guardarLista, leerLista } from "../utils/lista";
+import { agregarALista, CLAVE_LISTA, guardarLista, leerLista, MAXIMO_PRODUCTOS, sumarListas } from "../utils/lista";
 import type { ItemLista } from "../types";
 
 /*
@@ -36,6 +36,8 @@ function ProveedorLista({ children }: { children: ReactNode }) {
     []
   );
   const vaciar = useCallback(() => setLista([]), []);
+  const sumar = useCallback((items: ItemLista[]) => setLista((previa) => sumarListas(previa, items)), []);
+  const reemplazar = useCallback((items: ItemLista[]) => setLista(items.slice(0, MAXIMO_PRODUCTOS)), []);
 
   const estado = useMemo<EstadoLista>(
     () => ({
@@ -44,9 +46,11 @@ function ProveedorLista({ children }: { children: ReactNode }) {
       cambiarCantidad,
       quitar,
       vaciar,
+      sumar,
+      reemplazar,
       enLista: (idProducto) => lista.some((i) => i.id_producto === idProducto),
     }),
-    [lista, agregar, cambiarCantidad, quitar, vaciar]
+    [lista, agregar, cambiarCantidad, quitar, vaciar, sumar, reemplazar]
   );
 
   return <ContextoLista.Provider value={estado}>{children}</ContextoLista.Provider>;

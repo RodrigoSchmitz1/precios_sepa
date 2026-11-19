@@ -6,7 +6,16 @@ import { compartir, type DatosParaCompartir } from "../utils/compartir";
   tocar y no al renderizar: el texto sale del titular ya pintado en la pagina,
   asi dice exactamente lo mismo que la pantalla, con la zona si la hay.
 */
-function BotonCompartir({ datos }: { datos: () => DatosParaCompartir }) {
+function BotonCompartir({
+  datos,
+  etiqueta = "Compartir",
+  copiarTexto = false,
+}: {
+  datos: () => DatosParaCompartir;
+  etiqueta?: string;
+  /** Donde no hay menu nativo, copia el texto y el link (Tu lista) y no solo el link. */
+  copiarTexto?: boolean;
+}) {
   const [estado, setEstado] = useState<"" | "copiado" | "fallo">("");
   const [link, setLink] = useState("");
 
@@ -18,9 +27,9 @@ function BotonCompartir({ datos }: { datos: () => DatosParaCompartir }) {
 
   async function tocar() {
     const d = datos();
-    const resultado = await compartir(d);
+    const resultado = await compartir(d, navigator, { copiarTexto });
     if (resultado === "copiado" || resultado === "fallo") {
-      setLink(d.url);
+      setLink(copiarTexto ? `${d.texto} ${d.url}` : d.url);
       setEstado(resultado);
     }
   }
@@ -32,11 +41,11 @@ function BotonCompartir({ datos }: { datos: () => DatosParaCompartir }) {
         aria-live="polite"
         className="shrink-0 rounded-full border border-linea text-tinta-media hover:border-tinta hover:text-tinta transition-colors text-sm px-4 py-2 font-medium"
       >
-        {estado === "copiado" ? "✓ Link copiado" : "Compartir"}
+        {estado === "copiado" ? (copiarTexto ? "✓ Copiada para pegar" : "✓ Link copiado") : etiqueta}
       </button>
       {estado === "fallo" && (
         <span className="text-xs text-tinta-suave break-all">
-          Copiá este link: <span className="select-all">{link}</span>
+          {copiarTexto ? "Copiá esto:" : "Copiá este link:"} <span className="select-all">{link}</span>
         </span>
       )}
     </span>
