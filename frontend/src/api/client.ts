@@ -21,7 +21,7 @@ import type {
   ProductoSugerido,
   PromoCerca,
   ResultadoLista,
-  ResultadoOptimizacion, PromosDeLista, Basico, RespuestaLecturaTicket } from "../types";
+  ResultadoOptimizacion, PromosDeLista, Basico, RespuestaLecturaTicket, ResultadoDondeComprar } from "../types";
 import { conNombresDeCadena } from "../utils/nombres";
 import type { CadenasDeOtroDia } from "../utils/cadenasDeOtroDia";
 
@@ -371,4 +371,20 @@ export async function leerTicket(fotos: string[]): Promise<RespuestaLecturaTicke
   });
   if (!respuesta.ok) await fallar(respuesta, "No se pudo leer el ticket");
   return respuesta.json();
+}
+
+/** Mi compra: la lista en 1, 2 o 3 cadenas con sucursal cerca (openspec mi-compra). */
+export async function dondeComprarLista(
+  items: { id_producto: string; cantidad: number }[],
+  latitud: number,
+  longitud: number,
+  radioKm: number,
+): Promise<ResultadoDondeComprar> {
+  const respuesta = await fetch(`${API_BASE}/mismo-producto/lista/donde-comprar`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ items, latitud, longitud, radio_km: radioKm }),
+  });
+  if (!respuesta.ok) await fallar(respuesta, "No se pudo calcular dónde comprarla");
+  return leerJson(respuesta);
 }

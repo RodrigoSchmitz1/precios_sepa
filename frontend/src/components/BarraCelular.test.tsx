@@ -49,18 +49,18 @@ const etiquetas = () =>
   [...contenedor.querySelectorAll('nav[aria-label="Secciones"] li')].map((li) => li.textContent?.replace(/\d+/g, "").trim());
 
 describe("BarraCelular", () => {
-  it("tiene Promos, Buscar, Mi lista, Mis gastos y Más, en ese orden", () => {
+  it("tiene Promos, Buscar, Mi compra, Mis gastos y Más, en ese orden", () => {
     mostrar("/");
-    expect(etiquetas()).toEqual(["🔥Promos", "🔎Buscar", "🛒Mi lista", "💸Mis gastos", "☰Más"]);
+    expect(etiquetas()).toEqual(["🔥Promos", "🔎Buscar", "🛒Mi compra", "💸Mis gastos", "☰Más"]);
   });
 
-  it("Mi lista sigue mostrando cuántos productos tiene", () => {
+  it("Mi compra sigue mostrando cuántos productos tiene", () => {
     window.localStorage.setItem(CLAVE_LISTA, JSON.stringify([
       { id_producto: "1", nombre: "a", cantidad: 1 },
       { id_producto: "2", nombre: "b", cantidad: 1 },
     ]));
     mostrar("/");
-    const miLista = [...contenedor.querySelectorAll("nav a")].find((a) => a.textContent?.includes("Mi lista"));
+    const miLista = [...contenedor.querySelectorAll("nav a")].find((a) => a.textContent?.includes("Mi compra"));
     expect(miLista?.textContent).toContain("2");
   });
 
@@ -76,11 +76,11 @@ describe("BarraCelular", () => {
     expect(mas.getAttribute("aria-current")).toBe("page");
   });
 
-  it("la hoja tiene Más barato, Tu canasta, Inflación y Cómo se calcula", () => {
+  it("la hoja tiene Más barato, Inflación y Cómo se calcula", () => {
     mostrar("/gastos");
     act(() => contenedor.querySelector<HTMLButtonElement>("button[aria-controls='hoja-mas']")!.click());
     const items = [...contenedor.querySelectorAll("#hoja-mas a")].map((a) => a.getAttribute("href"));
-    expect(items).toEqual(["/quien-gana", "/canasta-personalizada", "/inflacion", "/como-se-calcula"]);
+    expect(items).toEqual(["/quien-gana", "/inflacion", "/como-se-calcula"]);
   });
 
   it("en Mis gastos marca Mis gastos y no Más", () => {

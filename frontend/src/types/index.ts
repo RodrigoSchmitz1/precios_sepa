@@ -523,3 +523,33 @@ export type Gasto = {
   /** Cuando se guardo (ms desde 1970), para ordenar los del mismo dia. */
   creado: number;
 };
+
+/* Mi compra: donde comprar la lista cerca (openspec mi-compra). */
+export type SucursalDondeComprar = {
+  id: string;
+  cadena: string;
+  nombre_sucursal: string;
+  direccion: string | null;
+  localidad: string;
+  provincia: string;
+  latitud: number;
+  longitud: number;
+  distancia_km: number;
+  subtotal: number;
+  productos: { id_producto: string; descripcion: string; cantidad: number; precio_unitario: number; costo: number }[];
+};
+
+export type OpcionDondeComprar = {
+  max_sucursales: number;
+  total: number;
+  productos_cubiertos: number;
+  distancia_suma_km: number;
+  sucursales: SucursalDondeComprar[];
+};
+
+export type ResultadoDondeComprar = {
+  radio_km: number;
+  productos: number;
+  sin_precio_cerca: { id_producto: string; descripcion: string }[];
+  opciones: OpcionDondeComprar[];
+};

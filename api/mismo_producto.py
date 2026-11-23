@@ -989,3 +989,96 @@ def niveles_por_cadena(indice: dict) -> dict:
         else:
             niveles["por_categoria"][(cadena, categoria)] = nivel
     return niveles
+
+
+# ---------------------------------------------------------------------------
+# Donde comprar la lista cerca (openspec mi-compra)
+#
+# La misma pregunta que "Donde comprarla cerca" de Tu canasta -en cuantas
+# paradas conviene y en cuales-, pero con los productos exactos de la lista. El
+# precio de un producto exacto es el de la cadena para todo el pais, asi que a
+# cada sucursal cercana se le asigna el precio de su cadena: todas las de una
+# cadena quedan iguales, optimizar_compra se queda con la mas cercana, y en la
+# practica elige entre 1, 2 y 3 cadenas. La sucursal es para ubicarse en el
+# mapa, no un precio de esa sucursal.
+# ---------------------------------------------------------------------------
+RADIO_MAXIMO_DONDE_COMPRAR_KM = 10.0
+
+
+def donde_comprar_lista(indice: dict, sucursales: list, es_farmacia, items: list[dict], latitud: float,
+                        longitud: float, radio_km: float, max_sucursales: int = 3) -> dict:
+    """sucursales/es_farmacia: las del indice del mapa (mapa_promos)."""
+    from optimizar_compra import optimizar_compra, sucursales_en_radio
+
+    radio_km = min(max(float(radio_km), 0.1), RADIO_MAXIMO_DONDE_COMPRAR_KM)
+    max_sucursales = min(max(int(max_sucursales), 1), 3)
+    pedidos: dict[str, int] = {}
+    for item in items[:MAXIMO_PRODUCTOS_LISTA]:
+        clave = str(item.get("id_producto", ""))
+        cantidad = item.get("cantidad", 1)
+        if isinstance(cantidad, bool) or not isinstance(cantidad, int):
+            cantidad = 1
+        if clave in indice:
+            pedidos[clave] = pedidos.get(clave, 0) + min(max(cantidad, 1), MAXIMO_UNIDADES_POR_PRODUCTO)
+
+    # Precio creible de cada producto en cada cadena (las farmacias no cuentan, como en Tu lista).
+    precios_por_cadena: dict[str, dict[str, float]] = {}
+    for clave in pedidos:
+        for precio in indice[clave]["precios"]:
+            if precio.get("precio_creible", True) and not precio.get("farmacia"):
+                precios_por_cadena.setdefault(precio["cadena"], {})[clave] = float(precio["precio_mediano"])
+
+    candidatas = [
+        {**s, "id": i}
+        for i, s in enumerate(sucursales)
+        if not es_farmacia[i] and s["cadena"] in precios_por_cadena
+    ]
+    cercanas = sucursales_en_radio(candidatas, latitud, longitud, radio_km)
+    for s in cercanas:
+        s["precios"] = precios_por_cadena[s["cadena"]]
+    crudo = optimizar_compra([{"clave": c, "cantidad": n} for c, n in pedidos.items()], cercanas, max_sucursales)
+
+    por_id = {s["id"]: s for s in cercanas}
+    opciones = []
+    for opcion in crudo["opciones"]:
+        elegidas = []
+        for elegida in opcion["sucursales"]:
+            s = por_id[elegida["id"]]
+            direccion = " ".join(str(x) for x in (s.get("calle"), s.get("numero")) if x).strip()
+            elegidas.append({
+                "id": str(s["id"]),
+                "cadena": s["cadena"],
+                "nombre_sucursal": s["nombre_sucursal"],
+                "direccion": direccion or None,
+                "localidad": s["localidad"],
+                "provincia": s["provincia"],
+                "latitud": s["latitud"],
+                "longitud": s["longitud"],
+                "distancia_km": round(elegida["distancia_km"], 2),
+                "subtotal": round(elegida["subtotal"], 2),
+                "productos": [
+                    {
+                        "id_producto": item["clave"],
+                        "descripcion": indice[item["clave"]]["descripcion"],
+                        "cantidad": item["cantidad"],
+                        "precio_unitario": item["precio_unitario"],
+                        "costo": round(item["costo"], 2),
+                    }
+                    for item in elegida["items"]
+                ],
+            })
+        opciones.append({
+            "max_sucursales": opcion["max_sucursales"],
+            "total": round(opcion["total"], 2),
+            "productos_cubiertos": opcion["items_cubiertos"],
+            "distancia_suma_km": round(opcion["distancia_suma_km"], 2),
+            "sucursales": elegidas,
+        })
+    return {
+        "radio_km": radio_km,
+        "productos": len(pedidos),
+        "sin_precio_cerca": [
+            {"id_producto": c, "descripcion": indice[c]["descripcion"]} for c in crudo["items_sin_precio"]
+        ],
+        "opciones": opciones,
+    }

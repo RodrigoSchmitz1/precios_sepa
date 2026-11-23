@@ -1,8 +1,8 @@
-import { createBrowserRouter, Navigate } from "react-router";
+import { createBrowserRouter } from "react-router";
+import AMiCompra from "./components/AMiCompra";
 import Layout from "./components/Layout";
 import PromosPage from "./pages/PromosPage";
 import QuienGanaPage from "./pages/QuienGanaPage";
-import CanastaPersonalizadaPage from "./pages/CanastaPersonalizadaPage";
 import InflacionPage from "./pages/InflacionPage";
 import MismoProductoPage from "./pages/MismoProductoPage";
 import ListaPage from "./pages/ListaPage";
@@ -17,9 +17,10 @@ const router = createBrowserRouter([
     children: [
       { index: true, element: <PromosPage /> },
       // La canasta basica se retiro el 2026-10-08 (ver Presentacion.tsx). Los
-      // links viejos llevan a Tu canasta, que parte de la misma canasta del INDEC.
-      { path: "canasta", element: <Navigate to="/canasta-personalizada" replace /> },
-      { path: "canasta-personalizada", element: <CanastaPersonalizadaPage /> },
+      // links viejos llevan a Mi compra, que arranca desde la misma canasta del INDEC.
+      { path: "canasta", element: <AMiCompra /> },
+      // Tu canasta se unio con Mi lista en Mi compra (openspec mi-compra).
+      { path: "canasta-personalizada", element: <AMiCompra /> },
       { path: "quien-gana", element: <QuienGanaPage /> },
       { path: "mismo-producto", element: <MismoProductoPage /> },
       { path: "lista", element: <ListaPage /> },

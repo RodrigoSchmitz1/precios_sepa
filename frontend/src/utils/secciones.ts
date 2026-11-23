@@ -4,10 +4,10 @@
   mis-gastos-y-barra-nueva).
 
   La barra del celular tiene cinco lugares. Desde 2026-11-22: Promos, Buscar
-  (Mismo producto, adonde lleva el buscador), Mi lista, Mis gastos y Mas. Mas
-  barato y Tu canasta pasaron a "Mas": Mas barato repite lo que ya dice la
-  tarjeta principal de la portada, y Tu canasta la uso con la IA muy poca gente
-  en el ultimo mes y se va a unir con Mi lista. Ver docs/DECISIONES.md.
+  (Mismo producto, adonde lleva el buscador), Mi compra, Mis gastos y Mas. Mas
+  barato paso a "Mas": repite lo que ya dice la tarjeta principal de la
+  portada. Tu canasta se unio con Mi lista en Mi compra (openspec mi-compra).
+  Ver docs/DECISIONES.md.
 */
 
 export type Seccion = { ruta: string; nombre: string; corto: string; icono: string };
@@ -16,8 +16,8 @@ export type Seccion = { ruta: string; nombre: string; corto: string; icono: stri
 export const SECCIONES: Seccion[] = [
   { ruta: "/", nombre: "Promos", corto: "Promos", icono: "🔥" },
   { ruta: "/mismo-producto", nombre: "Mismo producto", corto: "Buscar", icono: "🔎" },
+  { ruta: "/lista", nombre: "Mi compra", corto: "Mi compra", icono: "🛒" },
   { ruta: "/gastos", nombre: "Mis gastos", corto: "Mis gastos", icono: "💸" },
-  { ruta: "/canasta-personalizada", nombre: "Tu canasta", corto: "Canasta", icono: "🧾" },
   { ruta: "/quien-gana", nombre: "Más barato", corto: "Barato", icono: "🏷️" },
   { ruta: "/inflacion", nombre: "Inflación", corto: "Inflación", icono: "📊" },
 ];
@@ -26,14 +26,13 @@ export const SECCIONES: Seccion[] = [
 export const BARRA_CELULAR: Seccion[] = [
   { ruta: "/", nombre: "Promos", corto: "Promos", icono: "🔥" },
   { ruta: "/mismo-producto", nombre: "Buscar", corto: "Buscar", icono: "🔎" },
-  { ruta: "/lista", nombre: "Mi lista", corto: "Mi lista", icono: "🛒" },
+  { ruta: "/lista", nombre: "Mi compra", corto: "Mi compra", icono: "🛒" },
   { ruta: "/gastos", nombre: "Mis gastos", corto: "Mis gastos", icono: "💸" },
 ];
 
 /** Lo que abre "Mas" en el celular. */
 export const MENU_MAS: Seccion[] = [
   { ruta: "/quien-gana", nombre: "Más barato", corto: "Barato", icono: "🏷️" },
-  { ruta: "/canasta-personalizada", nombre: "Tu canasta", corto: "Canasta", icono: "🧾" },
   { ruta: "/inflacion", nombre: "Inflación", corto: "Inflación", icono: "📊" },
   { ruta: "/como-se-calcula", nombre: "Cómo se calcula", corto: "Cómo se calcula", icono: "ℹ️" },
 ];

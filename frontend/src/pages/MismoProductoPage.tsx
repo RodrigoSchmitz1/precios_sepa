@@ -6,8 +6,6 @@ import FilaDeCifras from "../components/FilaDeCifras";
 import TiraDePuntos from "../components/TiraDePuntos";
 import TuLista from "../components/TuLista";
 import CuantoConvieneComparar from "../components/CuantoConvieneComparar";
-import DeTuCanasta from "../components/DeTuCanasta";
-import { leerDelNavegador } from "../utils/canastaGuardada";
 import { fechaEnPalabras, formatearNumero, formatearPesos, tamanoQueFalta } from "../utils/formato";
 import { listarConY, nombreLegible } from "../utils/texto";
 import { useZona } from "../contexto/zona";
@@ -362,17 +360,16 @@ function DosCaminos() {
       </p>
       <div className="grid sm:grid-cols-2 gap-3">
         <Link
-          to="/canasta-personalizada"
+          to="/lista"
           className="group block rounded-2xl border border-marca-borde bg-marca-tenue/40 p-4 sm:p-5 hover:bg-marca-tenue transition-colors"
         >
           <span className="inline-block text-xs font-bold text-marca bg-white rounded-full px-2.5 py-1 mb-2">La compra del mes</span>
-          <span className="block font-display text-xl text-tinta mb-1">Armá tu canasta</span>
+          <span className="block font-display text-xl text-tinta mb-1">Armá tu compra</span>
           <span className="block text-sm text-tinta-media leading-relaxed">
-            Contanos qué compran en tu casa y la armamos con vos. Después volvé acá y elegí la marca de cada cosa con
-            un toque.
+            Contanos quiénes viven en tu casa y la armamos con vos: elegís la marca de cada cosa con un toque.
           </span>
           <span className="inline-block mt-3 text-sm font-medium text-marca group-hover:translate-x-0.5 transition-transform">
-            Ir a Tu canasta →
+            Ir a Mi compra →
           </span>
         </Link>
         <div className="rounded-2xl border border-linea bg-papel p-4 sm:p-5">
@@ -587,7 +584,6 @@ function MismoProductoPage() {
   const { lista, agregar: agregarItem, cambiarCantidad, quitar, vaciar, enLista } = useLista();
   // Tu canasta, si ya la armo en este navegador: sus categorias son las filas
   // de "De tu canasta". Se lee una vez; la canasta se edita en su pagina.
-  const [canasta] = useState(() => leerDelNavegador()?.items ?? []);
 
   const agregar = (p: ProductoComparado, cantidad = 1) =>
     agregarItem({ id_producto: p.id_producto, nombre: nombreConTamano(p), cantidad, categoria: p.categoria });
@@ -750,10 +746,6 @@ function MismoProductoPage() {
         )}
       </section>
 
-      {!id && consulta.length < 2 && canasta.length > 0 && (
-        <DeTuCanasta items={canasta} lista={lista} onAgregar={agregar} onVer={elegir} nombrar={nombreConTamano} />
-      )}
-
       {lista.length > 0 && (
         <TuLista
           lista={lista}
@@ -764,14 +756,14 @@ function MismoProductoPage() {
         />
       )}
 
-      {!id && lista.length === 0 && canasta.length === 0 && <DosCaminos />}
-      {!id && lista.length > 0 && canasta.length === 0 && (
+      {!id && lista.length === 0 && <DosCaminos />}
+      {!id && lista.length > 0 && (
         <p className="-mt-6 mb-10 text-sm text-tinta-media">
           ¿Es la compra del mes?{" "}
-          <Link to="/canasta-personalizada" className="text-marca font-medium hover:text-marca-hover">
-            Armá tu canasta
+          <Link to="/lista" className="text-marca font-medium hover:text-marca-hover">
+            Armala en Mi compra
           </Link>{" "}
-          y elegí acá la marca de cada cosa.
+          contando quiénes viven en tu casa, y elegí la marca de cada cosa.
         </p>
       )}
 

@@ -43,12 +43,12 @@ const SECCIONES: Seccion[] = [
     ],
   },
   {
-    ruta: "/canasta-personalizada",
-    nombre: "Tu canasta",
+    ruta: "/lista",
+    nombre: "Mi compra",
     parrafos: [
-      "La base es la canasta básica alimentaria del INDEC para un adulto durante un mes (región GBA), multiplicada por los adultos equivalentes del hogar: una familia de dos adultos y dos chicos cuenta como 3,09. Lo que escribís lo interpreta una IA, que decide cuántos son, qué no consumen y qué comen más o menos; las cuentas las hace el sitio. Es un punto de partida: cada cantidad se puede cambiar.",
-      "Cada categoría se cotiza con la mediana del precio por kilo, litro o unidad de la gama elegida en las localidades que marques. Si tu zona no tiene datos de una categoría, se usa el precio de la provincia y se aclara.",
-      "En las categorías que se compran por pieza (huevos, pañales, toallitas) la cantidad sale del envase: un maple de 30 huevos cuenta como 30. Lo que no dice cuántas piezas trae no entra en ese precio.",
+      "Mi compra suma el precio de cada producto de tu lista, por la cantidad que pusiste, en cada cadena. El precio de un producto exacto es el de la cadena para todo el país: la mediana entre sus sucursales. Solo se comparan totales de cadenas que tienen todos los productos.",
+      "Si contás quiénes viven en tu casa, una IA propone categorías y cantidades por mes a partir de la canasta básica del INDEC (una familia de dos adultos y dos chicos cuenta como 3,09 adultos equivalentes). Las cuentas las hace el sitio, y la marca de cada categoría la elegís vos.",
+      "Dónde comprarla cerca prueba todas las combinaciones de hasta tres cadenas con sucursal en el radio y elige, para cada producto, la más barata del grupo. Primero cuenta cubrir más productos y después el total; la distancia solo desempata. La sucursal que se muestra es la más cercana de esa cadena.",
     ],
   },
   {

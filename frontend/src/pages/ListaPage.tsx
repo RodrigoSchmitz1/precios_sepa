@@ -1,10 +1,12 @@
 import { useCallback, useState, type FormEvent } from "react";
-import { Link, useNavigate, useSearchParams } from "react-router";
+import { useNavigate, useSearchParams } from "react-router";
 import Titular from "../components/Titular";
 import TuLista from "../components/TuLista";
 import ArmadoRapido from "../components/ArmadoRapido";
 import ListaRecibida from "../components/ListaRecibida";
 import PegarLista from "../components/PegarLista";
+import ArmarCompra from "../components/ArmarCompra";
+import DondeComprarLista from "../components/DondeComprarLista";
 import { useLista } from "../contexto/lista";
 import { listaDelLink } from "../utils/lista";
 
@@ -47,7 +49,7 @@ function ListaPage() {
 
   return (
     <div className="max-w-4xl mx-auto">
-      <Titular antetitulo="Tu lista" compacto>
+      <Titular antetitulo="Mi compra" compacto>
         {lista.length > 0 ? "Dónde te conviene la compra de siempre" : "Armá la lista de lo que comprás siempre"}
       </Titular>
 
@@ -82,15 +84,9 @@ function ListaPage() {
               Buscar
             </button>
           </form>
-          <p className="mt-4 text-sm text-tinta-media">
-            ¿Ya armaste{" "}
-            <Link to="/canasta-personalizada" className="text-marca font-medium hover:text-marca-hover">
-              tu canasta
-            </Link>
-            ? En Mismo producto vas a ver las marcas más comunes de cada categoría para sumarlas de una.
-          </p>
         </section>
       )}
+      <ArmarCompra onVer={(id) => navegar(`/mismo-producto?p=${encodeURIComponent(id)}`)} />
       {lista.length > 0 && (
         <TuLista
           lista={lista}
@@ -100,6 +96,7 @@ function ListaPage() {
           onVer={(id) => navegar(`/mismo-producto?p=${encodeURIComponent(id)}`)}
         />
       )}
+      <DondeComprarLista lista={lista} />
       <details className="tarjeta p-5 sm:p-6 mb-6">
         <summary className="cursor-pointer text-base font-bold text-tinta">Pegar una lista de WhatsApp</summary>
         <div className="mt-4">

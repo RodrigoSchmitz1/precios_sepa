@@ -335,10 +335,10 @@ function Presentacion() {
 
   const secciones = [
     {
-      ruta: "/canasta-personalizada",
-      titulo: "Tu canasta",
-      pregunta: "Cuánto te cuesta el mes con lo que consumís, en tu zona",
-      icono: "🧾",
+      ruta: "/lista",
+      titulo: "Mi compra",
+      pregunta: "Dónde te sale más barata la compra del mes, en tu zona",
+      icono: "🛒",
       fondo: "bg-marca-tenue",
       grafico: null,
     },

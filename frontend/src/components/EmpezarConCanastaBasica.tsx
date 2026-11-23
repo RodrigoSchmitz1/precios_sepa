@@ -25,7 +25,7 @@ function Contador({ etiqueta, valor, minimo, onCambiar }: {
   onCambiar: (valor: number) => void;
 }) {
   const boton =
-    "w-8 h-8 rounded-full border border-linea text-tinta-media hover:border-linea-fuerte disabled:opacity-40 disabled:cursor-not-allowed";
+    "w-11 h-11 rounded-full border border-linea text-tinta-media hover:border-linea-fuerte disabled:opacity-40 disabled:cursor-not-allowed";
   return (
     <div className="flex items-center gap-2">
       <span className="text-sm text-tinta-media w-14">{etiqueta}</span>
@@ -94,8 +94,8 @@ function EmpezarConCanastaBasica({ onCargar }: { onCargar: (items: ItemCanastaIA
         <div>
           <p className="text-base font-bold text-tinta">O empezá con la canasta básica del INDEC</p>
           <p className="text-sm text-tinta-media mt-0.5">
-            Los alimentos básicos de un mes para tu hogar, en gama económica. Después sacás lo que no consumís y
-            ajustás el resto.
+            Los alimentos básicos de un mes para tu hogar. Después elegís la marca de cada cosa y salteás lo que no
+            consumís.
           </p>
         </div>
       </div>
@@ -106,7 +106,7 @@ function EmpezarConCanastaBasica({ onCargar }: { onCargar: (items: ItemCanastaIA
           type="button"
           onClick={cargar}
           disabled={cargando}
-          className="text-sm font-bold text-marca bg-marca-tenue px-4 py-2.5 rounded-xl hover:bg-marca hover:text-white disabled:opacity-60 transition-colors"
+          className="min-h-11 text-sm font-bold text-marca bg-marca-tenue px-4 py-2.5 rounded-xl hover:bg-marca hover:text-white disabled:opacity-60 transition-colors"
         >
           {cargando ? "Cargando…" : "Cargar canasta básica"}
         </button>

@@ -23,7 +23,7 @@ type Props = {
   punto: { latitud: number; longitud: number } | null;
   radioKm: number;
   onElegirPunto: (latitud: number, longitud: number) => void;
-  sucursales?: SucursalOpcion[];
+  sucursales?: Pick<SucursalOpcion, "id" | "cadena" | "nombre_sucursal" | "direccion" | "distancia_km" | "latitud" | "longitud">[];
 };
 
 function DetectorDeClick({ onElegirPunto }: { onElegirPunto: Props["onElegirPunto"] }) {

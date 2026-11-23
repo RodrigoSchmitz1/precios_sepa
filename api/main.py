@@ -1252,6 +1252,31 @@ def cotizar_lista_de_productos(datos: ListaDeProductos):
     return mismo_producto.cotizar_lista(_indice_mismo_producto(), items, datos.cadenas)
 
 
+class DondeComprarLista(BaseModel):
+    items: list
+    latitud: float
+    longitud: float
+    radio_km: float = 3.0
+
+
+@api.post("/mismo-producto/lista/donde-comprar")
+def donde_comprar_lista(datos: DondeComprarLista):
+    """Mi compra: en 1, 2 o 3 cadenas con sucursal cerca, con el precio de cada
+    cadena (openspec mi-compra). Sale de los indices en memoria del mapa y de
+    Mismo producto: no consulta BigQuery."""
+    items = [i for i in datos.items if isinstance(i, dict)]
+    if not items:
+        return JSONResponse(status_code=422, content={"detail": "La lista está vacía."})
+    if len(items) > mismo_producto.MAXIMO_PRODUCTOS_LISTA:
+        return JSONResponse(status_code=422, content={
+            "detail": f"Son demasiados productos: el máximo es {mismo_producto.MAXIMO_PRODUCTOS_LISTA}."})
+    mapa = _indice_mapa()
+    return mismo_producto.donde_comprar_lista(
+        _indice_mismo_producto(), mapa.sucursales, mapa.es_farmacia, items,
+        datos.latitud, datos.longitud, datos.radio_km,
+    )
+
+
 # ---------------------------------------------------------------------------
 # Mis gastos: leer la foto de un ticket (openspec mis-gastos-y-barra-nueva)
 #

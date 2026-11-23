@@ -1408,6 +1408,37 @@ abierto rompe los montos. SheetJS se baja del CDN oficial (la versión de npm
 está abandonada) y se carga con `import()` al tocar el botón: 492 KB en un
 chunk aparte que no pesa en la carga de la página.
 
+## Mi compra: Mi lista y Tu canasta en una sola sección
+
+Openspec `mi-compra` (2026-11-22). Mi lista y Tu canasta respondían lo mismo,
+"¿dónde me sale más barata la compra?", con dos niveles de detalle: productos
+exactos y categorías. En los registros del último mes Tu canasta la abrieron
+unas 9 IP y solo 3 la completaron con la IA. Se unieron en **Mi compra**
+(`/lista`), con la lista de productos exactos como base: el precio es el de
+ese producto y no una mediana de categoría, y es la que se conecta con Mis
+gastos.
+
+**De Tu canasta se conservó:**
+- La IA que interpreta el hogar.
+- La canasta básica del INDEC.
+- Repartir la compra entre súper cercanos.
+
+Las dos primeras terminan en el mismo selector de marcas que ya existía
+(`DeTuCanasta`): la persona elige la marca de cada categoría y entra a la
+lista con las unidades que cubren el mes. Se perdió comparar varias
+localidades a la vez. La zona se cambia desde el encabezado.
+
+**Dónde comprarla cerca usa el precio de la cadena.** SEPA da el precio de un
+producto exacto por cadena para todo el país, no por sucursal. A cada sucursal
+cercana se le asigna el precio de su cadena y `optimizar_compra` (el mismo de
+Tu canasta) se queda con la más cercana de cada una. En la práctica elige
+entre 1, 2 y 3 cadenas, y la pantalla lo dice. Las sucursales salen del índice
+del mapa, que ya está en memoria, sin consultas a BigQuery.
+
+`/canasta-personalizada` redirige a `/lista` con su zona. Una canasta guardada
+en el navegador se ofrece para pasarla a la lista y después se borra. Los
+endpoints de categorías de la API quedan hasta otro change.
+
 ## Tests
 
 Además de los genéricos, hay tests singulares de dbt para lo que sólo se

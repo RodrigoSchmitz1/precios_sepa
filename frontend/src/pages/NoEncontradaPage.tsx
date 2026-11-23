@@ -10,7 +10,8 @@ import Titular from "../components/Titular";
 
 const SECCIONES = [
   { ruta: "/", nombre: "Promos de hoy" },
-  { ruta: "/canasta-personalizada", nombre: "Tu canasta" },
+  { ruta: "/lista", nombre: "Mi compra" },
+  { ruta: "/gastos", nombre: "Mis gastos" },
   { ruta: "/quien-gana", nombre: "Más barato" },
   { ruta: "/mismo-producto", nombre: "Mismo producto" },
   { ruta: "/inflacion", nombre: "Inflación" },
