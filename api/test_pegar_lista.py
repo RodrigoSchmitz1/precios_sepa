@@ -88,8 +88,8 @@ class TestTarjetaDeLista(unittest.TestCase):
         self.assertEqual(canonica, "/lista?l=7790387000014x2-7790742192301-7790742192301x3")
 
     def test_sin_lista_valida_es_la_tarjeta_de_la_seccion(self):
-        self.assertEqual(compartir.tarjeta("/lista", None, None, "<script>")[0], "Tu lista · Changuito")
-        self.assertEqual(compartir.tarjeta("/lista", None, None)[0], "Tu lista · Changuito")
+        self.assertEqual(compartir.tarjeta("/lista", None, None, "<script>")[0], "Mi compra · Changuito")
+        self.assertEqual(compartir.tarjeta("/lista", None, None)[0], "Mi compra · Changuito")
 
 
 if __name__ == "__main__":

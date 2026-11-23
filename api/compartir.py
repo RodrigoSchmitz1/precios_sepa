@@ -25,12 +25,12 @@ DESCRIPCION_GENERAL = (
 # La portada (Promos) y cualquier ruta que no este aca llevan la general.
 SECCIONES = {
     "lista": (
-        "Tu lista · Changuito",
-        "Armá la lista de lo que comprás siempre y mirá en qué súper de tu zona te sale menos.",
+        "Mi compra · Changuito",
+        "Armá tu compra con los productos que llevás siempre y mirá en qué súper de tu zona te sale menos.",
     ),
-    "canasta-personalizada": (
-        "Tu canasta · Changuito",
-        "Contá qué comprás en el mes y te decimos cuánto cuesta en cada súper de tu zona.",
+    "gastos": (
+        "Mis gastos en el súper · Changuito",
+        "Sacale una foto al ticket o anotá el total, y mirá cuánto gastás por mes, por súper y por categoría.",
     ),
     "quien-gana": (
         "Qué súper está más barato · Changuito",
@@ -45,6 +45,10 @@ SECCIONES = {
         "Buscá un producto y mirá cuánto cuesta en cada cadena de tu zona.",
     ),
 }
+
+# Rutas viejas que la app redirige: comparten la tarjeta (y la ruta canonica) de su destino.
+# Tu canasta se unio con Mi lista en Mi compra (openspec mi-compra).
+ALIAS = {"canasta-personalizada": "lista"}
 
 # Lo que algunas cadenas cargan en el campo de marca cuando no hay marca.
 # Igual que NO_SON_MARCAS en frontend/src/utils/texto.ts.
@@ -118,6 +122,7 @@ def productos_en_link(valor: str | None) -> int:
 def tarjeta(ruta: str, id_producto: str | None, producto: dict | None, lista: str | None = None) -> tuple[str, str, str]:
     """(titulo, descripcion, ruta canonica) de la pagina pedida."""
     seccion = ruta.strip("/")
+    seccion = ALIAS.get(seccion, seccion)
     cantidad = productos_en_link(lista) if seccion == "lista" else 0
     if cantidad:
         titulo = f"Lista del súper · {cantidad} producto{'s' if cantidad != 1 else ''}"

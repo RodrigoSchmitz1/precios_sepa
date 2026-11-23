@@ -39,12 +39,17 @@ Un link a un producto de Mismo producto SHALL llevar en su tarjeta el nombre del
 - **THEN** los metadatos los muestran escapados y el HTML no se rompe
 
 ### Requirement: Cada sección tiene su tarjeta
-Las páginas de Tu lista, Tu canasta, Más barato, Inflación y Mismo producto (sin un producto elegido) SHALL llevar título y descripción propios en su tarjeta. Una ruta desconocida SHALL llevar la tarjeta general.
+Las páginas de Mi compra, Mis gastos, Más barato, Inflación y Mismo producto (sin un producto elegido) SHALL llevar título y descripción propios en su tarjeta. Los links viejos de Tu canasta SHALL llevar la tarjeta y la ruta de Mi compra, adonde la app los redirige. Una ruta desconocida SHALL llevar la tarjeta general.
 
 #### Scenario: Compartir Inflación
 - **GIVEN** un usuario comparte `/inflacion`
 - **WHEN** WhatsApp arma la vista previa
 - **THEN** el título habla de la inflación de la canasta y no es el título general
+
+#### Scenario: Link viejo de Tu canasta
+- **GIVEN** un usuario comparte un link viejo a `/canasta-personalizada`
+- **WHEN** WhatsApp arma la vista previa
+- **THEN** la tarjeta dice "Mi compra" y su enlace lleva a `/lista`
 
 ### Requirement: El detalle del producto se puede compartir
 El detalle de un producto SHALL tener un botón "Compartir". El botón SHALL cumplir lo siguiente:

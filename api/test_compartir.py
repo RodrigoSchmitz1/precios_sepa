@@ -113,6 +113,19 @@ class TestPaginas(unittest.TestCase):
         self.assertEqual(meta(r.text, "og:url"), "https://changuito.test/inflacion")
         self.assertEqual(meta(self.cliente.get("/no-existe").text, "og:title"), compartir.TITULO_GENERAL)
 
+    def test_mi_compra_y_mis_gastos(self):
+        r = self.cliente.get("/lista")
+        self.assertEqual(meta(r.text, "og:title"), "Mi compra · Changuito")
+        r = self.cliente.get("/gastos")
+        self.assertEqual(meta(r.text, "og:title"), "Mis gastos en el súper · Changuito")
+        self.assertEqual(meta(r.text, "og:url"), "https://changuito.test/gastos")
+
+    def test_link_viejo_de_tu_canasta_lleva_la_tarjeta_de_mi_compra(self):
+        r = self.cliente.get("/canasta-personalizada?zona=AR-C%3APalermo")
+        self.assertEqual(meta(r.text, "og:title"), "Mi compra · Changuito")
+        self.assertEqual(meta(r.text, "og:url"), "https://changuito.test/lista")
+        self.assertNotIn("Tu canasta", r.text)
+
     def test_producto_con_su_rango(self):
         self.con_indice(producto("7790387013006", {"Dia": (2490, 90), "Coto": (2700, 40)}))
         r = self.cliente.get("/mismo-producto?p=7790387013006&zona=AR-C%3APalermo")
