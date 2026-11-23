@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent, type ReactNode } from "react";
 import { Link, useNavigate } from "react-router";
 import {
   buscarLocalidades,
@@ -235,7 +235,12 @@ function itemsCanastaBasica() {
   );
 }
 
-function Presentacion() {
+/*
+  enMedio: las promos del dia (o el mapa), justo despues de las cifras. En el
+  celular la vidriera quedaba unas tres pantallas mas abajo, detras del ejemplo,
+  las cifras apiladas y las cuatro secciones (promos-arriba-en-la-portada).
+*/
+function Presentacion({ enMedio }: { enMedio?: ReactNode }) {
   const { zona } = useZona();
   const [datos, setDatos] = useState<Datos>({});
   const [datosZona, setDatosZona] = useState<DatosZona | null>(null);
@@ -408,7 +413,8 @@ function Presentacion() {
             >
               Comprá mejor. Sabé dónde está más barato.
             </h1>
-            <p className="text-base sm:text-lg text-white/85 leading-relaxed mt-4 max-w-xl">
+            {/* En el celular se esconde: deja lugar para que las promos del dia asomen en la primera pantalla. */}
+            <p className="hidden sm:block text-lg text-white/85 leading-relaxed mt-4 max-w-xl">
               Unos 14 millones de precios de supermercado por día, sucursal por sucursal, ordenados para que decidas en
               segundos.
             </p>
@@ -434,14 +440,22 @@ function Presentacion() {
             {/* Si hay lista guardada, la portada arranca por ahi (lista-en-el-centro). */}
             <TarjetaTuLista />
           </div>
-          {datos.ejemplo && <TarjetaEjemplo producto={datos.ejemplo} zona={zona} />}
+          {/* En el celular el ejemplo baja debajo de las promos: arriba ocupaba media pantalla. */}
+          {datos.ejemplo && (
+            <div className="hidden lg:block">
+              <TarjetaEjemplo producto={datos.ejemplo} zona={zona} />
+            </div>
+          )}
         </div>
       </div>
 
       {cifras.length > 0 && (
-        <dl className="relative -mt-16 sm:-mt-20 grid sm:grid-cols-3 gap-3 sm:gap-4">
+        /* En el celular las tres cifras se deslizan de costado: apiladas ocupaban casi una pantalla. */
+        /* La key la vuelve a montar cuando cambian las cifras (llegan de a una): si no, el navegador se queda
+           enganchado en la tarjeta que tenia a la vista y la fila arranca corrida. */
+        <dl key={cifras.map((c) => c.etiqueta).join("|")} className="relative -mt-16 sm:-mt-20 flex gap-3 overflow-x-auto snap-x snap-mandatory pb-3 -mx-1 px-1 sm:grid sm:grid-cols-3 sm:gap-4 sm:overflow-visible sm:mx-0 sm:px-0 sm:pb-0">
           {cifras.map((c) => (
-            <div key={c.etiqueta} className="@container tarjeta shadow-flotante p-5 min-w-0">
+            <div key={c.etiqueta} className="@container tarjeta shadow-flotante p-5 min-w-0 w-[82%] shrink-0 snap-start sm:w-auto">
               <dt className="text-sm font-semibold text-tinta-suave">{c.etiqueta}</dt>
               {/* La letra sigue el ancho de la tarjeta (cqi) y no el de la
                   pantalla: con tres tarjetas en ~800 px, "Maxi (Carrefour)" se
@@ -460,6 +474,14 @@ function Presentacion() {
           (spec portada); la linea "Estas cifras son de todo el pais" se fue. */}
       {/* Las cifras de arriba usan los precios de Mismo producto y Mas barato. */}
       <AvisoCadenasDeOtroDia className="mt-4" />
+
+      {enMedio && <div className="mt-10">{enMedio}</div>}
+
+      {datos.ejemplo && (
+        <div className="lg:hidden mt-10 fondo-marca rounded-[2rem] p-1">
+          <TarjetaEjemplo producto={datos.ejemplo} zona={zona} />
+        </div>
+      )}
 
 
       <nav aria-labelledby="titulo-herramientas" className="mt-10">

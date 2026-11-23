@@ -21,7 +21,7 @@ vi.mock("../api/client", () => ({
   obtenerLugares: vi.fn(() => Promise.resolve([])),
 }));
 // La presentacion de la portada tiene sus propios pedidos y tests.
-vi.mock("./Presentacion", () => ({ default: () => null }));
+vi.mock("./Presentacion", () => ({ default: ({ enMedio }: { enMedio?: React.ReactNode }) => <>{enMedio}</> }));
 vi.mock("./VistaMapaPromos", () => ({ default: () => <p>MAPA ABIERTO</p> }));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -97,10 +97,12 @@ describe("Promos como vidriera", () => {
     expect(obtenerPromosMapa).not.toHaveBeenCalled();
     const t = texto(contenedor);
     expect(t).toContain("Las promos del día");
-    expect(t).toContain("cerca de Caballito");
+    expect(t).toContain("Cerca de Caballito");
     expect(t).toContain("Aceite girasol 1,5 l");
     expect(t).toContain("Almacén · 50 promos");
     expect(t).toContain("Lo mejor de Día hoy");
+    // Las promos del dia van antes que las filas por categoria.
+    expect(t.indexOf("Las promos del día")).toBeLessThan(t.indexOf("Promos por categoría"));
     expect(t).toContain("Coto casi no informa promos en SEPA");
     expect(t).not.toContain("MAPA ABIERTO");
     expect(enlace("Ver todas")?.getAttribute("href")).toBe("/promos/almacen");
@@ -125,7 +127,7 @@ describe("Promos como vidriera", () => {
     await act(async () => {});
     expect(texto(contenedor)).toContain("MAPA ABIERTO");
     expect(obtenerVidriera).not.toHaveBeenCalled();
-    expect(enlace("Volver a la vidriera")).toBeTruthy();
+    expect(enlace("Volver a las promos")).toBeTruthy();
   });
 });
 
