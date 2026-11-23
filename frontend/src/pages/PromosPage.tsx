@@ -67,8 +67,7 @@ function PromosPage() {
       tarjetas por fila.
     */
     <div className="max-w-6xl mx-auto">
-      <Presentacion enMedio={enMedio} />
-      {!conMapa && <FilasDeVidriera {...vidriera} />}
+      <Presentacion enMedio={enMedio} despues={!conMapa && <div className="mt-10"><FilasDeVidriera {...vidriera} /></div>} />
     </div>
   );
 }

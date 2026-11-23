@@ -95,7 +95,7 @@ Si el usuario tiene productos en su lista, la portada SHALL mostrar debajo del b
 - **THEN** no ve la tarjeta de su lista
 
 ### Requirement: Las promos del día se ven al abrir
-En la portada, tus avisos y las promos del día SHALL ir inmediatamente después del buscador y las cifras, antes del ejemplo de precios y de "¿Qué querés saber?". En un teléfono de 375 px, el título de las promos del día SHALL quedar dentro de la primera pantalla. Abrir el mapa SHALL mostrarlo en ese mismo lugar.
+En la portada, tus avisos y las promos del día SHALL ir inmediatamente después del buscador y las cifras, antes del ejemplo de precios. En un teléfono de 375 px, el título de las promos del día SHALL quedar dentro de la primera pantalla. Abrir el mapa SHALL mostrarlo en ese mismo lugar.
 
 #### Scenario: Abrir la app en el celular
 - **GIVEN** la zona es Palermo y el usuario abre la portada en un teléfono de 375 × 812

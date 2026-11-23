@@ -21,7 +21,14 @@ vi.mock("../api/client", () => ({
   obtenerLugares: vi.fn(() => Promise.resolve([])),
 }));
 // La presentacion de la portada tiene sus propios pedidos y tests.
-vi.mock("./Presentacion", () => ({ default: ({ enMedio }: { enMedio?: React.ReactNode }) => <>{enMedio}</> }));
+vi.mock("./Presentacion", () => ({
+  default: ({ enMedio, despues }: { enMedio?: React.ReactNode; despues?: React.ReactNode }) => (
+    <>
+      {enMedio}
+      {despues}
+    </>
+  ),
+}));
 vi.mock("./VistaMapaPromos", () => ({ default: () => <p>MAPA ABIERTO</p> }));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;

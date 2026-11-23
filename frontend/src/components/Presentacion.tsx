@@ -7,7 +7,6 @@ import {
   obtenerComposicionCanasta,
   obtenerInflacionResumen,
   obtenerProducto,
-  obtenerProductosDestacados,
   obtenerQuienGana,
   obtenerQuienGanaZona,
 } from "../api/client";
@@ -16,11 +15,10 @@ import { cifrasDePortada } from "../utils/cifrasPortada";
 import { useZona } from "../contexto/zona";
 import { ejemploDePortada } from "../utils/ejemploPortada";
 import { cadenasVisibles, localidadDeZona, zonaAParametro, type Zona } from "../utils/zona";
-import { categoriasGanadas } from "../utils/liderazgo";
 import { nombreLegible } from "../utils/texto";
 import AvisoCadenasDeOtroDia from "./AvisoCadenasDeOtroDia";
 import TarjetaTuLista from "./TarjetaTuLista";
-import type { CanastaPorCadena, InflacionResumen, ProductoComparado, ProductoDetalle, QuienGana } from "../types";
+import type { CanastaPorCadena, InflacionResumen, ProductoDetalle, QuienGana } from "../types";
 
 /*
   Portada del sitio.
@@ -46,6 +44,11 @@ import type { CanastaPorCadena, InflacionResumen, ProductoComparado, ProductoDet
   diferencias regionales que prometia (Chubut salia mas barato que CABA). Las
   cifras de arriba salen ahora de las secciones que quedan.
 
+  SIN "QUE QUERES SABER" (2026-11-23). Las cuatro tarjetas de secciones con su
+  micrografico se fueron: repetian la barra de navegacion, sus descripciones
+  habian quedado viejas y, con las promos del dia arriba, quedaban partidas en
+  dos por la vidriera. La portada es buscador, cifras y promos.
+
   ESTILO "APP" (2026-10-14). La portada pasa a ser una cabecera con el degrade
   de la marca: titular corto, un buscador que lleva a Mismo producto y, a la
   derecha, un producto real (la Coca Cola de 2,25 L, el mismo ejemplo que usa
@@ -67,7 +70,6 @@ const EJEMPLO_PORTADA = "coca cola 2.25";
 type Datos = {
   inflacion?: InflacionResumen[];
   quienGana?: QuienGana[];
-  destacados?: ProductoComparado[];
   ejemplo?: ProductoDetalle;
   canastaPorCadena?: CanastaPorCadena;
 };
@@ -83,109 +85,6 @@ type DatosZona = {
   canasta?: { alcance: "zona" | "pais"; datos?: CanastaPorCadena };
 };
 
-/** Barras divergentes en miniatura: una categoria, una barra. */
-function MiniDivergente({ variaciones }: { variaciones: number[] }) {
-  const maximo = Math.max(...variaciones.map(Math.abs), 0.01);
-  const ancho = 150 / variaciones.length;
-  return (
-    <svg width="150" height="20" viewBox="0 0 150 20" aria-hidden="true" className="shrink-0">
-      <line x1="0" x2="150" y1="10" y2="10" className="stroke-linea-fuerte" />
-      {variaciones.map((v, i) => {
-        const alto = (Math.abs(v) / maximo) * 9;
-        return (
-          <rect
-            key={i}
-            x={i * ancho}
-            y={v >= 0 ? 10 - alto : 10}
-            width={Math.max(ancho - 1, 1)}
-            height={alto}
-            className={v >= 0 ? "fill-alerta" : "fill-ahorro"}
-          />
-        );
-      })}
-    </svg>
-  );
-}
-
-/** Cuantas categorias lidera cada cadena, en una sola barra apilada.
- *
- *  Va en un solo tono con opacidad decreciente y no en colores. En este sistema
- *  el verde significa barato y el rosa caro (ver index.css), y aca no hay nada
- *  barato ni caro: hay cuota de categorias. Usar la paleta de precio para
- *  distinguir cadenas le haria decir al grafico algo que no dice. */
-function MiniLideres({ lideres }: { lideres: number[] }) {
-  const total = lideres.reduce((suma, n) => suma + n, 0);
-  if (total === 0) return null;
-
-  // Los desplazamientos se calculan antes de dibujar y no acumulando dentro del
-  // map: eso seria mutar durante el render. Son pocas cadenas, asi que recorrer
-  // el prefijo de cada una no cuesta nada.
-  const segmentos = lideres.map((n, i) => ({
-    x: (lideres.slice(0, i).reduce((suma, previo) => suma + previo, 0) / total) * 150,
-    ancho: (n / total) * 150,
-    opacidad: Math.max(0.85 - i * 0.18, 0.12),
-  }));
-
-  return (
-    <svg width="150" height="20" viewBox="0 0 150 20" aria-hidden="true" className="shrink-0">
-      {segmentos.map((s, i) => (
-        <rect
-          key={i}
-          x={s.x}
-          y="6"
-          width={Math.max(s.ancho - 1.5, 0.5)}
-          height="8"
-          rx="2"
-          className="fill-marca"
-          opacity={s.opacidad}
-        />
-      ))}
-    </svg>
-  );
-}
-
-/** La brecha de los productos mas dispares: una linea por producto, del precio
- *  mas bajo al mas alto.
- *
- *  No son barras a proposito. Una barra dice "cuanto"; lo que cuenta esta
- *  seccion es "de donde hasta donde", que es la forma de una linea con un
- *  extremo en cada precio. Verde el mas barato y rosa el mas caro, la misma
- *  convencion que el resto del sistema.
- *
- *  Entran tres de los doce destacados, y NO los tres primeros: como la lista
- *  viene ordenada por brecha, los tres mayores dan lineas casi del mismo largo
- *  y el grafico no muestra nada. Con el maximo, la mediana y el minimo se ven
- *  tres largos distintos, y de paso se lee algo cierto: hasta el mas moderado
- *  de los destacados tiene una brecha enorme. */
-function MiniBrechas({ diferencias }: { diferencias: number[] }) {
-  const maximo = Math.max(...diferencias);
-  if (!(maximo > 0)) return null;
-  const ordenadas = [...diferencias].sort((a, b) => b - a);
-  const muestra = [
-    ordenadas[0],
-    ordenadas[Math.floor(ordenadas.length / 2)],
-    ordenadas[ordenadas.length - 1],
-  ];
-  return (
-    <svg width="150" height="20" viewBox="0 0 150 20" aria-hidden="true" className="shrink-0">
-      {muestra.map((d, i) => {
-        const y = 4 + i * 6;
-        const fin = 4 + (d / maximo) * 142;
-        return (
-          <g key={i}>
-            <line x1="4" x2={fin} y1={y} y2={y} className="stroke-linea-fuerte" />
-            <circle cx="4" cy={y} r="2" className="fill-ahorro" />
-            <circle cx={fin} cy={y} r="2" className="fill-alerta" />
-          </g>
-        );
-      })}
-    </svg>
-  );
-}
-
-/** Un producto real con su precio en tres cadenas: la mas barata, una del medio
- *  y la mas cara. Va sobre el degrade, en una tarjeta translucida. Solo cuentan
- *  los precios creibles, igual que en Mismo producto. */
 function TarjetaEjemplo({ producto, zona }: { producto: ProductoDetalle; zona: Zona | null }) {
   // Con zona, las cadenas cerca; si no alcanzan, las del país y lo dice
   // (arreglos-segundo-explore, utils/ejemploPortada).
@@ -236,11 +135,12 @@ function itemsCanastaBasica() {
 }
 
 /*
-  enMedio: las promos del dia (o el mapa), justo despues de las cifras. En el
+  enMedio: las promos del dia (o el mapa), justo despues de las cifras.
+  despues: el resto de las promos (filas por categoria y por super). En el
   celular la vidriera quedaba unas tres pantallas mas abajo, detras del ejemplo,
   las cifras apiladas y las cuatro secciones (promos-arriba-en-la-portada).
 */
-function Presentacion({ enMedio }: { enMedio?: ReactNode }) {
+function Presentacion({ enMedio, despues }: { enMedio?: ReactNode; despues?: ReactNode }) {
   const { zona } = useZona();
   const [datos, setDatos] = useState<Datos>({});
   const [datosZona, setDatosZona] = useState<DatosZona | null>(null);
@@ -260,11 +160,6 @@ function Presentacion({ enMedio }: { enMedio?: ReactNode }) {
     obtenerQuienGana("")
       .then((quienGana) => {
         if (!cancelado) setDatos((previo) => ({ ...previo, quienGana }));
-      })
-      .catch(() => {});
-    obtenerProductosDestacados()
-      .then((destacados) => {
-        if (!cancelado) setDatos((previo) => ({ ...previo, destacados }));
       })
       .catch(() => {});
     // La canasta basica del INDEC (un adulto, gama economica) en cada cadena.
@@ -317,62 +212,7 @@ function Presentacion({ enMedio }: { enMedio?: ReactNode }) {
 
   const inflacion = datos.inflacion ?? [];
 
-  /*
-    Cuantas categorias lidera cada cadena, de mayor a menor.
-
-    El lider se elige por pct_gana_cuando_compite y no por pct_victorias, igual
-    que en la pagina: esta ultima divide por todos los comparables y no por los
-    que la cadena ofrece, asi que premia el surtido amplio antes que el precio
-    bajo (ver el comentario del endpoint). Se busca el maximo en vez de confiar
-    en el orden que manda la API: si ese ORDER BY cambiara, un grafico que se
-    apoya en el orden mentiria en silencio.
-
-    El grafico y el lider salen de la misma cuenta que Mas barato
-    (categoriasGanadas: un empate cuenta para las dos). Todas las cadenas
-    compiten igual, Maxi incluido (ver CanastaPorCadena).
-  */
-  const filasQG = datos.quienGana ?? [];
-  const categoriasQG = [...new Set(filasQG.map((f) => f.categoria))];
-  const lideres = [...categoriasGanadas(filasQG, categoriasQG).values()].sort((a, b) => b - a);
   const fechaDatos = fechaEnPalabras(datos.ejemplo?.fecha_datos ?? datos.inflacion?.[0]?.fecha_fin ?? "");
-
-  const brechas = (datos.destacados ?? []).map((p) => p.diferencia_pct);
-
-  const secciones = [
-    {
-      ruta: "/lista",
-      titulo: "Mi compra",
-      pregunta: "Dónde te sale más barata la compra del mes, en tu zona",
-      icono: "🛒",
-      fondo: "bg-marca-tenue",
-      grafico: null,
-    },
-    {
-      ruta: "/quien-gana",
-      titulo: "Más barato",
-      pregunta: "Qué cadena gana en cada categoría",
-      icono: "🏷️",
-      fondo: "bg-[#e0f7fa]",
-      grafico: lideres.length > 0 ? <MiniLideres lideres={lideres} /> : null,
-    },
-    {
-      ruta: "/mismo-producto",
-      titulo: "Mismo producto",
-      pregunta: "Un código de barras, todas las cadenas",
-      icono: "🔎",
-      fondo: "bg-[#fff1db]",
-      grafico: brechas.length > 0 ? <MiniBrechas diferencias={brechas} /> : null,
-    },
-    {
-      ruta: "/inflacion",
-      titulo: "Inflación",
-      pregunta: "Qué subió y qué bajó en el súper",
-      icono: "📊",
-      fondo: "bg-alerta-tenue",
-      grafico:
-        inflacion.length > 1 ? <MiniDivergente variaciones={inflacion.map((f) => f.variacion_pct)} /> : null,
-    },
-  ];
 
   // Las tarjetas (utils/cifrasPortada). Con zona, mientras llega lo de la zona
   // no se muestra la cifra del pais en su lugar: pasaria de "Maxi" a la cadena
@@ -476,40 +316,14 @@ function Presentacion({ enMedio }: { enMedio?: ReactNode }) {
       <AvisoCadenasDeOtroDia className="mt-4" />
 
       {enMedio && <div className="mt-10">{enMedio}</div>}
+      {despues}
 
+      {/* En el celular el ejemplo va al final, despues de todas las promos. */}
       {datos.ejemplo && (
         <div className="lg:hidden mt-10 fondo-marca rounded-[2rem] p-1">
           <TarjetaEjemplo producto={datos.ejemplo} zona={zona} />
         </div>
       )}
-
-
-      <nav aria-labelledby="titulo-herramientas" className="mt-10">
-        <h2 id="titulo-herramientas" className="font-display text-2xl text-tinta mb-4">
-          ¿Qué querés saber?
-        </h2>
-        <ul className="grid grid-cols-2 lg:grid-cols-4 gap-3 sm:gap-4">
-          {secciones.map((s) => (
-            <li key={s.ruta}>
-              <Link
-                to={s.ruta}
-                className="group tarjeta h-full p-4 sm:p-5 flex flex-col hover:-translate-y-0.5 hover:shadow-flotante transition"
-              >
-                <span aria-hidden="true" className={`w-12 h-12 rounded-2xl grid place-items-center text-2xl ${s.fondo}`}>
-                  {s.icono}
-                </span>
-                <span className="font-display text-lg sm:text-xl text-tinta mt-3 group-hover:text-marca transition-colors">
-                  {s.titulo}
-                </span>
-                <span className="text-sm text-tinta-media leading-snug mt-1">{s.pregunta}</span>
-                {/* El micrografico con los datos reales de la seccion. Tu canasta
-                    no tiene: se arma con lo que carga cada visitante. */}
-                <span className="hidden sm:block mt-auto pt-4">{s.grafico}</span>
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </nav>
     </section>
   );
 }
