@@ -40,6 +40,17 @@ COLUMNAS_PRODUCTOS = [
 ]
 
 
+# Sin estas columnas una fila de producto no sirve: si a un comercio le falta
+# alguna, se saltea ese comercio (y se avisa) en vez de cortar la carga de todos.
+# Las demas (marca, presentacion, promos) quedan vacias si el archivo no las trae.
+COLUMNAS_OBLIGATORIAS = {"id_comercio", "id_sucursal", "id_producto", "productos_precio_lista"}
+
+
+def _clave_columna(nombre):
+    """El nombre de una columna sin espacios, BOM ni mayusculas."""
+    return nombre.replace("\ufeff", "").strip().lower()
+
+
 def parsear_argumentos():
     """
     --fecha AAAA-MM-DD: fecha de los datos. Si se omite, usa ayer.
@@ -277,6 +288,13 @@ def escribir_csv_productos(archivos, fecha, columnas, ruta):
     todas las columnas en NULL (7 el 2026-09-09) que stg_productos descartaba
     por no tener precio. Al validar las dos cargas de esa fecha fue la unica
     diferencia.
+
+    COLUMNAS QUE FALTAN (2026-11-23). Del 19 al 21-11 la carga entera cortaba
+    con "list.index(x): x not in list": un comercio nuevo (La Agricola Regional
+    o Unicoop; el 22, sin ellos, cargo bien) publica productos.csv sin una de
+    las columnas esperadas. Ahora los nombres se comparan sin espacios ni
+    mayusculas, una columna opcional que falta queda vacia, y si falta una
+    obligatoria se saltea solo ese comercio. Todo queda dicho en el log.
     """
     csv.field_size_limit(10 * 1024 * 1024)
     escritas = 0
@@ -291,8 +309,18 @@ def escribir_csv_productos(archivos, fecha, columnas, ruta):
                 lector = csv.reader(entrada, delimiter="|")
                 encabezado = next(lector)
                 ancho = len(encabezado)
-                # None marca la columna de fecha, que no viene en el archivo.
-                indices = [None if c == "fecha_datos" else encabezado.index(c) for c in columnas]
+                posicion = {_clave_columna(c): i for i, c in enumerate(encabezado)}
+                faltan = [c for c in columnas if c != "fecha_datos" and _clave_columna(c) not in posicion]
+                if faltan:
+                    obligatorias = [c for c in faltan if c in COLUMNAS_OBLIGATORIAS]
+                    if obligatorias:
+                        print(f"  ATENCION: {archivo} no trae {obligatorias}: se saltea ese comercio")
+                        continue
+                    print(f"  ({archivo} no trae {faltan}: quedan vacias)")
+                # None marca la columna de fecha, que no viene en el archivo; -1, una que falta.
+                indices = [
+                    None if c == "fecha_datos" else posicion.get(_clave_columna(c), -1) for c in columnas
+                ]
                 for fila in lector:
                     if not fila:
                         vacias += 1
@@ -302,7 +330,7 @@ def escribir_csv_productos(archivos, fecha, columnas, ruta):
                         continue
                     if len(fila) < ancho:
                         fila = fila + [""] * (ancho - len(fila))
-                    escritor.writerow([texto_fecha if i is None else fila[i] for i in indices])
+                    escritor.writerow([texto_fecha if i is None else ("" if i < 0 else fila[i]) for i in indices])
                     escritas += 1
     return escritas, descartadas, vacias
 

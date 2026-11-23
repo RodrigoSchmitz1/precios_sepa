@@ -24,7 +24,11 @@ except ImportError:  # pragma: no cover
     sys.modules.update({"google": google, "google.cloud": cloud, "google.cloud.bigquery": cloud.bigquery,
                         "google.cloud.exceptions": excepciones})
 
-from cargar_datos import reparar_renglones
+import gzip
+
+from datetime import date
+
+from cargar_datos import escribir_csv_productos, reparar_renglones
 
 ENCABEZADO = b"id_comercio|id_sucursal|nombre|latitud|observaciones|barrio|provincia"
 
@@ -79,6 +83,49 @@ class TestRepararRenglones(unittest.TestCase):
         self.assertIn(b"Comod\xedn|-24.2|nota sigue|Centro|AR-Y", leer(reparado)[1])
         os.remove(reparado)
         os.remove(ruta)
+
+
+COLUMNAS = ["id_comercio", "id_sucursal", "id_producto", "productos_marca", "productos_precio_lista",
+            "productos_leyenda_promo2", "fecha_datos"]
+
+
+def productos(nombre: str, contenido: str) -> str:
+    carpeta = tempfile.mkdtemp()
+    ruta = os.path.join(carpeta, nombre)
+    with open(ruta, "w", encoding="utf-8") as f:
+        f.write(contenido)
+    return ruta
+
+
+def armar(archivos):
+    salida = os.path.join(tempfile.mkdtemp(), "salida.csv.gz")
+    escritas, descartadas, vacias = escribir_csv_productos(archivos, date(2026, 11, 21), COLUMNAS, salida)
+    with gzip.open(salida, "rt", encoding="utf-8") as f:
+        return escritas, f.read().splitlines()
+
+
+class TestColumnasDeProductos(unittest.TestCase):
+    def test_columna_opcional_que_falta_queda_vacia(self):
+        a = productos("a.csv", "id_comercio|id_sucursal|id_producto|productos_marca|productos_precio_lista|productos_leyenda_promo2\n"
+                               "2|1|779|Marca|100|2x1\n")
+        b = productos("b.csv", "id_comercio|id_sucursal|id_producto|productos_marca|productos_precio_lista\n20|5|780|Otra|200\n")
+        escritas, lineas = armar([a, b])
+        self.assertEqual(escritas, 2)
+        self.assertEqual(lineas[2], "20|5|780|Otra|200||2026-11-21")
+
+    def test_nombres_con_espacios_o_mayusculas(self):
+        a = productos("a.csv", " ID_Comercio |id_sucursal|id_producto|productos_marca|Productos_Precio_Lista |productos_leyenda_promo2\n"
+                               "47|1|781|M|300|\n")
+        escritas, lineas = armar([a])
+        self.assertEqual(lineas[1], "47|1|781|M|300||2026-11-21")
+
+    def test_sin_una_obligatoria_se_saltea_solo_ese_comercio(self):
+        a = productos("a.csv", "id_comercio|id_sucursal|id_producto|productos_marca|productos_precio_lista|productos_leyenda_promo2\n"
+                               "2|1|779|Marca|100|\n")
+        b = productos("b.csv", "id_comercio|id_sucursal|id_producto|productos_marca\n20|5|780|Otra\n")
+        escritas, lineas = armar([a, b])
+        self.assertEqual(escritas, 1)
+        self.assertEqual(len(lineas), 2)
 
 
 if __name__ == "__main__":
