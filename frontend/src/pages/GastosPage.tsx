@@ -3,6 +3,7 @@ import Titular from "../components/Titular";
 import AnotarMonto from "../components/gastos/AnotarMonto";
 import CargarTicket, { TextoAviso } from "../components/gastos/CargarTicket";
 import TicketGuardado from "../components/gastos/TicketGuardado";
+import ElMesEnTuZona from "../components/gastos/ElMesEnTuZona";
 import type { Gasto } from "../types";
 import { bajarExcel } from "../utils/excelGastos";
 import { formatearPesos, mesEnPalabras, porcentajeEntero } from "../utils/formato";
@@ -117,6 +118,7 @@ function GastosPage() {
               <Barras titulo="Por súper" filas={resumen.porSuper} total={resumen.total} />
               <Barras titulo="Por categoría" filas={resumen.porCategoria.map((f) => ({ ...f, nombre: nombreCategoria(f.nombre) }))} total={resumen.total} maximo={8} />
             </div>
+            <ElMesEnTuZona gastos={gastos} mes={mes} coberturaMinima={coberturaMinima} />
           </section>
 
           <section aria-label="Tickets del mes" className="grid gap-2 mb-8">

@@ -405,6 +405,9 @@ def obtener_promos_mapa(
     lng_min: Optional[float] = Query(None, description="Limite oeste del area visible"),
     lng_max: Optional[float] = Query(None, description="Limite este del area visible"),
     limite: int = Query(500, ge=1, le=6000, description="Cantidad maxima de resultados"),
+    rubro: Optional[str] = Query(None, max_length=80, description="Rubro, como nombre o slug (pagina de una categoria)"),
+    latitud: Optional[float] = Query(None, ge=-90, le=90, description="Centro de la zona: solo sucursales cerca y promos vigentes"),
+    longitud: Optional[float] = Query(None, ge=-180, le=180, description="Centro de la zona"),
 ):
     # Sin @cachear: cada recuadro distinto quedaba guardado para siempre en _cache.
     indice = _indice_mapa()
@@ -417,6 +420,11 @@ def obtener_promos_mapa(
         lng_min=lng_min,
         lng_max=lng_max,
         limite=limite,
+        rubro=rubro,
+        # Con zona (la pagina de una categoria) se cuenta como la vidriera: el
+        # mismo circulo y sin promos vencidas.
+        cerca_de=(latitud, longitud) if latitud is not None and longitud is not None else None,
+        hoy=datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).strftime("%Y-%m-%d") if latitud is not None else None,
     )
     # Cada promo trae los numeros de sus sucursales; los datos de cada sucursal
     # viajan una sola vez en "sucursales". Ver mapa_promos._fila.
@@ -426,6 +434,28 @@ def obtener_promos_mapa(
     return JSONResponse(
         {"promos": promos, "hay_mas": hay_mas, "sucursales": mapa_promos.tabla_de_sucursales(indice, promos)}
     )
+
+
+# La vidriera de todo el pais es una sola por indice y por dia: se guarda. La
+# de cada zona no, como /promos/mapa (cada combinacion quedaria guardada).
+_vidriera_nacional: dict = {}
+
+
+@api.get("/promos/vidriera")
+def obtener_vidriera(
+    latitud: Optional[float] = Query(None, ge=-90, le=90, description="Centro de la zona"),
+    longitud: Optional[float] = Query(None, ge=-180, le=180, description="Centro de la zona"),
+):
+    """La portada de Promos: promos fuertes y filas por rubro y por cadena, cerca
+    de la zona o en todo el pais (openspec promos-navegables-y-mes-en-gastos).
+    Sale del indice del mapa, en memoria: no consulta BigQuery."""
+    indice = _indice_mapa()
+    hoy = datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).strftime("%Y-%m-%d")
+    if latitud is None or longitud is None:
+        if _vidriera_nacional.get("clave") != (id(indice), hoy):
+            _vidriera_nacional.update(clave=(id(indice), hoy), valor=mapa_promos.vidriera(indice, hoy=hoy))
+        return JSONResponse(_vidriera_nacional["valor"])
+    return JSONResponse(mapa_promos.vidriera(indice, latitud, longitud, hoy=hoy))
 
 
 @api.get("/promos/productos")

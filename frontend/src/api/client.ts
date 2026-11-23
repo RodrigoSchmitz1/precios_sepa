@@ -21,7 +21,7 @@ import type {
   ProductoSugerido,
   PromoCerca,
   ResultadoLista,
-  ResultadoOptimizacion, PromosDeLista, Basico, RespuestaLecturaTicket, ResultadoDondeComprar } from "../types";
+  ResultadoOptimizacion, PromosDeLista, Basico, RespuestaLecturaTicket, ResultadoDondeComprar, Vidriera } from "../types";
 import { conNombresDeCadena } from "../utils/nombres";
 import type { CadenasDeOtroDia } from "../utils/cadenasDeOtroDia";
 
@@ -73,6 +73,10 @@ type BoundingBox = {
 
 type FiltrosMapa = FiltrosPromos & {
   bbox?: BoundingBox;
+  /** Slug del rubro: la pagina de una categoria trae solo ese rubro. */
+  rubro?: string;
+  /** Centro de la zona: sucursales a menos de RADIO_CERCA_KM y solo promos vigentes, como la vidriera. */
+  cerca?: { latitud: number; longitud: number };
 };
 
 type RespuestaMapa = {
@@ -105,8 +109,22 @@ export async function obtenerPromosMapa(filtros: FiltrosMapa): Promise<Respuesta
     params.set("lng_min", String(filtros.bbox.lngMin));
     params.set("lng_max", String(filtros.bbox.lngMax));
   }
+  if (filtros.rubro) params.set("rubro", filtros.rubro);
+  if (filtros.cerca) {
+    params.set("latitud", String(filtros.cerca.latitud));
+    params.set("longitud", String(filtros.cerca.longitud));
+  }
   const respuesta = await fetch(`${API_BASE}/promos/mapa?${params.toString()}`);
   if (!respuesta.ok) await fallar(respuesta, "Error al traer promos del mapa");
+  return leerJson(respuesta);
+}
+
+/** La portada de Promos: promos fuertes y filas por rubro y por cadena, cerca
+ *  de la zona o en todo el pais (openspec promos-navegables-y-mes-en-gastos). */
+export async function obtenerVidriera(zona: Pick<Zona, "latitud" | "longitud"> | null): Promise<Vidriera> {
+  const parametros = zona ? `?${new URLSearchParams({ latitud: String(zona.latitud), longitud: String(zona.longitud) })}` : "";
+  const respuesta = await fetch(`${API_BASE}/promos/vidriera${parametros}`);
+  if (!respuesta.ok) await fallar(respuesta, "Error al traer las promos");
   return leerJson(respuesta);
 }
 

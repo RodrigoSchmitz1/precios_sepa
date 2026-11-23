@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cotizarLista, leerTicket } from "../api/client";
+import { cotizarLista, dondeComprarLista, leerTicket } from "../api/client";
 import { ContextoZona, type EstadoZona } from "../contexto/zona";
 import type { Gasto, LineaGasto, ResultadoLista, TicketLeido } from "../types";
 import { achicarFoto } from "../utils/fotos";
@@ -13,7 +13,7 @@ import GastosPage from "./GastosPage";
 
 /* Mis gastos (openspec mis-gastos-y-barra-nueva). */
 
-vi.mock("../api/client", () => ({ leerTicket: vi.fn(), cotizarLista: vi.fn() }));
+vi.mock("../api/client", () => ({ leerTicket: vi.fn(), cotizarLista: vi.fn(), dondeComprarLista: vi.fn() }));
 vi.mock("../utils/fotos", () => ({ achicarFoto: vi.fn() }));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -47,6 +47,7 @@ beforeEach(() => {
   document.body.appendChild(contenedor);
   raiz = createRoot(contenedor);
   vi.mocked(achicarFoto).mockResolvedValue("Zm90bw==");
+  vi.mocked(dondeComprarLista).mockResolvedValue({ radio_km: 3, productos: 0, sin_precio_cerca: [], opciones: [] });
   vi.mocked(leerTicket).mockResolvedValue({ legible: true, ticket: TICKET, constantes: { maximo_fotos: 3, cobertura_minima_comparacion: 0.6 } });
 });
 
@@ -238,5 +239,66 @@ describe("Mis gastos", () => {
     expect(texto(detalle)).toContain("Ningún súper de tu zona tenía estos productos más baratos");
     expect(texto(detalle)).toContain("Market (Carrefour)");
     expect(texto(detalle)).not.toContain("Compraste en el súper");
+  });
+
+  describe("tu mes en los súper de tu zona (promos-navegables-y-mes-en-gastos)", () => {
+    const sucursal = (cadena: string, ids: string[], subtotal: number) => ({
+      id: cadena, cadena, nombre_sucursal: cadena, direccion: null, localidad: "Lomas", provincia: "AR-B", latitud: 0, longitud: 0,
+      distancia_km: 1, subtotal,
+      productos: ids.map((id) => ({ id_producto: id, descripcion: id === "a" ? "LECHE" : "PAN", cantidad: 1, precio_unitario: 1, costo: 1 })),
+    });
+    const conTickets = () => {
+      guardarConstantes({ cobertura_minima_comparacion: 0.6 });
+      guardarGastos([
+        { id: "1", origen: "foto", cadena: "COTO", cadenas_sepa: ["Coto"], sucursal: null, fecha: "2026-11-03", comprobante: "1", total: 30000,
+          lineas: [linea("LECHE", 30000, "a")], descuentos: [], creado: 0 },
+        { id: "2", origen: "foto", cadena: "COTO", cadenas_sepa: ["Coto"], sucursal: null, fecha: "2026-11-20", comprobante: "2", total: 12000,
+          lineas: [linea("PAN", 10000, "b"), linea("BOLSA", 2000)], descuentos: [], creado: 0 },
+      ]);
+    };
+
+    it("la más barata y mezclando dos", async () => {
+      conTickets();
+      vi.mocked(dondeComprarLista).mockResolvedValue({
+        radio_km: 3, productos: 2, sin_precio_cerca: [],
+        opciones: [
+          { max_sucursales: 1, total: 36000, productos_cubiertos: 2, distancia_suma_km: 1, sucursales: [sucursal("Día", ["a", "b"], 36000)] },
+          { max_sucursales: 2, total: 33000, productos_cubiertos: 2, distancia_suma_km: 2,
+            sucursales: [sucursal("Día", ["a"], 25000), sucursal("Coto", ["b"], 8000)] },
+        ],
+      });
+      await mostrar();
+      expect(dondeComprarLista).toHaveBeenCalledWith([{ id_producto: "a", cantidad: 1 }, { id_producto: "b", cantidad: 1 }], ZONA.latitud, ZONA.longitud, 3);
+      const t = texto(contenedor);
+      expect(t).toContain("En Día, tus 2 productos del mes salían $ 36.000: $ 4.000 menos que los $ 40.000");
+      expect(t).toContain("A precio de lista, sin promos");
+      expect(t).toContain("Mezclando Día y Coto salían $ 33.000, $ 3.000 menos que solo en Día");
+      await tocar("Qué llevar de cada uno");
+      expect(texto(contenedor)).toContain("En Coto · 1 producto");
+    });
+
+    it("sin zona invita a elegirla y no pide nada", async () => {
+      conTickets();
+      await mostrar(null);
+      expect(texto(contenedor)).toContain("Elegí tu zona arriba y te decimos en qué súper te salía más barato");
+      expect(dondeComprarLista).not.toHaveBeenCalled();
+    });
+
+    it("poco reconocido: lo dice y no compara", async () => {
+      guardarConstantes({ cobertura_minima_comparacion: 0.6 });
+      guardarGastos([{ id: "1", origen: "foto", cadena: "COTO", cadenas_sepa: ["Coto"], sucursal: null, fecha: "2026-11-03", comprobante: "1",
+        total: 50000, lineas: [linea("LECHE", 10000, "a"), linea("VARIOS", 40000)], descuentos: [], creado: 0 }]);
+      await mostrar();
+      expect(texto(contenedor)).toContain("Reconocimos 20% de lo que compraste este mes");
+      expect(dondeComprarLista).not.toHaveBeenCalled();
+    });
+
+    it("un mes solo con gastos a mano no muestra la comparación", async () => {
+      guardarConstantes({ cobertura_minima_comparacion: 0.6 });
+      guardarGastos([{ id: "m", origen: "mano", cadena: "Dia", cadenas_sepa: [], sucursal: null, fecha: "2026-11-03", comprobante: null,
+        total: 5000, lineas: [], descuentos: [], creado: 0 }]);
+      await mostrar();
+      expect(contenedor.querySelector('[aria-label="Tu mes en los súper de tu zona"]')).toBeNull();
+    });
   });
 });

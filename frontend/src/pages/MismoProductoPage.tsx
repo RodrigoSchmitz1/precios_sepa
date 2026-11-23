@@ -20,6 +20,7 @@ import PromosCercaDelProducto from "../components/PromosCercaDelProducto";
 import { usePromosCerca } from "../contexto/usePromosCerca";
 import { avisoPromoEnTitular } from "../utils/promosCerca";
 import BotonCompartir from "../components/BotonCompartir";
+import BotonAvisame from "../components/BotonAvisame";
 import { textoParaCompartir } from "../utils/compartir";
 import { claseCambio, textoCambioDetalle } from "../utils/cambioPrecio";
 import { agruparFormatos, nombrarCadenas } from "../utils/formatosDeCadena";
@@ -462,6 +463,8 @@ function VistaProducto({
       {onAgregar && enLista && (
         <div className="mb-6 flex flex-wrap items-center gap-3">
           <BotonLista enLista={enLista(p.id_producto)} onAgregar={() => onAgregar(p)} />
+          {/* Avisame cuando este de oferta (openspec promos-navegables-y-mes-en-gastos). */}
+          <BotonAvisame producto={{ id_producto: p.id_producto, descripcion: p.descripcion }} />
           {/* Solo en el producto elegido: la URL ya lleva el producto y la zona. */}
           {onVolver && (
             <BotonCompartir

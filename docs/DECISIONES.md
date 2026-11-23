@@ -1439,6 +1439,63 @@ del mapa, que ya está en memoria, sin consultas a BigQuery.
 en el navegador se ofrece para pasarla a la lista y después se borra. Los
 endpoints de categorías de la API quedan hasta otro change.
 
+## Promos como vidriera, avisos de oferta y el mes en Mis gastos
+
+Openspec `promos-navegables-y-mes-en-gastos` (2026-11-23). La portada abría
+con el mapa y miles de promos sueltas: se miraba una vez y no invitaba a
+volver. Lo que la gente haga en Changuito (qué categorías recorre, qué
+productos pide que le avisen) es lo que después diferencia a Changuito
+Empresas, así que Promos pasó a ser algo que se recorre.
+
+**La vidriera la arma la API.** `GET /promos/vidriera` devuelve las promos
+fuertes, las filas por rubro y por cadena y las cadenas que casi no informan,
+todo desde el índice del mapa en memoria. Armarla en el navegador obligaba a
+bajar las 5.000 promos de `/promos/mapa`, unos 400 KB, para mostrar unas 40.
+La respuesta de Palermo pesa 56 KB y tarda 30–100 ms en local. La de todo el
+país tarda 0,34 s la primera vez y queda guardada por índice y por día.
+
+**Qué es una promo fuerte** (constantes en `mapa_promos.py`):
+- vigente y sin compra múltiple;
+- con respaldo (`leyenda` o `mercado`, nunca `sin_verificar`);
+- primero las que están en 2 o más sucursales cerca: una crema al 70% en un
+  solo local no es la promo del día;
+- un producto una sola vez y hasta 3 por cadena, para que Carrefour no ocupe
+  toda la vidriera.
+
+Las filas usan el orden de la página: en más sucursales primero, y el
+descuento como desempate.
+
+**La página de una categoría cuenta como la vidriera.** `/promos/:rubro` usa
+`/promos/mapa` con `rubro`, `latitud` y `longitud`: un círculo de
+`RADIO_CERCA_KM` y solo promos vigentes. Con un recuadro y sin sacar las
+vencidas, en Palermo la fila decía "Limpieza · 185" y la página mostraba 203.
+
+**El mapa, a pedido.** Se abre con `?mapa=1`, que el link conserva para
+compartirlo. El componente se carga aparte (46 KB). Leaflet sigue en el
+paquete principal porque lo usan el mapa de la zona y Mi compra: lo que se
+ahorra la portada es montar el mapa y pedir las 5.000 promos.
+
+**Avisos en el teléfono.** "Avisame cuando esté de oferta" guarda hasta 50
+productos en localStorage, sin cuenta. Al volver a Promos, la vidriera los
+busca con `/promos/productos`, la misma búsqueda del detalle, y muestra la
+promo más barata de cada uno. No la filtra contra el precio más bajo de la
+zona, como sí hace el detalle: quien pidió el aviso quiere saber que está en
+promo. No hay notificaciones con la app cerrada, porque necesitan guardar
+suscripciones en un servidor. El botón vive en un solo componente
+(`BotonAvisame`), el lugar a instrumentar cuando se enciendan las señales
+anónimas para Empresas.
+
+**El mes en Mis gastos.** Junta los productos vinculados de los tickets del
+mes, sin los gastos a mano, y los cotiza con `/mismo-producto/lista/donde-comprar`,
+la misma cuenta de Mi compra:
+- La opción de una sucursal da "la más barata".
+- La de dos da "mezclando dos". Se muestra solo si son dos cadenas distintas,
+  cubren los mismos productos y baja el total.
+
+Se compara contra lo que figura en los tickets antes de descuentos, igual que
+cada ticket, y con el mismo mínimo de productos reconocidos. Al servidor viaja
+la lista de productos y cantidades, nunca los tickets.
+
 ## Tests
 
 Además de los genéricos, hay tests singulares de dbt para lo que sólo se

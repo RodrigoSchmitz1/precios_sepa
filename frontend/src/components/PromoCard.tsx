@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { nombreProvincia } from "../utils/provincias";
 import { formatearNumero, formatearPesos } from "../utils/formato";
 import { nombreLegible } from "../utils/texto";
@@ -52,9 +52,12 @@ function direccionDe(promo: PromoMostrable): string | null {
 function PromoCard({
   promo,
   sucursales: tabla,
+  pie,
 }: {
   promo: PromoMostrable;
   sucursales?: Record<string, SucursalMapa>;
+  /** Algo debajo de la fila, como el boton Avisame en la pagina de una categoria. */
+  pie?: ReactNode;
 }) {
   const [abierta, setAbierta] = useState(false);
   const total = promo.total_sucursales ?? 1;
@@ -154,6 +157,7 @@ function PromoCard({
           )}
         </div>
       )}
+      {pie && <div className="mt-2">{pie}</div>}
     </article>
   );
 }

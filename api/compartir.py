@@ -50,6 +50,25 @@ SECCIONES = {
 # Tu canasta se unio con Mi lista en Mi compra (openspec mi-compra).
 ALIAS = {"canasta-personalizada": "lista"}
 
+# La pagina de promos de un rubro: /promos/<slug> (openspec
+# promos-navegables-y-mes-en-gastos). El nombre se escribe como nombreRubro del
+# frontend (utils/nombres.ts): los rubros con tilde van aca, el resto se
+# capitaliza.
+RUBRO_EN_RUTA = re.compile(r"^promos/([a-z0-9]+(?:-[a-z0-9]+)*)$")
+RUBROS_CON_TILDE = {
+    "almacen": "Almacén",
+    "bebes": "Bebés",
+    "infusiones-y-azucares": "Infusiones y azúcares",
+    "lacteos": "Lácteos",
+    "panaderia": "Panadería",
+    "verduleria-y-frutas": "Verdulería y frutas",
+}
+
+
+def nombre_de_rubro(slug: str) -> str:
+    return RUBROS_CON_TILDE.get(slug) or _capitalizar(slug.replace("-", " "))
+
+
 # Lo que algunas cadenas cargan en el campo de marca cuando no hay marca.
 # Igual que NO_SON_MARCAS en frontend/src/utils/texto.ts.
 _NO_SON_MARCAS = {"sin marca", "s/m", "generico", "generica", "varios", "varias", "otros", "otras"}
@@ -131,6 +150,12 @@ def tarjeta(ruta: str, id_producto: str | None, producto: dict | None, lista: st
     if seccion == "mismo-producto" and id_producto and producto:
         titulo, descripcion = tarjeta_producto(producto)
         return titulo, descripcion, f"/mismo-producto?p={quote(str(id_producto), safe='')}"
+    rubro = RUBRO_EN_RUTA.match(seccion)
+    if rubro:
+        nombre = nombre_de_rubro(rubro.group(1))
+        titulo = f"Promos de {nombre} · Changuito"
+        descripcion = f"Las promos de {nombre.lower()} de hoy en los súper de tu zona, con los datos oficiales de SEPA."
+        return titulo, descripcion, f"/{seccion}"
     if seccion in SECCIONES:
         titulo, descripcion = SECCIONES[seccion]
         return titulo, descripcion, f"/{seccion}"

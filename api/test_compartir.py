@@ -113,6 +113,16 @@ class TestPaginas(unittest.TestCase):
         self.assertEqual(meta(r.text, "og:url"), "https://changuito.test/inflacion")
         self.assertEqual(meta(self.cliente.get("/no-existe").text, "og:title"), compartir.TITULO_GENERAL)
 
+    def test_pagina_de_promos_de_un_rubro(self):
+        r = self.cliente.get("/promos/verduleria-y-frutas")
+        self.assertEqual(meta(r.text, "og:title"), "Promos de Verdulería y frutas · Changuito")
+        self.assertEqual(meta(r.text, "og:url"), "https://changuito.test/promos/verduleria-y-frutas")
+        r = self.cliente.get("/promos/limpieza")
+        self.assertEqual(meta(r.text, "og:title"), "Promos de Limpieza · Changuito")
+        # Algo que no es un slug lleva la tarjeta general.
+        r = self.cliente.get("/promos/<script>")
+        self.assertEqual(meta(r.text, "og:title"), compartir.TITULO_GENERAL)
+
     def test_mi_compra_y_mis_gastos(self):
         r = self.cliente.get("/lista")
         self.assertEqual(meta(r.text, "og:title"), "Mi compra · Changuito")

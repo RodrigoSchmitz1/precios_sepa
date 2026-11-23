@@ -108,7 +108,7 @@ class TestMapaPromos(unittest.TestCase):
         self.assertEqual(
             list(filas[0]),
             [
-                "descripcion", "marca", "categoria", "rubro", "cadena", "nombre_sucursal", "calle", "numero",
+                "id_producto", "descripcion", "marca", "categoria", "rubro", "cadena", "nombre_sucursal", "calle", "numero",
                 "barrio", "localidad", "provincia", "latitud", "longitud", "precio_lista", "precio_promo",
                 "descuento_pct", "leyenda", "nivel_evidencia", "sucursales", "total_sucursales",
             ],

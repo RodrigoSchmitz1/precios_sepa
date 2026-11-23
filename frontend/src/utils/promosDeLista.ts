@@ -48,3 +48,12 @@ export function avisoPocoInforman(cadenas: string[]): string {
     ? `${nombres} casi no informa promos en SEPA: si tiene, no están en esta cuenta.`
     : `${nombres} casi no informan promos en SEPA: si tienen, no están en esta cuenta.`;
 }
+
+/** La vidriera de Promos: por que una cadena cerca no tiene fila (promos-navegables-y-mes-en-gastos). */
+export function textoPocoInforman(cadenas: string[], conZona: boolean): string {
+  const nombres = listarConY(cadenas.map(nombreCadena));
+  const una = cadenas.length === 1;
+  return `${nombres} ${una ? "casi no informa" : "casi no informan"} promos en SEPA: por eso no ${una ? "tiene" : "tienen"} fila acá${
+    conZona ? " aunque " + (una ? "tenga" : "tengan") + " sucursal cerca" : ""
+  }.`;
+}

@@ -5,6 +5,7 @@ from bisect import bisect_left, bisect_right
 import math
 import re
 import statistics
+import unicodedata
 from array import array
 from collections import Counter
 from itertools import groupby, islice, repeat
@@ -146,6 +147,8 @@ def _fila(indice: IndiceMapa, pos: int, sucs: list[int]) -> dict:
     """
     primera = indice.sucursales[sucs[0]]
     return {
+        # Para "Avisame cuando este de oferta" (openspec promos-navegables-y-mes-en-gastos).
+        "id_producto": indice.id_producto[pos],
         "descripcion": indice.descripcion[pos],
         "marca": indice.marca[pos],
         "categoria": indice.categoria[pos],
@@ -180,6 +183,9 @@ def buscar(
     lng_min: float | None = None,
     lng_max: float | None = None,
     limite: int = 500,
+    rubro: str | None = None,
+    cerca_de: tuple[float, float] | None = None,
+    hoy: str | None = None,
 ) -> tuple[list[dict], bool]:
     """Una fila por PROMO, de mayor a menor descuento, y si quedaron mas afuera.
 
@@ -192,6 +198,9 @@ def buscar(
         if (not provincia or s["provincia"] == provincia)
         and (lat_min is None or lat_max is None or lat_min <= s["latitud"] <= lat_max)
         and (lng_min is None or lng_max is None or lng_min <= s["longitud"] <= lng_max)
+        # "Cerca de" la zona es el mismo circulo que la vidriera (RADIO_CERCA_KM):
+        # la pagina de una categoria tiene que contar lo mismo que su fila.
+        and (cerca_de is None or _km(cerca_de[0], cerca_de[1], s["latitud"], s["longitud"]) <= RADIO_CERCA_KM)
     ]
 
     if busqueda:
@@ -212,9 +221,28 @@ def buscar(
     # heapq.merge entrega los pares ordenados por posicion, asi que los de una
     # misma promo llegan seguidos y alcanza con agrupar consecutivos: no hace
     # falta juntar todo en memoria para saber cuantas sucursales tiene cada una.
+    # El rubro de la pagina de una categoria (promos-navegables-y-mes-en-gastos)
+    # llega como slug ("verduleria-y-frutas") o como nombre; sin rubro es "Otros".
+    if hoy:
+        pares = (par for par in pares if _vigente(indice, par[0], hoy))
+    if rubro:
+        buscado = slug_rubro(rubro)
+        slugs = {r: slug_rubro(r or SIN_RUBRO) for r in set(indice.rubro)}
+        pares = (par for par in pares if slugs[indice.rubro[par[0]]] == buscado)
+
     grupos = groupby(pares, key=lambda par: par[0])
     seleccion = [(pos, [suc for _, suc in grupo]) for pos, grupo in islice(grupos, limite + 1)]
     return [_fila(indice, pos, sucs) for pos, sucs in seleccion[:limite]], len(seleccion) > limite
+
+
+SIN_RUBRO = "Otros"
+
+
+def slug_rubro(rubro: str) -> str:
+    """La clave del rubro en la direccion de su pagina: "Verduleria y frutas" ->
+    "verduleria-y-frutas". La misma cuenta que slugRubro en el frontend."""
+    sin_tildes = "".join(c for c in unicodedata.normalize("NFD", rubro or "") if unicodedata.category(c) != "Mn")
+    return re.sub(r"[^a-z0-9]+", "-", sin_tildes.lower()).strip("-")
 
 
 # ---------------------------------------------------------------------------
@@ -356,6 +384,143 @@ MAXIMO_PRODUCTOS_LISTA = 50
 def poco_informan(indice: IndiceMapa, cadenas) -> list[str]:
     """Las cadenas pedidas que casi no informan promos en SEPA."""
     return sorted(c for c in set(cadenas) if indice.promos_por_sucursal.get(c, 0) < POCAS_PROMOS_POR_SUCURSAL)
+
+
+# ---------------------------------------------------------------------------
+# Vidriera de Promos (openspec promos-navegables-y-mes-en-gastos)
+#
+# La portada deja de abrir con el mapa y sus 5.000 promos: abre con unas pocas
+# promos fuertes y filas por rubro y por cadena. Se arma aca y no en el
+# navegador para no bajar 400 KB al celular para mostrar 40 promos.
+# ---------------------------------------------------------------------------
+
+# Una promo fuerte se puede aprovechar: tiene respaldo, no pide llevar varias,
+# y con zona esta en mas de una sucursal cerca. Una crema al 70% en un solo
+# local no es la promo del dia aunque tenga el mayor descuento.
+EVIDENCIA_FUERTE = ("leyenda", "mercado")
+SUCURSALES_FUERTE = 2
+PROMOS_FUERTES = 8
+MAXIMO_POR_CADENA_FUERTES = 3
+PROMOS_POR_FILA = 4
+
+
+def _vigente(indice: IndiceMapa, pos: int, hoy: str) -> bool:
+    hasta = indice.vigente_hasta[pos]
+    return hasta is None or not hoy or hasta >= hoy
+
+
+def vidriera(
+    indice: IndiceMapa,
+    latitud: float | None = None,
+    longitud: float | None = None,
+    hoy: str = "",
+    radio_km: float = RADIO_CERCA_KM,
+) -> dict:
+    """Promos fuertes, filas por rubro y por cadena, cerca de la zona o en todo
+    el pais. Cada fila de promo trae solo su sucursal mas cercana: la vidriera
+    dice en cuantas sucursales esta, no las lista (eso queda para el mapa)."""
+    con_zona = latitud is not None and longitud is not None
+    distancia: dict[int, float] = {}
+    if con_zona:
+        for i, s in enumerate(indice.sucursales):
+            d = _km(latitud, longitud, s["latitud"], s["longitud"])
+            if d <= radio_km:
+                distancia[i] = d
+        por_pos: dict[int, list[int]] = {}
+        for suc in distancia:
+            for pos in indice.por_sucursal[suc]:
+                por_pos.setdefault(pos, []).append(suc)
+        posiciones = sorted(por_pos)
+    else:
+        posiciones = range(len(indice.descripcion))
+
+    def sucursales_de(pos: int) -> list[int]:
+        if con_zona:
+            return sorted(por_pos[pos], key=lambda s: distancia[s])
+        return list(indice.miembros[indice.inicio[pos] : indice.inicio[pos + 1]])
+
+    # (pos, sucursales) de las vigentes, de mayor a menor descuento.
+    vigentes = [(pos, sucursales_de(pos)) for pos in posiciones if _vigente(indice, pos, hoy)]
+
+    def fila(pos: int, sucs: list[int]) -> dict:
+        f = _fila(indice, pos, sucs)
+        f["sucursales"] = sucs[:1]
+        f["requiere_compra_multiple"] = bool(indice.multiple[pos])
+        f["vigente_hasta"] = indice.vigente_hasta[pos]
+        return f
+
+    def cadena_de(sucs: list[int]) -> str:
+        return indice.sucursales[sucs[0]]["cadena"] or ""
+
+    # Promos fuertes: primero las que estan en varias sucursales cerca; si no
+    # alcanzan, completan las de una. Sin zona, "varias" es en todo el pais.
+    candidatas = [
+        (pos, sucs)
+        for pos, sucs in vigentes
+        if not indice.multiple[pos] and indice.nivel_evidencia[pos] in EVIDENCIA_FUERTE
+    ]
+    fuertes: list[dict] = []
+    vistos: set = set()
+    por_cadena: Counter = Counter()
+    for tanda in (
+        [c for c in candidatas if len(c[1]) >= SUCURSALES_FUERTE],
+        [c for c in candidatas if len(c[1]) < SUCURSALES_FUERTE],
+    ):
+        for pos, sucs in tanda:
+            if len(fuertes) >= PROMOS_FUERTES:
+                break
+            producto = indice.id_producto[pos] or indice.descripcion[pos]
+            cadena = cadena_de(sucs)
+            if producto in vistos or por_cadena[cadena] >= MAXIMO_POR_CADENA_FUERTES:
+                continue
+            vistos.add(producto)
+            por_cadena[cadena] += 1
+            fuertes.append(fila(pos, sucs))
+
+    # Filas: el mismo orden que la pagina (en mas sucursales, y el descuento
+    # como desempate), para que "Ver todas" arranque por las mismas.
+    def mejores(grupo: list) -> list[dict]:
+        grupo = sorted(grupo, key=lambda c: (-len(c[1]), c[0]))
+        return [fila(pos, sucs) for pos, sucs in grupo[:PROMOS_POR_FILA]]
+
+    rubros: dict[str, list] = {}
+    for pos, sucs in vigentes:
+        rubros.setdefault(indice.rubro[pos] or SIN_RUBRO, []).append((pos, sucs))
+    categorias = [
+        {"rubro": r, "slug": slug_rubro(r), "cantidad": len(g), "promos": mejores(g)}
+        for r, g in sorted(rubros.items(), key=lambda kv: (-len(kv[1]), kv[0]))
+    ]
+
+    # Una fila por cadena cerca con promos; las farmacias no tienen fila y las
+    # que casi no informan se nombran aparte (mismo umbral que Tu lista).
+    cerca = distancia if con_zona else range(len(indice.sucursales))
+    cadenas_cerca = {indice.sucursales[s]["cadena"] for s in cerca if not indice.es_farmacia[s]}
+    flojas = poco_informan(indice, cadenas_cerca)
+    por_cadena_fila: dict[str, list] = {}
+    for pos, sucs in vigentes:
+        propias = [s for s in sucs if not indice.es_farmacia[s]]
+        if not propias:
+            continue
+        cadena = cadena_de(propias)
+        if cadena in flojas:
+            continue
+        por_cadena_fila.setdefault(cadena, []).append((pos, propias))
+    cadenas = [
+        {"cadena": c, "cantidad": len(g), "promos": mejores(g)}
+        for c, g in sorted(por_cadena_fila.items(), key=lambda kv: (-len(kv[1]), kv[0]))
+    ]
+
+    todas = fuertes + [p for c in categorias for p in c["promos"]] + [p for c in cadenas for p in c["promos"]]
+    return {
+        "con_zona": con_zona,
+        "radio_km": radio_km,
+        "total": len(vigentes),
+        "fuertes": fuertes,
+        "categorias": categorias,
+        "cadenas": cadenas,
+        "poco_informan": flojas,
+        "sucursales": tabla_de_sucursales(indice, todas),
+    }
 
 
 def promos_de_lista(

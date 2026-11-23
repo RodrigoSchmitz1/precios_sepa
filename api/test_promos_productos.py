@@ -109,9 +109,10 @@ class TestPromosDeProductos(unittest.TestCase):
         self.assertEqual(promos_de_productos(self.indice, ["levite"], -24.0, -65.0, HOY), {})
 
     def test_el_mapa_sigue_igual(self):
-        # Sumar id_producto al indice no cambia lo que devuelve el mapa.
+        # Desde promos-navegables-y-mes-en-gastos cada fila del mapa trae su
+        # id_producto (para "Avisame"); el resto no cambia.
         filas, _ = buscar(self.indice)
-        self.assertNotIn("id_producto", filas[0])
+        self.assertIn("id_producto", filas[0])
         self.assertEqual(len(filas), len(PROMOS))
 
 

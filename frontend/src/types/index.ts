@@ -72,6 +72,8 @@ export type LugarMapa = {
 };
 
 export type PromoMapa = {
+  /** Para "Avisame cuando este de oferta" (openspec promos-navegables-y-mes-en-gastos). */
+  id_producto: string | null;
   descripcion: string;
   marca: string;
   categoria: string | null;
@@ -552,4 +554,24 @@ export type ResultadoDondeComprar = {
   productos: number;
   sin_precio_cerca: { id_producto: string; descripcion: string }[];
   opciones: OpcionDondeComprar[];
+};
+
+/** Una promo de la vidriera: trae solo su sucursal mas cercana (o la primera,
+ *  sin zona) y en cuantas sucursales esta. */
+export type PromoVidriera = PromoMapa & {
+  requiere_compra_multiple: boolean;
+  vigente_hasta: string | null;
+};
+
+/** La portada de Promos (openspec promos-navegables-y-mes-en-gastos). */
+export type Vidriera = {
+  con_zona: boolean;
+  radio_km: number;
+  /** Promos vigentes cerca (o en todo el pais). */
+  total: number;
+  fuertes: PromoVidriera[];
+  categorias: { rubro: string; slug: string; cantidad: number; promos: PromoVidriera[] }[];
+  cadenas: { cadena: string; cantidad: number; promos: PromoVidriera[] }[];
+  poco_informan: string[];
+  sucursales: Record<string, SucursalMapa>;
 };

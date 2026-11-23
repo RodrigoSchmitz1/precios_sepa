@@ -2,6 +2,7 @@ import { createBrowserRouter } from "react-router";
 import AMiCompra from "./components/AMiCompra";
 import Layout from "./components/Layout";
 import PromosPage from "./pages/PromosPage";
+import PromosRubroPage from "./pages/PromosRubroPage";
 import QuienGanaPage from "./pages/QuienGanaPage";
 import InflacionPage from "./pages/InflacionPage";
 import MismoProductoPage from "./pages/MismoProductoPage";
@@ -21,6 +22,8 @@ const router = createBrowserRouter([
       { path: "canasta", element: <AMiCompra /> },
       // Tu canasta se unio con Mi lista en Mi compra (openspec mi-compra).
       { path: "canasta-personalizada", element: <AMiCompra /> },
+      // Las promos de una categoria (openspec promos-navegables-y-mes-en-gastos).
+      { path: "promos/:rubro", element: <PromosRubroPage /> },
       { path: "quien-gana", element: <QuienGanaPage /> },
       { path: "mismo-producto", element: <MismoProductoPage /> },
       { path: "lista", element: <ListaPage /> },
