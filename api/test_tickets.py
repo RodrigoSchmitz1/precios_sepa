@@ -200,6 +200,7 @@ class TestEndpoint(unittest.TestCase):
         self.cliente = TestClient(main.app, raise_server_exceptions=False)
         main._topes_tickets = tickets.Topes()
         self.parches = [
+            mock.patch.dict(os.environ, {"FOTOS_DE_TICKETS": "1"}),
             mock.patch.object(main, "_indice_mismo_producto", return_value=INDICE),
             mock.patch.object(main, "_tabla_cuit", return_value=TABLA_CUIT),
             mock.patch.object(main, "_cliente_gemini_tickets", return_value=object()),
@@ -256,6 +257,27 @@ class TestEndpoint(unittest.TestCase):
             respuesta = self.cliente.post(self.RUTA, json={"fotos": [FOTO]})
         self.assertEqual(respuesta.status_code, 503)
         self.assertIn("Probá de nuevo en un minuto", respuesta.json()["detail"])
+
+
+class TestFotosApagadas(unittest.TestCase):
+    """Sin FOTOS_DE_TICKETS=1 la API no lee fotos y la pagina lo sabe (2026-11-23)."""
+
+    def setUp(self):
+        self.cliente = TestClient(main.app, raise_server_exceptions=False)
+
+    def test_apagadas_por_defecto(self):
+        with mock.patch.dict(os.environ, {}, clear=False):
+            os.environ.pop("FOTOS_DE_TICKETS", None)
+            self.assertEqual(self.cliente.get("/api/gastos/estado").json(), {"fotos": False})
+            with mock.patch.object(tickets, "leer_con_gemini") as gemini:
+                r = self.cliente.post("/api/gastos/leer-ticket", json={"fotos": [FOTO]})
+                gemini.assert_not_called()
+            self.assertEqual(r.status_code, 503)
+            self.assertIn("anotar el monto", r.json()["detail"])
+
+    def test_prendidas(self):
+        with mock.patch.dict(os.environ, {"FOTOS_DE_TICKETS": "1"}):
+            self.assertEqual(self.cliente.get("/api/gastos/estado").json(), {"fotos": True})
 
 
 if __name__ == "__main__":

@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cotizarLista, dondeComprarLista, leerTicket } from "../api/client";
+import { cotizarLista, dondeComprarLista, leerTicket, obtenerEstadoGastos } from "../api/client";
 import { ContextoZona, type EstadoZona } from "../contexto/zona";
 import type { Gasto, LineaGasto, ResultadoLista, TicketLeido } from "../types";
 import { achicarFoto } from "../utils/fotos";
@@ -13,7 +13,12 @@ import GastosPage from "./GastosPage";
 
 /* Mis gastos (openspec mis-gastos-y-barra-nueva). */
 
-vi.mock("../api/client", () => ({ leerTicket: vi.fn(), cotizarLista: vi.fn(), dondeComprarLista: vi.fn() }));
+vi.mock("../api/client", () => ({
+  leerTicket: vi.fn(),
+  cotizarLista: vi.fn(),
+  dondeComprarLista: vi.fn(),
+  obtenerEstadoGastos: vi.fn(() => Promise.resolve({ fotos: true })),
+}));
 vi.mock("../utils/fotos", () => ({ achicarFoto: vi.fn() }));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
@@ -99,6 +104,14 @@ describe("Mis gastos", () => {
     expect(texto(contenedor)).toContain("Mis gastos");
     expect(boton("Sacar foto del ticket")).toBeTruthy();
     expect(boton("Anotar un monto")).toBeTruthy();
+  });
+
+  it("con la lectura de fotos apagada, solo ofrece anotar el monto", async () => {
+    vi.mocked(obtenerEstadoGastos).mockResolvedValueOnce({ fotos: false });
+    await mostrar();
+    expect(boton("Sacar foto del ticket")).toBeUndefined();
+    expect(boton("Anotar un monto")).toBeTruthy();
+    expect(texto(contenedor)).toContain("Muy pronto vas a poder sacarle una foto al ticket");
   });
 
   it("el aviso aparece solo la primera vez", async () => {

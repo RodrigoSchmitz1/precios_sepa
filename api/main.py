@@ -1340,10 +1340,28 @@ class FotosDeTicket(BaseModel):
     fotos: list[str]
 
 
+# La lectura de fotos queda apagada hasta activar Gemini pago (2026-11-23): con
+# la API gratis Google puede usar lo que se le manda para mejorar sus modelos, y
+# el aviso de Mis gastos promete que la foto no se guarda. Se prende con
+# FOTOS_DE_TICKETS=1 en el servicio, sin volver a compilar el frontend: la pagina
+# pregunta a /gastos/estado.
+def fotos_de_tickets_activas() -> bool:
+    return os.getenv("FOTOS_DE_TICKETS") == "1"
+
+
+@api.get("/gastos/estado")
+def estado_gastos():
+    return {"fotos": fotos_de_tickets_activas()}
+
+
 @api.post("/gastos/leer-ticket")
 def leer_ticket(datos: FotosDeTicket, request: Request):
     import base64
     import binascii
+
+    if not fotos_de_tickets_activas():
+        return JSONResponse(status_code=503, content={
+            "detail": "Por ahora la lectura de fotos de tickets no está disponible. Podés anotar el monto a mano."})
 
     if not 1 <= len(datos.fotos) <= tickets.MAXIMO_FOTOS:
         return JSONResponse(status_code=422, content={

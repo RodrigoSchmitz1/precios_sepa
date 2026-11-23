@@ -57,7 +57,7 @@ function GastosPage() {
 
       {gastos.length === 0 && (
         <p className="text-base text-tinta-media leading-relaxed mb-6">
-          Sacale una foto al ticket o anotá el monto. Vas a ver cuánto gastás por mes, en qué súper y en qué categorías,
+          Cargá cada compra del súper. Vas a ver cuánto gastás por mes, en qué súper y en qué categorías,
           cuánto ahorraste en promos y cuánto salía lo mismo en la cadena más barata de tu zona.
         </p>
       )}

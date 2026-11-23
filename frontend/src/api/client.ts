@@ -391,6 +391,13 @@ export async function leerTicket(fotos: string[]): Promise<RespuestaLecturaTicke
   return respuesta.json();
 }
 
+/** Si la API lee fotos de tickets: apagado hasta activar Gemini pago (2026-11-23). */
+export async function obtenerEstadoGastos(): Promise<{ fotos: boolean }> {
+  const respuesta = await fetch(`${API_BASE}/gastos/estado`);
+  if (!respuesta.ok) await fallar(respuesta, "No se pudo saber si se leen fotos");
+  return respuesta.json();
+}
+
 /** Mi compra: la lista en 1, 2 o 3 cadenas con sucursal cerca (openspec mi-compra). */
 export async function dondeComprarLista(
   items: { id_producto: string; cantidad: number }[],

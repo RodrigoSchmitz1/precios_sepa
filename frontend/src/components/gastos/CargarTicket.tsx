@@ -1,5 +1,5 @@
-import { useRef, useState } from "react";
-import { leerTicket } from "../../api/client";
+import { useEffect, useRef, useState } from "react";
+import { leerTicket, obtenerEstadoGastos } from "../../api/client";
 import type { Gasto, LineaGasto, TicketLeido } from "../../types";
 import { formatearPesos } from "../../utils/formato";
 import { achicarFoto } from "../../utils/fotos";
@@ -43,6 +43,18 @@ export default function CargarTicket({
 }) {
   const [estado, setEstado] = useState<Estado>({ paso: "inicio" });
   const entrada = useRef<HTMLInputElement>(null);
+  // null mientras se pregunta. Sin respuesta, no se ofrece la foto: mejor
+  // anotar a mano que mandar una foto que la API va a rechazar.
+  const [fotosActivas, setFotosActivas] = useState<boolean | null>(null);
+  useEffect(() => {
+    let cancelado = false;
+    obtenerEstadoGastos()
+      .then((e) => !cancelado && setFotosActivas(e.fotos))
+      .catch(() => !cancelado && setFotosActivas(false));
+    return () => {
+      cancelado = true;
+    };
+  }, []);
 
   const elegirFotos = () => {
     if (!avisoAceptado()) {
@@ -90,9 +102,22 @@ export default function CargarTicket({
         onChange={(e) => alElegir(e.target.files)}
       />
 
-      {estado.paso === "inicio" && (
+      {estado.paso === "inicio" && fotosActivas === false && (
+        <div className="grid gap-3">
+          <button type="button" onClick={onAnotarAMano} className="fondo-marca text-white font-bold rounded-2xl min-h-12 px-4">
+            ✍️ Anotar un monto
+          </button>
+          <p className="text-sm text-tinta-suave">Muy pronto vas a poder sacarle una foto al ticket y ver el detalle de lo que compraste.</p>
+        </div>
+      )}
+      {estado.paso === "inicio" && fotosActivas !== false && (
         <div className="grid gap-3 sm:grid-cols-2">
-          <button type="button" onClick={elegirFotos} className="fondo-marca text-white font-bold rounded-2xl min-h-12 px-4">
+          <button
+            type="button"
+            onClick={elegirFotos}
+            disabled={fotosActivas === null}
+            className="fondo-marca text-white font-bold rounded-2xl min-h-12 px-4 disabled:opacity-60"
+          >
             📷 Sacar foto del ticket
           </button>
           <button type="button" onClick={onAnotarAMano} className="bg-marca-tenue text-marca font-bold rounded-2xl min-h-12 px-4">
