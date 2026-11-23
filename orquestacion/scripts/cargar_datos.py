@@ -81,6 +81,49 @@ def esquema_desde_archivo(archivo):
     return [bigquery.SchemaField(col, "STRING") for col in columnas]
 
 
+def reparar_renglones(archivo):
+    """
+    Vuelve a unir los renglones partidos por un salto de linea adentro de un
+    campo sin comillas, y devuelve la ruta de un archivo temporal reparado (o
+    el mismo archivo si no habia nada que unir).
+
+    Desde el 2026-11-20 Comodin y Carrefour publican sucursales con un salto de
+    linea en sucursales_observaciones. BigQuery partia el renglon en dos: la
+    segunda mitad entraba como otra fila, con el horario en la columna de la
+    latitud, y dbt fallaba al convertirla en numero (cuatro dias sin marts).
+
+    Un renglon con menos campos que el encabezado se une con el siguiente,
+    siempre que juntos no pasen de la cantidad del encabezado. Trabaja en
+    bytes para no tocar la codificacion de cada comercio.
+    """
+    with open(archivo, "rb") as f:
+        lineas = f.read().split(b"\n")
+    if not lineas:
+        return archivo
+    campos = lineas[0].count(b"|") + 1
+    reparadas = []
+    unidas = 0
+    for linea in lineas[1:]:
+        anterior = reparadas[-1] if reparadas else None
+        if (
+            anterior is not None
+            and anterior.count(b"|") + 1 < campos
+            and anterior.count(b"|") + linea.count(b"|") + 1 <= campos
+            and linea.strip()
+        ):
+            reparadas[-1] = anterior.rstrip(b"\r") + b" " + linea
+            unidas += 1
+        else:
+            reparadas.append(linea)
+    if unidas == 0:
+        return archivo
+    print(f"  ({archivo}: {unidas} renglones partidos vueltos a unir)")
+    salida = tempfile.NamedTemporaryFile(delete=False, suffix=".csv")
+    with salida:
+        salida.write(b"\n".join([lineas[0]] + reparadas))
+    return salida.name
+
+
 def config_carga(esquema, modo):
     """Configuración de carga reutilizable para cualquier CSV de SEPA."""
     return bigquery.LoadJobConfig(
@@ -161,8 +204,9 @@ def cargar_dimension(cliente, tabla):
         )
         esquema = esquema_desde_archivo(archivo)
         config = config_carga(esquema, modo)
+        reparado = reparar_renglones(archivo)
 
-        with open(archivo, "rb") as f:
+        with open(reparado, "rb") as f:
             print(f"Cargando {archivo} en landing de {tabla} (modo: {'reemplazar' if primera_carga else 'anexar'})...")
             job = cliente.load_table_from_file(f, landing, job_config=config)
             job.result()

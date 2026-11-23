@@ -212,7 +212,11 @@ function Presentacion({ enMedio, despues }: { enMedio?: ReactNode; despues?: Rea
 
   const inflacion = datos.inflacion ?? [];
 
-  const fechaDatos = fechaEnPalabras(datos.ejemplo?.fecha_datos ?? datos.inflacion?.[0]?.fecha_fin ?? "");
+  // Solo la fecha de los precios. Hasta el 2026-11-23 caia en la del indice de
+  // inflacion mientras llegaba el ejemplo, y la portada decia "18 de noviembre"
+  // un instante antes de pasar a "22 de noviembre": el indice cierra en su
+  // ultimo eslabon, que puede ser de dias antes.
+  const fechaDatos = fechaEnPalabras(datos.ejemplo?.fecha_datos ?? "");
 
   // Las tarjetas (utils/cifrasPortada). Con zona, mientras llega lo de la zona
   // no se muestra la cifra del pais en su lugar: pasaria de "Maxi" a la cadena
