@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, useLocation } from "react-router";
 import { useLista } from "../contexto/lista";
 import { BARRA_CELULAR, MENU_MAS, rutaDeMas } from "../utils/secciones";
+import { InterruptorDatosAnonimos } from "./DatosAnonimos";
 
 /** El numero de productos de la lista, sobre el icono de "Mi lista". */
 function ContadorLista() {
@@ -89,6 +90,10 @@ export default function BarraCelular() {
                 </li>
               ))}
             </ul>
+            {/* Las señales anonimas se apagan aca en un toque (openspec senales-anonimas). */}
+            <div className="mt-2 pt-2 border-t border-linea">
+              <InterruptorDatosAnonimos />
+            </div>
           </div>
         </div>
       )}

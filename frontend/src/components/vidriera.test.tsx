@@ -3,7 +3,8 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, Route, Routes } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { obtenerPromosDeProductos, obtenerPromosMapa, obtenerVidriera } from "../api/client";
+import { enviarSenales, obtenerEstadoSenales, obtenerPromosDeProductos, obtenerPromosMapa, obtenerVidriera } from "../api/client";
+import { apagarSenales, reiniciarSenalesParaTests, vaciarCola } from "../utils/senales";
 import { ContextoZona, type EstadoZona } from "../contexto/zona";
 import type { PromoCerca, PromoMapa, PromoVidriera, Vidriera } from "../types";
 import { alternarAviso } from "../utils/avisos";
@@ -19,6 +20,8 @@ vi.mock("../api/client", () => ({
   obtenerPromosMapa: vi.fn(),
   obtenerPromosDeProductos: vi.fn(),
   obtenerLugares: vi.fn(() => Promise.resolve([])),
+  obtenerEstadoSenales: vi.fn(() => Promise.resolve({ activas: false })),
+  enviarSenales: vi.fn(),
 }));
 // La presentacion de la portada tiene sus propios pedidos y tests.
 vi.mock("./Presentacion", () => ({
@@ -66,6 +69,7 @@ let raiz: Root;
 
 beforeEach(() => {
   window.localStorage.clear();
+  reiniciarSenalesParaTests();
   contenedor = document.createElement("div");
   document.body.appendChild(contenedor);
   raiz = createRoot(contenedor);
@@ -182,7 +186,11 @@ describe("Avisos de oferta", () => {
 
   it("el botón alterna Avisame / Te avisamos", async () => {
     await act(async () => {
-      raiz.render(<BotonAvisame producto={{ id_producto: "x", descripcion: "X" }} />);
+      raiz.render(
+        <ContextoZona.Provider value={estadoZona(ZONA)}>
+          <BotonAvisame producto={{ id_producto: "x", descripcion: "X" }} />
+        </ContextoZona.Provider>,
+      );
     });
     expect(texto(contenedor)).toContain("Avisame cuando esté de oferta");
     await act(async () => boton("Avisame")!.click());
@@ -224,3 +232,59 @@ describe("Página de una categoría", () => {
     expect(enlace("Volver a la vidriera")?.getAttribute("href")).toBe("/");
   });
 });
+
+describe("Señales anónimas (senales-anonimas)", () => {
+  const eventos = () =>
+    vi.mocked(enviarSenales).mock.calls.flatMap((c) => (c[0] as { eventos: { tipo: string }[] }).eventos);
+
+  beforeEach(() => {
+    vi.mocked(obtenerEstadoSenales).mockResolvedValue({ activas: true });
+    vi.mocked(obtenerPromosMapa).mockResolvedValue({ promos: [promo("l1")], hay_mas: false, sucursales: {} });
+  });
+
+  it("abrir una categoría manda vista_rubro con la zona", async () => {
+    await mostrar("/promos/limpieza");
+    await act(async () => new Promise((listo) => setTimeout(listo, 10)));
+    vaciarCola();
+    expect(eventos()).toEqual([{ tipo: "vista_rubro", rubro: "limpieza" }]);
+    const cuerpo = vi.mocked(enviarSenales).mock.calls[0][0] as { zona: { nombre: string } };
+    expect(cuerpo.zona.nombre).toBe("Caballito");
+  });
+
+  it("pedir y quitar un aviso manda aviso_pedido y aviso_quitado", async () => {
+    await mostrar("/promos/limpieza");
+    await act(async () => new Promise((listo) => setTimeout(listo, 10)));
+    const avisame = () => [...contenedor.querySelectorAll("button")].find((b) => b.textContent?.includes("🔔"))!;
+    await act(async () => avisame().click());
+    await act(async () => avisame().click());
+    vaciarCola();
+    expect(eventos().map((e) => e.tipo)).toEqual(["vista_rubro", "aviso_pedido", "aviso_quitado"]);
+  });
+
+  it("apagadas no manda nada", async () => {
+    apagarSenales();
+    await mostrar("/promos/limpieza");
+    await act(async () => new Promise((listo) => setTimeout(listo, 10)));
+    vaciarCola();
+    expect(enviarSenales).not.toHaveBeenCalled();
+  });
+
+  it("buscar una promo manda la búsqueda", async () => {
+    await mostrar("/");
+    const campo = contenedor.querySelector<HTMLInputElement>('input[aria-label="Buscar una promo"]')!;
+    const setter = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value")!.set!;
+    await act(async () => {
+      setter.call(campo, "lavandina");
+      campo.dispatchEvent(new Event("input", { bubbles: true }));
+    });
+    await act(async () => campo.form!.requestSubmit());
+    vaciarCola();
+    expect(eventos()).toContainEqual({ tipo: "busqueda", texto: "lavandina" });
+  });
+
+  it("el aviso de una línea aparece debajo de las promos del día", async () => {
+    await mostrar("/");
+    expect(texto(contenedor)).toContain("Changuito cuenta de forma anónima");
+  });
+});
+

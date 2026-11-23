@@ -1496,6 +1496,47 @@ Se compara contra lo que figura en los tickets antes de descuentos, igual que
 cada ticket, y con el mismo mínimo de productos reconocidos. Al servidor viaja
 la lista de productos y cantidades, nunca los tickets.
 
+## Señales anónimas para Changuito Empresas
+
+Openspec `senales-anonimas` (2026-11-23). Lo que diferencia a Changuito
+Empresas es lo que la gente hace en Changuito, no los datos de SEPA. Se mide
+poco y a propósito: qué categoría de promos se abre, qué producto se pide (o se
+quita) en un aviso de oferta, y qué categoría se busca. La API traduce la
+búsqueda a la categoría del primer resultado y descarta el texto.
+
+**Prendidas, con aviso, y anónimas de verdad.** Rodrigo eligió este modelo:
+con un "Sí / No" casi nadie suma, y esconder el "no" o meterlo en condiciones
+sería engañoso y contrario a la Ley 25.326, que pide un consentimiento expreso
+y destacado. La salida honesta fue que los datos no sean personales:
+- el identificador al azar cambia cada día, así que no se pueden unir los
+  eventos de una persona de un día con los de otro;
+- no se guarda la IP (solo vive en memoria para el tope), ni la ubicación
+  exacta, ni el texto buscado;
+- la zona es la elegida, a nivel de localidad.
+
+La primera vez se muestra un aviso de una línea ("Entendido" / "Más info"), y
+el menú Más tiene un interruptor que las apaga en un toque. El precio de no
+tener perfil es contar personas por día y no por semana.
+
+**Escribir no cuesta consultas.** Los eventos viajan en tandas con
+`sendBeacon`. La API los junta en memoria y los sube cada 5 minutos, o al
+llegar a 500, con un load job a `sepa_senales.eventos`, que está particionada
+por día y expira a los 400 días. Se descartó `insert_rows_json`, que se cobra.
+Si una instancia muere sin apagarse, se pierden a lo sumo esos minutos.
+
+**Agregados con umbral.** `mart_senales_rubros`, `mart_senales_busquedas` y
+`mart_senales_avisos` cuentan, por semana y provincia, personas por día. Un
+grupo con menos de `umbral_personas_senales` (10) no aparece. Están
+deshabilitados con `senales_activas: false` hasta encender, para no gastar una
+consulta diaria sobre una tabla vacía.
+
+**Apagado hasta el lanzamiento.** `SENALES_ACTIVAS=1` en el servicio prende
+todo; sin la variable, la app no muestra nada y la API responde 503. Antes de
+prenderla hay que revisar el texto y confirmar que los datos anónimos no
+requieren registro ante la AAIP (ver DEPLOY.md). Las líneas de ticket quedan
+afuera: son compras de una persona y van a necesitar un consentimiento
+explícito cuando se prendan las fotos.
+
 ## Tests
 
 Además de los genéricos, hay tests singulares de dbt para lo que sólo se

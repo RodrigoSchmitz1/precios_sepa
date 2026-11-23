@@ -4,6 +4,7 @@ import mimetypes
 import os
 import threading
 import time
+from contextlib import asynccontextmanager
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
 
@@ -23,6 +24,7 @@ import compartir
 import mapa_promos
 import mismo_producto
 import precios_por_sucursal
+import senales
 import tickets
 
 api = FastAPI(title="precios_sepa API")
@@ -1308,6 +1310,65 @@ def donde_comprar_lista(datos: DondeComprarLista):
 
 
 # ---------------------------------------------------------------------------
+# Señales anonimas de uso (openspec senales-anonimas)
+#
+# Apagadas salvo SENALES_ACTIVAS=1. Cada tanda se valida contra los indices en
+# memoria (rubros del mapa, productos de Mismo producto, zonas) y se junta en
+# un buffer que se sube con load jobs: ningun evento consulta BigQuery. La IP
+# se usa solo para el tope en memoria y no se guarda.
+# ---------------------------------------------------------------------------
+_topes_senales = senales.Topes()
+_buffer_senales = senales.Buffer(PROYECTO, lambda: cliente_bq)
+_rubros_senales: dict = {}
+
+
+def _rubros_para_senales() -> dict:
+    """slug -> nombre de los rubros del mapa, armado una vez por indice."""
+    indice = _indice_mapa()
+    if _rubros_senales.get("indice") is not indice:
+        rubros = {r or mapa_promos.SIN_RUBRO for r in set(indice.rubro)}
+        _rubros_senales.update(indice=indice, rubros={mapa_promos.slug_rubro(r): r for r in rubros})
+    return _rubros_senales["rubros"]
+
+
+def _categoria_de_busqueda(texto: str) -> str | None:
+    resultados = mismo_producto.buscar(_indice_mismo_producto(), texto, 1)
+    return resultados[0].get("categoria") if resultados else None
+
+
+@api.get("/senales/estado")
+def estado_senales():
+    return {"activas": senales.activas()}
+
+
+@api.post("/senales", status_code=204)
+async def recibir_senales(request: Request):
+    if not senales.activas():
+        return JSONResponse(status_code=503, content={"detail": "Las señales anónimas no están activas."})
+    # sendBeacon manda el cuerpo como texto: se lee a mano y con tope de tamaño.
+    crudo = await request.body()
+    if len(crudo) > 8_000:
+        return JSONResponse(status_code=413, content={"detail": "Tanda demasiado grande."})
+    try:
+        cuerpo = json.loads(crudo)
+    except ValueError:
+        return JSONResponse(status_code=422, content={"detail": "No es JSON."})
+    filas = senales.validar_tanda(
+        cuerpo,
+        rubros=_rubros_para_senales(),
+        productos=_indice_mismo_producto(),
+        zonas={(z["provincia"], z["nombre"]) for z in obtener_zonas()},
+        categoria_de=_categoria_de_busqueda,
+        hoy=senales.hoy_en_argentina(),
+    )
+    if filas:
+        aceptados = _topes_senales.cuantos(filas[0]["id_dia"], _ip_del_pedido(request), len(filas))
+        if aceptados:
+            _buffer_senales.agregar(filas[:aceptados])
+    return None
+
+
+# ---------------------------------------------------------------------------
 # Mis gastos: leer la foto de un ticket (openspec mis-gastos-y-barra-nueva)
 #
 # La foto llega en base64 dentro de un JSON, se manda a Gemini en memoria y se
@@ -1505,7 +1566,14 @@ def obtener_mismo_producto(id_producto: str):
 # cosas a la vez, y sin separarlas el navegador recibiria JSON donde espera una
 # pagina.
 # ---------------------------------------------------------------------------
-app = FastAPI(title="precios_sepa")
+@asynccontextmanager
+async def _ciclo_de_vida(_app):
+    yield
+    # Al apagarse la instancia se suben las señales que quedaron en memoria.
+    _buffer_senales.vaciar()
+
+
+app = FastAPI(title="precios_sepa", lifespan=_ciclo_de_vida)
 app.mount("/api", api)
 
 # Comprimir las respuestas (2026-09-23). Sin esto, cada movida del mapa bajaba

@@ -1,6 +1,8 @@
 import { useState } from "react";
 import { alternarAviso, MAXIMO_AVISOS, useAvisos, type ResultadoAviso } from "../utils/avisos";
 import { hoyEnArgentina } from "../utils/gastos";
+import { senal } from "../utils/senales";
+import { useZona } from "../contexto/zona";
 
 /*
   "Avisame cuando este de oferta" (openspec promos-navegables-y-mes-en-gastos).
@@ -18,6 +20,7 @@ function BotonAvisame({
   compacto?: boolean;
 }) {
   const avisos = useAvisos();
+  const { zona } = useZona();
   const [problema, setProblema] = useState<Extract<ResultadoAviso, "tope" | "sin-guardar"> | null>(null);
   const activo = avisos.some((a) => a.id_producto === producto.id_producto);
   const lleno = !activo && avisos.length >= MAXIMO_AVISOS;
@@ -25,6 +28,9 @@ function BotonAvisame({
   function tocar() {
     const resultado = alternarAviso(producto, hoyEnArgentina());
     setProblema(resultado === "tope" || resultado === "sin-guardar" ? resultado : null);
+    // Señal anonima (openspec senales-anonimas): este boton es el unico lugar donde se pide un aviso.
+    if (resultado === "agregado") senal({ tipo: "aviso_pedido", id_producto: producto.id_producto }, zona);
+    if (resultado === "sacado") senal({ tipo: "aviso_quitado", id_producto: producto.id_producto }, zona);
   }
 
   const texto = activo ? "🔔 Te avisamos" : compacto ? "🔔 Avisame" : "🔔 Avisame cuando esté de oferta";

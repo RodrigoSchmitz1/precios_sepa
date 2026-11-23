@@ -2,12 +2,19 @@
 import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter, Route, Routes, useLocation } from "react-router";
-import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { obtenerEstadoSenales } from "../api/client";
+import { reiniciarSenalesParaTests } from "../utils/senales";
 import ProveedorLista from "./ProveedorLista";
 import BarraCelular from "./BarraCelular";
 import { CLAVE_LISTA } from "../utils/lista";
 
 /* La barra del celular (openspec mis-gastos-y-barra-nueva). */
+
+vi.mock("../api/client", () => ({
+  obtenerEstadoSenales: vi.fn(() => Promise.resolve({ activas: false })),
+  enviarSenales: vi.fn(),
+}));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -20,6 +27,7 @@ function Ruta() {
 
 beforeEach(() => {
   window.localStorage.clear();
+  reiniciarSenalesParaTests();
   contenedor = document.createElement("div");
   document.body.appendChild(contenedor);
   raiz = createRoot(contenedor);
@@ -88,5 +96,24 @@ describe("BarraCelular", () => {
     const gastos = [...contenedor.querySelectorAll("nav a")].find((a) => a.textContent?.includes("Mis gastos"))!;
     expect(gastos.className).toContain("text-marca");
     expect(contenedor.querySelector("button[aria-controls='hoja-mas']")?.getAttribute("aria-current")).toBeNull();
+  });
+});
+
+describe("datos anónimos en el menú Más (senales-anonimas)", () => {
+  it("con el servicio apagado no aparece el interruptor", async () => {
+    mostrar("/");
+    await act(async () => contenedor.querySelector<HTMLButtonElement>('[aria-controls="hoja-mas"]')!.click());
+    expect(contenedor.querySelector('[role="switch"]')).toBeNull();
+  });
+
+  it("con el servicio activo se apaga en un toque", async () => {
+    vi.mocked(obtenerEstadoSenales).mockResolvedValue({ activas: true });
+    mostrar("/");
+    await act(async () => contenedor.querySelector<HTMLButtonElement>('[aria-controls="hoja-mas"]')!.click());
+    const interruptor = contenedor.querySelector('[role="switch"]') as HTMLButtonElement;
+    expect(interruptor.getAttribute("aria-checked")).toBe("true");
+    await act(async () => interruptor.click());
+    expect(interruptor.getAttribute("aria-checked")).toBe("false");
+    expect(JSON.parse(window.localStorage.getItem("changuito.senales.v1")!).apagadas).toBe(true);
   });
 });

@@ -173,6 +173,26 @@ Detalles que importan:
 Para actualizar el sitio después de un cambio, se repite sólo el `gcloud run
 deploy`.
 
+### Interruptores que se prenden con una variable
+
+`--set-env-vars` **reemplaza todas** las variables del servicio: para prender
+algo hay que sumarlo a la misma lista, separado por comas, y repetirlo en cada
+deploy. Sin la variable, la función queda apagada.
+
+- `FOTOS_DE_TICKETS=1`: Mis gastos lee fotos de tickets con Gemini. Prender
+  solo con Gemini pago: con la API gratis Google puede usar las fotos, y el
+  aviso de Mis gastos promete que no se guardan.
+- `SENALES_ACTIVAS=1`: señales anónimas para Changuito Empresas (openspec
+  senales-anonimas). Antes de prenderla, revisar el texto del aviso y de "Más
+  info" y confirmar que los datos anónimos no requieren registro ante la AAIP.
+  Al prenderla, poner también `senales_activas: true` en `dbt_project.yml`
+  para que corran los marts `mart_senales_*`. La API crea sola el dataset
+  `sepa_senales` (con expiración de 400 días) la primera vez que sube eventos.
+
+```bash
+gcloud run deploy precios-sepa-api --source . --region us-central1 --allow-unauthenticated --service-account dbt-788@proyecto-precios-504221.iam.gserviceaccount.com --set-env-vars USAR_CREDENCIALES_DEL_ENTORNO=1,SENALES_ACTIVAS=1 --set-secrets GEMINI_API_KEY=gemini-api-key:latest --memory 1Gi --max-instances 3
+```
+
 ---
 
 ## 2. Verificar

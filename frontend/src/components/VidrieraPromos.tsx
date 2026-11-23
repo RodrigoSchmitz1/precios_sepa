@@ -8,6 +8,8 @@ import type { PromoVidriera } from "../types";
 import { formatearNumero } from "../utils/formato";
 import { nombreRubro } from "../utils/nombres";
 import { textoPocoInforman } from "../utils/promosDeLista";
+import { senal } from "../utils/senales";
+import { AvisoDatosAnonimos } from "./DatosAnonimos";
 import { rotuloZona } from "../utils/zona";
 
 /** Cuantas categorias se ven de entrada; el resto, detras de "Ver todas las categorias". */
@@ -29,6 +31,8 @@ export function PromosDelDia({ vidriera, error }: EstadoVidriera) {
   function buscar(e: FormEvent) {
     e.preventDefault();
     const texto = busqueda.trim();
+    // Señal anonima: la API la traduce a una categoria y no guarda el texto.
+    if (texto) senal({ tipo: "busqueda", texto: texto.slice(0, 80) }, zona);
     navigate(texto ? `?mapa=1&q=${encodeURIComponent(texto)}` : "?mapa=1");
   }
 
@@ -97,6 +101,7 @@ export function PromosDelDia({ vidriera, error }: EstadoVidriera) {
             🗺️ Ver en el mapa
           </Link>
         </div>
+        <AvisoDatosAnonimos />
       </section>
     </div>
   );

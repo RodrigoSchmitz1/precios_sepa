@@ -5,6 +5,7 @@ import ProveedorLista from "./ProveedorLista";
 import AccesoLista from "./AccesoLista";
 import SelectorZona from "./SelectorZona";
 import BarraCelular from "./BarraCelular";
+import { HojaDatosAnonimos, LinkDatosAnonimos } from "./DatosAnonimos";
 import { SECCIONES } from "../utils/secciones";
 
 function Layout() {
@@ -84,6 +85,7 @@ function Layout() {
       </main>
 
       <BarraCelular />
+      <HojaDatosAnonimos />
 
       <footer className="mt-16 bg-papel pb-20 sm:pb-0">
         <div className="max-w-5xl mx-auto px-5 py-6 text-xs text-tinta-suave">
@@ -101,6 +103,7 @@ function Layout() {
             Cómo se calcula cada número
           </NavLink>
           .
+          <LinkDatosAnonimos />
         </div>
       </footer>
     </div>

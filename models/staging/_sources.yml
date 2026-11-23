@@ -12,3 +12,12 @@ sources:
       - name: sucursales_anterior
       - name: comercio_anterior
       - name: barrios_caba
+
+  # Señales anonimas de uso (openspec senales-anonimas). La API escribe la tabla
+  # con load jobs cuando el servicio tiene SENALES_ACTIVAS=1; mientras tanto no
+  # existe, y los marts que la leen estan deshabilitados (var senales_activas).
+  - name: senales
+    database: proyecto-precios-504221
+    schema: sepa_senales
+    tables:
+      - name: eventos

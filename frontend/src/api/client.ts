@@ -391,6 +391,32 @@ export async function leerTicket(fotos: string[]): Promise<RespuestaLecturaTicke
   return respuesta.json();
 }
 
+/** Si el servicio tiene activas las señales anonimas (openspec senales-anonimas). */
+export async function obtenerEstadoSenales(): Promise<{ activas: boolean }> {
+  const respuesta = await fetch(`${API_BASE}/senales/estado`);
+  if (!respuesta.ok) await fallar(respuesta, "No se pudo saber si las señales están activas");
+  return respuesta.json();
+}
+
+/*
+  Una tanda de señales. sendBeacon sobrevive al cierre de la pestaña y no espera
+  respuesta; va como texto plano para que no haga falta un pedido previo de CORS.
+  Si el navegador no lo tiene, fetch con keepalive. Un fallo no se muestra: es
+  una estadistica, no algo que la persona pidio.
+*/
+export function enviarSenales(cuerpo: unknown): void {
+  const datos = JSON.stringify(cuerpo);
+  const url = `${API_BASE}/senales`;
+  try {
+    if (typeof navigator !== "undefined" && typeof navigator.sendBeacon === "function") {
+      if (navigator.sendBeacon(url, new Blob([datos], { type: "text/plain" }))) return;
+    }
+    void fetch(url, { method: "POST", body: datos, headers: { "Content-Type": "text/plain" }, keepalive: true }).catch(() => {});
+  } catch {
+    /* sin red o sin permiso: se pierde esta tanda */
+  }
+}
+
 /** Si la API lee fotos de tickets: apagado hasta activar Gemini pago (2026-11-23). */
 export async function obtenerEstadoGastos(): Promise<{ fotos: boolean }> {
   const respuesta = await fetch(`${API_BASE}/gastos/estado`);

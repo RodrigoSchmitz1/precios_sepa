@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router";
 import ListadoPromos from "../components/ListadoPromos";
 import BuscadorProducto from "../components/BuscadorProducto";
@@ -9,6 +9,7 @@ import type { PromoMapa, SucursalMapa } from "../types";
 import { formatearNumero } from "../utils/formato";
 import { nombreCategoria, nombreRubro } from "../utils/nombres";
 import { rubroDesdeSlug } from "../utils/rubros";
+import { senal } from "../utils/senales";
 import { rotuloZona } from "../utils/zona";
 
 /** Como la vista del mapa: el tope de la API es 6000. */
@@ -75,6 +76,15 @@ function PromosRubroPage() {
       clearTimeout(timeoutId);
     };
   }, [firma]);
+
+  // Una señal anonima por categoria abierta (openspec senales-anonimas): cambiar
+  // la zona sin cambiar de categoria no manda otra.
+  const senalEnviada = useRef<string | null>(null);
+  useEffect(() => {
+    if (!lista || !slug || senalEnviada.current === slug) return;
+    senalEnviada.current = slug;
+    senal({ tipo: "vista_rubro", rubro: slug }, zona);
+  }, [slug, lista, zona]);
 
   const nombre = promos[0]?.rubro ? nombreRubro(promos[0].rubro) : nombreRubro(rubroDesdeSlug(slug));
   const lugar = zona ? `cerca de ${rotuloZona(zona)}` : "en todo el país";
