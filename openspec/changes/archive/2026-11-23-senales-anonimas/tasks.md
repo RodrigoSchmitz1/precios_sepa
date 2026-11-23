@@ -19,7 +19,7 @@
 
 ## 4. Cierre
 
-- [ ] 4.1 Correr los tests de la API, de la orquestación y del frontend, lint y build; desplegar con la variable apagada solo con el OK de Rodrigo y verificar que la app no ofrece nada y `POST /api/senales` responde 503.
+- [x] 4.1 Correr los tests de la API, de la orquestación y del frontend, lint y build; desplegar con la variable apagada solo con el OK de Rodrigo y verificar que la app no ofrece nada y `POST /api/senales` responde 503.
 - [x] 4.2 Anotar en `docs/DECISIONES.md` el diseño (load jobs, identificador que cambia cada día, umbral) y en `DEPLOY.md` cómo encender (`SENALES_ACTIVAS=1` en `--set-env-vars`, `senales_activas: true` en dbt).
 
 ## Workflow follow-up
