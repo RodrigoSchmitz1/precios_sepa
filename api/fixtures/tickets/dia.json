@@ -1,0 +1,6 @@
+{"es_ticket": true, "cadena": "DIA", "cuit_comercio": "30685849751", "sucursal": null,
+ "fecha": "2025-01-08", "comprobante": "04712-00116390", "total": 3100.00,
+ "fotos": [{"lineas": [
+   {"descripcion": "GASEOSA COCA SIN AZU", "cantidad": 1, "precio_unitario": 3100.00, "importe": 3100.00, "codigo": null},
+   {"descripcion": "ART VARIOS 1", "cantidad": 1, "precio_unitario": 500.00, "importe": 500.00, "codigo": null}
+ ], "descuentos": []}]}

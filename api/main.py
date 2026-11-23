@@ -23,6 +23,7 @@ import compartir
 import mapa_promos
 import mismo_producto
 import precios_por_sucursal
+import tickets
 
 api = FastAPI(title="precios_sepa API")
 
@@ -1249,6 +1250,85 @@ def cotizar_lista_de_productos(datos: ListaDeProductos):
         return JSONResponse(status_code=422, content={"detail": "La lista está vacía."})
     items = [i for i in datos.items if isinstance(i, dict)]
     return mismo_producto.cotizar_lista(_indice_mismo_producto(), items, datos.cadenas)
+
+
+# ---------------------------------------------------------------------------
+# Mis gastos: leer la foto de un ticket (openspec mis-gastos-y-barra-nueva)
+#
+# La foto llega en base64 dentro de un JSON, se manda a Gemini en memoria y se
+# descarta: no se escribe en disco ni en los registros (Cloud Run registra la
+# URL del pedido, no el cuerpo). El cruce con SEPA usa el indice de Mismo
+# producto que ya esta en memoria y la tabla de CUIT de stg_comercio, leida con
+# leer_tabla: ningun pedido consulta BigQuery.
+# ---------------------------------------------------------------------------
+_topes_tickets = tickets.Topes()
+
+
+@cachear
+def _tabla_cuit():
+    return tickets.armar_tabla_cuit(leer_tabla(f"{PROYECTO}.dbt_precios.stg_comercio"))
+
+
+def _cliente_gemini_tickets():
+    from interpretar_canasta import _cliente_gemini
+
+    return _cliente_gemini()
+
+
+def _ip_del_pedido(request: Request) -> str:
+    # Cloud Run pone la IP del visitante primera en X-Forwarded-For.
+    reenviada = request.headers.get("x-forwarded-for", "")
+    return reenviada.split(",")[0].strip() or (request.client.host if request.client else "")
+
+
+class FotosDeTicket(BaseModel):
+    fotos: list[str]
+
+
+@api.post("/gastos/leer-ticket")
+def leer_ticket(datos: FotosDeTicket, request: Request):
+    import base64
+    import binascii
+
+    if not 1 <= len(datos.fotos) <= tickets.MAXIMO_FOTOS:
+        return JSONResponse(status_code=422, content={
+            "detail": f"Mandá entre 1 y {tickets.MAXIMO_FOTOS} fotos del mismo ticket."})
+    fotos = []
+    for foto in datos.fotos:
+        if len(foto) * 3 // 4 > tickets.MAXIMO_BYTES_POR_FOTO:
+            return JSONResponse(status_code=413, content={"detail": "La foto es demasiado grande."})
+        try:
+            fotos.append(base64.b64decode(foto, validate=True))
+        except (binascii.Error, ValueError):
+            return JSONResponse(status_code=422, content={"detail": "La foto no llegó bien. Probá de nuevo."})
+
+    tope = _topes_tickets.permitir(_ip_del_pedido(request))
+    if tope == "ip":
+        return JSONResponse(status_code=429, content={
+            "detail": "Cargaste muchos tickets en la última hora. Probá de nuevo más tarde, "
+                      "o anotá el monto a mano."})
+    if tope == "dia":
+        return JSONResponse(status_code=503, content={
+            "detail": "Hoy se leyeron muchos tickets y llegamos al tope del día. Probá mañana, "
+                      "o anotá el monto a mano."})
+
+    cliente = _cliente_gemini_tickets()
+    try:
+        lectura = tickets.limpiar_lectura(tickets.leer_con_gemini(cliente, fotos))
+        if not lectura["legible"]:
+            return {"legible": False}
+        ticket = tickets.vincular(
+            lectura, _indice_mismo_producto(), _tabla_cuit(),
+            lambda pendientes, categorias: tickets.elegir_con_gemini(cliente, pendientes, categorias),
+        )
+    except genai_errors.APIError as error:
+        if error.code == 429:
+            return JSONResponse(status_code=503, content={
+                "detail": "Hay muchos tickets leyéndose al mismo tiempo. Probá de nuevo en un minuto."})
+        raise
+    except json.JSONDecodeError:
+        return {"legible": False}
+    return {"legible": True, "ticket": ticket, "constantes": tickets.CONSTANTES_PARA_LA_PAGINA}
 
 
 class CategoriasDeTuCanasta(BaseModel):

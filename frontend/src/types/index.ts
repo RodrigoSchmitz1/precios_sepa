@@ -465,3 +465,61 @@ export type PromoCerca = SucursalMapa & {
   vigente_hasta: string | null;
   requiere_compra_multiple: boolean;
 };
+
+/* ------------------------------------------------------------------------
+   Mis gastos (openspec mis-gastos-y-barra-nueva)
+   ------------------------------------------------------------------------ */
+
+/** Una linea de un ticket, como la devuelve la API y como se guarda. */
+export type LineaGasto = {
+  descripcion: string;
+  cantidad: number;
+  precio_unitario: number;
+  importe: number;
+  codigo: string | null;
+  /** El producto de SEPA vinculado, o null. */
+  id_producto: string | null;
+  nombre: string | null;
+  categoria: string;
+  vinculo: "codigo" | "candidato" | "ninguno";
+};
+
+export type DescuentoGasto = { descripcion: string; importe: number };
+
+/** Un ticket leido por la API, antes de que el usuario lo revise. */
+export type TicketLeido = {
+  cadena: string | null;
+  cadenas_sepa: string[];
+  sucursal: string | null;
+  fecha: string | null;
+  comprobante: string | null;
+  total: number | null;
+  lineas: LineaGasto[];
+  descuentos: DescuentoGasto[];
+};
+
+export type RespuestaLecturaTicket =
+  | { legible: false }
+  | {
+      legible: true;
+      ticket: TicketLeido;
+      constantes: { maximo_fotos: number; cobertura_minima_comparacion: number };
+    };
+
+/** Un gasto guardado en el telefono: de una foto o anotado a mano. */
+export type Gasto = {
+  id: string;
+  origen: "foto" | "mano";
+  /** Como se muestra el super: el nombre del ticket o el elegido a mano. */
+  cadena: string;
+  cadenas_sepa: string[];
+  sucursal: string | null;
+  /** "AAAA-MM-DD". */
+  fecha: string;
+  comprobante: string | null;
+  total: number;
+  lineas: LineaGasto[];
+  descuentos: DescuentoGasto[];
+  /** Cuando se guardo (ms desde 1970), para ordenar los del mismo dia. */
+  creado: number;
+};

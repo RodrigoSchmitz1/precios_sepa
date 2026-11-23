@@ -1,0 +1,8 @@
+{"es_ticket": true, "cadena": "Carrefour", "cuit_comercio": "30-68731043-4", "sucursal": "759 LOMA HERMOSA",
+ "fecha": "2025-02-03", "comprobante": "18434-00002522", "total": 4954.00,
+ "dni": "12345678", "nombre_cliente": "PERSONA INVENTADA",
+ "fotos": [{"lineas": [
+   {"descripcion": "YERBA MATE CON HIERBAS SERRANAS CBSE X 500", "cantidad": 1, "precio_unitario": 1758.00, "importe": 1758.00, "codigo": "7790710334535"},
+   {"descripcion": "CACAO EN POLVO CHOCOLINO BOLSA X 180 GRS", "cantidad": 1, "precio_unitario": 1766.00, "importe": 1766.00, "codigo": "7790150830444"},
+   {"descripcion": "LECHE DESCREMADA UAT LA SUIPACHENSE X 1L", "cantidad": 1, "precio_unitario": 1430.00, "importe": 1430.00, "codigo": "7794396004522"}
+ ], "descuentos": []}]}

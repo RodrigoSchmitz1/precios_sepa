@@ -4,39 +4,8 @@ import ProveedorZona from "./ProveedorZona";
 import ProveedorLista from "./ProveedorLista";
 import AccesoLista from "./AccesoLista";
 import SelectorZona from "./SelectorZona";
-import { useLista } from "../contexto/lista";
-
-const SECCIONES = [
-  { ruta: "/", nombre: "Promos", corto: "Promos", icono: "🔥" },
-  { ruta: "/canasta-personalizada", nombre: "Tu canasta", corto: "Canasta", icono: "🧾" },
-  { ruta: "/quien-gana", nombre: "Más barato", corto: "Barato", icono: "🏷️" },
-  { ruta: "/mismo-producto", nombre: "Mismo producto", corto: "Producto", icono: "🔎" },
-  { ruta: "/inflacion", nombre: "Inflación", corto: "Inflación", icono: "📊" },
-];
-
-/*
-  En el celular, "Mi lista" ocupa el lugar de Inflacion (lista-en-el-centro,
-  decidido por Rodrigo el 2026-11-19): es la tarea con mas valor y solo se
-  llegaba por un changuito sin texto. Inflacion sigue en el menu de la
-  computadora, en la portada y en /inflacion.
-*/
-const SECCIONES_CELULAR = SECCIONES.map((s) =>
-  s.ruta === "/inflacion" ? { ruta: "/lista", nombre: "Mi lista", corto: "Mi lista", icono: "🛒" } : s
-);
-
-/** El numero de productos de la lista, sobre el icono de "Mi lista". */
-function ContadorLista() {
-  const { lista } = useLista();
-  if (lista.length === 0) return null;
-  return (
-    <span
-      aria-hidden="true"
-      className="absolute -top-1 -right-1 min-w-5 h-5 px-1 rounded-full bg-ahorro text-white text-[11px] font-bold leading-5 text-center numero"
-    >
-      {lista.length}
-    </span>
-  );
-}
+import BarraCelular from "./BarraCelular";
+import { SECCIONES } from "../utils/secciones";
 
 function Layout() {
   return (
@@ -114,47 +83,7 @@ function Layout() {
         <Outlet />
       </main>
 
-      {/*
-        En el celular, las secciones van en una barra fija abajo, como en una
-        app (2026-10-14). Arriba no entraban: la barra se deslizaba y de cinco
-        secciones se veian dos, asi que Mas barato, Mismo producto e Inflacion
-        quedaban escondidas para quien no sabia que habia que deslizar. Por
-        encima del mapa: los controles de Leaflet llegan a z-index 1000.
-      */}
-      <nav
-        aria-label="Secciones"
-        className="sm:hidden fixed bottom-0 inset-x-0 z-[1200] bg-papel shadow-[0_-4px_20px_rgb(20_20_80/0.08)] pb-[env(safe-area-inset-bottom)]"
-      >
-        <ul className="grid grid-cols-5">
-          {SECCIONES_CELULAR.map((seccion) => (
-            <li key={seccion.ruta}>
-              <NavLink
-                to={seccion.ruta}
-                end={seccion.ruta === "/"}
-                className={({ isActive }) =>
-                  [
-                    "flex flex-col items-center gap-0.5 pt-2 pb-1.5 text-[11px] font-semibold transition-colors",
-                    isActive ? "text-marca" : "text-tinta-suave",
-                  ].join(" ")
-                }
-              >
-                {({ isActive }) => (
-                  <>
-                    <span
-                      aria-hidden="true"
-                      className={`relative grid place-items-center w-11 h-7 rounded-full text-lg ${isActive ? "bg-marca-tenue" : ""}`}
-                    >
-                      {seccion.icono}
-                      {seccion.ruta === "/lista" && <ContadorLista />}
-                    </span>
-                    {seccion.corto}
-                  </>
-                )}
-              </NavLink>
-            </li>
-          ))}
-        </ul>
-      </nav>
+      <BarraCelular />
 
       <footer className="mt-16 bg-papel pb-20 sm:pb-0">
         <div className="max-w-5xl mx-auto px-5 py-6 text-xs text-tinta-suave">

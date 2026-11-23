@@ -1332,6 +1332,82 @@ copia.
 
 ---
 
+## Mis gastos y la barra nueva
+
+Openspec `mis-gastos-y-barra-nueva` (2026-11-22). Mis gastos registra lo que
+cada persona gasta en el súper a partir de la foto del ticket o de un monto
+anotado a mano. Todo queda en el teléfono, sin cuentas.
+
+**La barra del celular cambió.** Pasó a ser Promos | Buscar | Mi lista |
+Mis gastos | Más. "Buscar" es Mismo producto, adonde lleva el buscador de la
+portada, y es lo que más usa la gente de afuera (unas 25 IP distintas en los
+registros del mes, contra 59 en total). Más barato y Tu canasta pasaron a la
+hoja "Más", junto con Inflación y Cómo se calcula. Más barato repite lo que ya
+dice la tarjeta principal de la portada. A Tu canasta la abrieron unas 9 IP,
+pero solo 3 la usaron con la IA, y se va a unir con Mi lista en otro change.
+En la computadora el menú conserva todo y suma Mis gastos.
+
+**Qué imprime cada cadena** (fotos públicas de prensa, 2026-11-22):
+Carrefour y Jumbo imprimen el código de barras de 13 dígitos debajo de cada
+producto. Coto imprime código interno + código de barras con un cero adelante,
+y las promos como línea propia con importe negativo. Día imprime solo texto
+abreviado ("GASEOSA COCA SIN AZU"). Los pesables traen un código que empieza
+con 2 con el precio adentro. Varios imprimen DNI y tarjeta parcial. De ahí
+salen los dos caminos del cruce: por código, directo contra el índice de
+Mismo producto, y sin código, por candidatos de la misma cadena con precio
+parecido (±15 %), elegidos por Gemini o descartados.
+
+**La foto no se guarda y la respuesta es una lista blanca.** La API arma la
+respuesta solo con los campos previstos (cadena, CUIT del comercio, sucursal,
+fecha, comprobante, total, líneas y descuentos), así que un DNI que el modelo
+transcriba igual nunca sale. El modelo devuelve las líneas de cada foto por
+separado y la API saca el tramo repetido donde dos fotos se superponen. Dos
+líneas iguales dentro de una misma foto se quedan: son dos compras.
+
+**"Hubieras pagado" compara precio de lista con precio de lista.** Se toman
+las líneas vinculadas tal como figuran en el ticket, antes de los descuentos,
+y se comparan con la cadena de la zona más barata que tiene todos esos
+productos. Para comparar, lo vinculado tiene que cubrir al menos el 60 % del
+ticket. Comparar lo pagado con promos contra precios de lista haría parecer
+cara una compra hecha con descuento. El umbral vive en `api/tickets.py` y la
+página lo recibe en cada lectura.
+
+**Gemini con facturación.** En el plan gratis, Google puede usar lo que se le
+manda para mejorar sus productos, y eso contradice el aviso de que la foto no
+se guarda. Antes del deploy se activa la facturación del proyecto de la clave.
+Con Flash-Lite cuesta del orden de USD 0,001 por ticket. Topes en memoria: 20
+tickets por hora por IP y 2.000 por día, por instancia.
+
+**Medido con Gemini real** (`gemini-flash-lite-latest`, 2026-11-22, las
+cuatro fotos públicas, sin guardarlas en el repo):
+
+| Ticket | Líneas leídas | Vinculadas | Cómo |
+|---|---|---|---|
+| Carrefour | 3 de 3 | 3 | por código |
+| Coto (dos recortes) | 4 de 4 visibles + 1 promo | 2 | por código; el pesable y el repasador (código interno) no |
+| Jumbo | 1 de 1 | 1 | por código |
+| Día | 1 de 1 | 0 | sin código; el candidato no entró por precio |
+
+- Las 7 líneas con código de barras se vincularon, y la categoría salió bien
+  en todas. Se tarda entre 3 y 6 segundos por ticket.
+- El código del vino de Coto lo leyó mejor el modelo (`07790805012027`) que
+  la transcripción a mano de los fixtures.
+- La promo de Coto salió como descuento.
+- En ninguna respuesta apareció el DNI ni la tarjeta, que la foto de Jumbo
+  muestra.
+- En Día la Coca sin azúcar no tuvo candidato: el ticket es de enero de 2025
+  y el precio de hoy en SEPA está fuera del ±15 %. Con tickets del mes no
+  debería pasar. Para tickets viejos queda la categoría (Gaseosas).
+- Dos ajustes salieron de esta prueba:
+  - Con el nombre "Carrefour", gana Carrefour y no Maxi (Carrefour).
+  - "04712 - 00116390" se guarda como "04712-00116390", así el control de
+    duplicados no falla.
+
+**Excel y no CSV.** Excel en es-AR espera `;` y coma decimal, y un CSV mal
+abierto rompe los montos. SheetJS se baja del CDN oficial (la versión de npm
+está abandonada) y se carga con `import()` al tocar el botón: 492 KB en un
+chunk aparte que no pesa en la carga de la página.
+
 ## Tests
 
 Además de los genéricos, hay tests singulares de dbt para lo que sólo se

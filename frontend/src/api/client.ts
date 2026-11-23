@@ -21,7 +21,7 @@ import type {
   ProductoSugerido,
   PromoCerca,
   ResultadoLista,
-  ResultadoOptimizacion, PromosDeLista, Basico } from "../types";
+  ResultadoOptimizacion, PromosDeLista, Basico, RespuestaLecturaTicket } from "../types";
 import { conNombresDeCadena } from "../utils/nombres";
 import type { CadenasDeOtroDia } from "../utils/cadenasDeOtroDia";
 
@@ -359,4 +359,16 @@ export async function optimizarCompra(
   });
   if (!respuesta.ok) await fallar(respuesta, "Error al optimizar la compra");
   return leerJson(respuesta);
+}
+
+/** Mis gastos: la API lee las fotos de un ticket y las descarta (openspec
+ *  mis-gastos-y-barra-nueva). fotos: JPEG en base64, sin el prefijo data:. */
+export async function leerTicket(fotos: string[]): Promise<RespuestaLecturaTicket> {
+  const respuesta = await fetch(`${API_BASE}/gastos/leer-ticket`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ fotos }),
+  });
+  if (!respuesta.ok) await fallar(respuesta, "No se pudo leer el ticket");
+  return respuesta.json();
 }

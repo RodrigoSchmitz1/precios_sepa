@@ -6,6 +6,7 @@ import CanastaPersonalizadaPage from "./pages/CanastaPersonalizadaPage";
 import InflacionPage from "./pages/InflacionPage";
 import MismoProductoPage from "./pages/MismoProductoPage";
 import ListaPage from "./pages/ListaPage";
+import GastosPage from "./pages/GastosPage";
 import ComoSeCalculaPage from "./pages/ComoSeCalculaPage";
 import NoEncontradaPage from "./pages/NoEncontradaPage";
 
@@ -22,6 +23,7 @@ const router = createBrowserRouter([
       { path: "quien-gana", element: <QuienGanaPage /> },
       { path: "mismo-producto", element: <MismoProductoPage /> },
       { path: "lista", element: <ListaPage /> },
+      { path: "gastos", element: <GastosPage /> },
       { path: "inflacion", element: <InflacionPage /> },
       { path: "como-se-calcula", element: <ComoSeCalculaPage /> },
       // Cualquier otra direccion: una pagina propia con el menu, no el error de React Router.

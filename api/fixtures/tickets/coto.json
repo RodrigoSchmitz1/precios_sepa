@@ -1,0 +1,18 @@
+{"es_ticket": true, "cadena": "COTO", "cuit_comercio": "30-54808315-6", "sucursal": "SUC68",
+ "fecha": "2022-01-07", "comprobante": "2068-01177553", "total": 1717.30,
+ "tarjeta": "1234*****5678", "dni": "12345678",
+ "fotos": [
+  {"lineas": [
+    {"descripcion": "CERVEZA 473 ML X 6 UNIHEINEKEN PAK", "cantidad": 1, "precio_unitario": 515.00, "importe": 515.00, "codigo": "07793147570187"},
+    {"descripcion": "REPASADOR MICRO LISO38X60 CM", "cantidad": 4, "precio_unitario": 119.00, "importe": 476.00, "codigo": "02800004869966"},
+    {"descripcion": "VINO MALBEC MARCUS BOT 750 CC", "cantidad": 1, "precio_unitario": 173.00, "importe": 173.00, "codigo": "07799805012027"}
+   ],
+   "descuentos": [{"descripcion": "TARJETA COMUNIDAD 15", "importe": 77.25}]},
+  {"lineas": [
+    {"descripcion": "VINO MALBEC MARCUS BOT 750 CC", "cantidad": 1, "precio_unitario": 173.00, "importe": 173.00, "codigo": "07799805012027"},
+    {"descripcion": "MANI SIN SAL X KG", "cantidad": 0.095, "precio_unitario": 159.90, "importe": 15.19, "codigo": "02573096000950"},
+    {"descripcion": "ACEITUNAS VERDES VANOLI POU 300 GRM", "cantidad": 1, "precio_unitario": 39.90, "importe": 39.90, "codigo": "07790127000269"},
+    {"descripcion": "MANTECA CIUDAD DEL LAGO PAN 200 GRM", "cantidad": 1, "precio_unitario": 94.00, "importe": 94.00, "codigo": null}
+   ],
+   "descuentos": [{"descripcion": "40% VINOS/CHAM COMU", "importe": -69.20}]}
+ ]}

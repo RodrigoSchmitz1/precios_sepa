@@ -140,6 +140,20 @@
   box-shadow: var(--shadow-tarjeta);
 }
 
+/* Campos de formulario (Mis gastos): 16 px para que Safari en iPhone no haga
+   zoom al tocarlos, y 48 px de alto para el dedo. */
+@utility campo {
+  min-height: 3rem;
+  width: 100%;
+  min-width: 0;
+  border-radius: 0.875rem;
+  border: 1px solid var(--color-linea-fuerte);
+  background: var(--color-papel);
+  padding: 0 0.875rem;
+  font-size: 16px;
+  color: var(--color-tinta);
+}
+
 /*
   La banda oscura del titular es full-bleed con calc(50% - 50vw), y 100vw
   incluye la barra de desplazamiento vertical: en Windows sobraban 8 px y

@@ -1,0 +1,6 @@
+{"es_ticket": true, "cadena": "Jumbo", "cuit_comercio": "30590360763", "sucursal": "5202",
+ "fecha": "2025-01-09", "comprobante": "13945-00148992", "total": 3100.00,
+ "tarjeta": "Tarj:1234*****5678 DNI:12345678",
+ "fotos": [{"lineas": [
+   {"descripcion": "gaseosa COCA COLA Zero 1.75lt PET 1.75", "cantidad": 1, "precio_unitario": 3100.00, "importe": 3100.00, "codigo": "7790895012259"}
+ ], "descuentos": []}]}
