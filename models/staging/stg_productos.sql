@@ -90,7 +90,8 @@ WITH base AS (
     SELECT
         id_comercio,
         id_bandera,
-        id_sucursal,
+        -- Comodin repite numeros de sucursal entre banderas (macro id_sucursal_unica).
+        {{ id_sucursal_unica('id_comercio', 'id_bandera', 'id_sucursal') }} AS id_sucursal,
         id_producto,
         CAST(productos_precio_lista AS FLOAT64) AS precio,
         productos_cantidad_presentacion AS cantidad_presentacion_raw,

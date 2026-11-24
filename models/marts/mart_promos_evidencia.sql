@@ -49,7 +49,7 @@ WITH base AS (
         productos_leyenda_promo2 AS leyenda_promo2,
         id_comercio,
         id_bandera,
-        id_sucursal,
+        {{ id_sucursal_unica('id_comercio', 'id_bandera', 'id_sucursal') }} AS id_sucursal,
         fecha_datos
     FROM {{ source("sepa", "productos") }}
     -- Fecha literal, no subconsulta: con "= (SELECT MAX(...))" BigQuery no poda

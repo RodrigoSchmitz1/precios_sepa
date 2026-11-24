@@ -15,7 +15,7 @@
 SELECT
     id_comercio,
     id_bandera,
-    id_sucursal,
+    {{ id_sucursal_unica('id_comercio', 'id_bandera', 'id_sucursal') }} AS id_sucursal,
     sucursales_nombre AS nombre_sucursal,
     sucursales_tipo AS tipo_sucursal,
     sucursales_calle AS calle,
@@ -24,8 +24,9 @@ SELECT
     sucursales_localidad AS localidad,
     sucursales_provincia AS provincia,
     sucursales_codigo_postal AS codigo_postal,
-    SAFE_CAST(sucursales_latitud AS FLOAT64) AS latitud,
-    SAFE_CAST(sucursales_longitud AS FLOAT64) AS longitud
+    -- TRIM: Comodin manda las coordenadas con un espacio al final.
+    SAFE_CAST(TRIM(sucursales_latitud) AS FLOAT64) AS latitud,
+    SAFE_CAST(TRIM(sucursales_longitud) AS FLOAT64) AS longitud
 FROM {{ relacion }}
 WHERE id_sucursal IS NOT NULL
     AND REGEXP_CONTAINS(id_comercio, r"^[0-9]+$")
