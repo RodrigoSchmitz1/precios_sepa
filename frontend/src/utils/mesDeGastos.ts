@@ -11,7 +11,8 @@
   de los descuentos. Comparar lo pagado con promos contra precios de lista
   haria parecer cara una compra hecha con descuento.
 */
-import type { Gasto, OpcionDondeComprar, ResultadoDondeComprar } from "../types";
+import type { Gasto, ResultadoDondeComprar } from "../types";
+import { cubiertos, mezclaQueConviene, opcionDeDos, opcionDeUna, type Mezcla, type ParteMezcla } from "./mezclarDos";
 import { MAXIMO_PRODUCTOS } from "./lista";
 import { mesDe } from "./resumenGastos";
 
@@ -55,7 +56,7 @@ export function productosDelMes(gastos: Gasto[], mes: string): ProductosDelMes {
   };
 }
 
-export type ParteMezcla = { cadena: string; productos: string[]; subtotal: number };
+export type { ParteMezcla };
 
 export type ComparacionMes =
   | { estado: "sin-tickets" }
@@ -70,14 +71,10 @@ export type ComparacionMes =
       productos: number;
       productosDelMes: number;
       yaEsLaMasBarata: boolean;
-      mezcla: { total: number; ahorroContraUna: number; partes: ParteMezcla[] } | null;
+      mezcla: Mezcla | null;
     };
 
 const normal = (s: string) => s.normalize("NFD").replace(/[̀-ͯ]/g, "").toLowerCase().trim();
-
-function cubiertos(opcion: OpcionDondeComprar): Set<string> {
-  return new Set(opcion.sucursales.flatMap((s) => s.productos.map((p) => p.id_producto)));
-}
 
 function redondear(x: number): number {
   return Math.round(x * 100) / 100;
@@ -93,7 +90,7 @@ export function compararMes(
   if (datos.items.length === 0 || vinculado / datos.bruto < coberturaMinima) {
     return { estado: "poca-cobertura", cobertura: vinculado / datos.bruto };
   }
-  const una = resultado?.opciones.find((o) => o.max_sucursales === 1 && o.sucursales.length === 1);
+  const una = resultado ? opcionDeUna(resultado.opciones) : undefined;
   if (!una) return { estado: "sin-cadena" };
 
   // La cuenta va sobre los productos que esa cadena consigue cerca: lo pagado
@@ -106,22 +103,8 @@ export function compararMes(
   // Todos los tickets del mes son de la mas barata: no hay diferencia que mostrar.
   const yaEsLaMasBarata = datos.cadenasPorTicket.every((nombres) => nombres.some((n) => normal(n) === normal(cadena)));
 
-  // Mezclar dos se compara sobre los mismos productos que una sola, y solo si
-  // de verdad son dos cadenas distintas y baja el total.
-  const dos = resultado?.opciones.find((o) => o.max_sucursales === 2);
-  let mezcla: Extract<ComparacionMes, { estado: "ok" }>["mezcla"] = null;
-  if (dos) {
-    const idsDos = cubiertos(dos);
-    const mismos = idsDos.size === ids.size && [...ids].every((id) => idsDos.has(id));
-    const cadenas = new Set(dos.sucursales.map((s) => normal(s.cadena)));
-    if (mismos && cadenas.size === 2 && dos.total < una.total - 0.5) {
-      mezcla = {
-        total: dos.total,
-        ahorroContraUna: redondear(una.total - dos.total),
-        partes: dos.sucursales.map((s) => ({ cadena: s.cadena, productos: s.productos.map((p) => p.descripcion), subtotal: s.subtotal })),
-      };
-    }
-  }
+  // Mezclar dos: la regla vive en mezclarDos.ts (la comparte la proxima compra).
+  const mezcla = mezclaQueConviene(una, opcionDeDos(resultado!.opciones));
 
   return {
     estado: "ok",

@@ -5,6 +5,7 @@
 */
 import type { Gasto } from "../types";
 import { CATEGORIA_SIN_DETALLE } from "./gastos";
+import { formatearPesos, mesEnPalabras, porcentajeEntero } from "./formato";
 
 export type FilaResumen = { nombre: string; total: number };
 
@@ -93,4 +94,52 @@ export function resumirMes(gastos: Gasto[], mes: string): ResumenMes {
     ahorroPromos: Math.round(ahorroPromos * 100) / 100,
     gastos: delMes,
   };
+}
+
+/** El lunes (AAAA-MM-DD) de la semana de una fecha, en UTC para no correr el dia. */
+function lunesDe(fecha: string): string {
+  const [a, m, d] = fecha.split("-").map(Number);
+  const dia = new Date(Date.UTC(a, m - 1, d));
+  const desdeLunes = (dia.getUTCDay() + 6) % 7;
+  dia.setUTCDate(dia.getUTCDate() - desdeLunes);
+  return dia.toISOString().slice(0, 10);
+}
+
+function semanaAnterior(lunes: string): string {
+  const [a, m, d] = lunes.split("-").map(Number);
+  return new Date(Date.UTC(a, m - 1, d - 7)).toISOString().slice(0, 10);
+}
+
+/*
+  Semanas seguidas (lunes a domingo) con al menos un gasto, terminando en la
+  semana actual o en la anterior (openspec mis-gastos-para-volver). Si tuviera
+  que terminar en la actual, se cortaria todos los lunes hasta cargar algo.
+*/
+export function rachaDeSemanas(gastos: Gasto[], hoy: string): number {
+  const semanas = new Set(gastos.map((g) => lunesDe(g.fecha)));
+  let lunes = lunesDe(hoy);
+  if (!semanas.has(lunes)) lunes = semanaAnterior(lunes);
+  let racha = 0;
+  while (semanas.has(lunes)) {
+    racha += 1;
+    lunes = semanaAnterior(lunes);
+  }
+  return racha;
+}
+
+/*
+  El texto de "Compartir" del resumen del mes (openspec mis-gastos-para-volver).
+  Sale del mismo resumen que muestra la pantalla. No nombra supers ni
+  sucursales: el resumen de alguien no tiene por que decir donde compra.
+*/
+export function textoInformeDelMes(resumen: ResumenMes, nombreDeCategoria: (c: string) => string = (c) => c): string {
+  const [anio] = resumen.mes.split("-");
+  const partes = [`En ${mesEnPalabras(`${resumen.mes}-01`)} ${anio} gasté ${formatearPesos(resumen.total)} en el súper`];
+  if (resumen.variacion != null && Math.abs(resumen.variacion) >= 0.005) {
+    partes.push(`${porcentajeEntero(Math.abs(resumen.variacion))} ${resumen.variacion > 0 ? "más" : "menos"} que el mes anterior`);
+  }
+  const principal = resumen.porCategoria.find((f) => f.nombre !== CATEGORIA_SIN_DETALLE);
+  if (principal) partes.push(`donde más gasté fue ${nombreDeCategoria(principal.nombre)}`);
+  if (resumen.ahorroPromos > 0) partes.push(`ahorré ${formatearPesos(resumen.ahorroPromos)} en promos`);
+  return `${partes.join(", ")}. Lo llevo con Changuito.`;
 }

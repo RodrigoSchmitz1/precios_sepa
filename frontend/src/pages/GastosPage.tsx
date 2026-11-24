@@ -4,12 +4,16 @@ import AnotarMonto from "../components/gastos/AnotarMonto";
 import CargarTicket, { TextoAviso } from "../components/gastos/CargarTicket";
 import TicketGuardado from "../components/gastos/TicketGuardado";
 import ElMesEnTuZona from "../components/gastos/ElMesEnTuZona";
+import ParaTuProximaCompra from "../components/gastos/ParaTuProximaCompra";
+import PresupuestoDelMes from "../components/gastos/PresupuestoDelMes";
+import BotonCompartir from "../components/BotonCompartir";
+import { compraHabitual } from "../utils/compraHabitual";
 import type { Gasto } from "../types";
 import { bajarExcel } from "../utils/excelGastos";
 import { formatearPesos, mesEnPalabras, porcentajeEntero } from "../utils/formato";
 import { MAXIMO_GASTOS, agregarGasto, borrarTodos, guardarGastos, hoyEnArgentina, leerCoberturaMinima, leerGastos } from "../utils/gastos";
 import { nombreCategoria } from "../utils/nombres";
-import { mesDe, mesesConGastos, resumirMes, type FilaResumen } from "../utils/resumenGastos";
+import { mesDe, mesesConGastos, rachaDeSemanas, resumirMes, textoInformeDelMes, type FilaResumen } from "../utils/resumenGastos";
 
 /*
   Mis gastos (openspec mis-gastos-y-barra-nueva): el registro de lo que se gasta
@@ -27,6 +31,9 @@ function GastosPage() {
   const mes = mesElegido && meses.includes(mesElegido) ? mesElegido : (meses[0] ?? mesDe(hoyEnArgentina()));
   const resumen = useMemo(() => resumirMes(gastos, mes), [gastos, mes]);
   const coberturaMinima = leerCoberturaMinima();
+  const hoy = hoyEnArgentina();
+  const habitual = useMemo(() => compraHabitual(gastos, hoy), [gastos, hoy]);
+  const racha = useMemo(() => rachaDeSemanas(gastos, hoy), [gastos, hoy]);
 
   const actualizar = (nuevos: Gasto[]) => {
     setGastos(nuevos);
@@ -114,12 +121,32 @@ function GastosPage() {
             {resumen.ahorroPromos > 0 && (
               <p className="mt-2 text-base font-semibold text-ahorro">Ahorraste {formatearPesos(resumen.ahorroPromos)} en promos</p>
             )}
+            <PresupuestoDelMes gastado={resumen.total} />
             <div className="mt-5 grid gap-6 sm:grid-cols-2">
               <Barras titulo="Por súper" filas={resumen.porSuper} total={resumen.total} />
               <Barras titulo="Por categoría" filas={resumen.porCategoria.map((f) => ({ ...f, nombre: nombreCategoria(f.nombre) }))} total={resumen.total} maximo={8} />
             </div>
             <ElMesEnTuZona gastos={gastos} mes={mes} coberturaMinima={coberturaMinima} />
+            {/* Informe del mes para compartir y racha (openspec mis-gastos-para-volver). */}
+            <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+              {racha >= 2 ? (
+                <p className="text-sm font-semibold text-tinta">🔥 {racha} semanas seguidas cargando tus gastos</p>
+              ) : (
+                <span />
+              )}
+              <BotonCompartir
+                etiqueta="Compartir el mes"
+                copiarTexto
+                datos={() => ({
+                  titulo: "Mis gastos en el súper · Changuito",
+                  texto: textoInformeDelMes(resumen, nombreCategoria),
+                  url: `${window.location.origin}/gastos`,
+                })}
+              />
+            </div>
           </section>
+
+          <ParaTuProximaCompra habitual={habitual} />
 
           <section aria-label="Tickets del mes" className="grid gap-2 mb-8">
             {resumen.gastos.map((g) => (

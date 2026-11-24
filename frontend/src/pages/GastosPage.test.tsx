@@ -3,7 +3,7 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cotizarLista, dondeComprarLista, leerTicket, obtenerEstadoGastos } from "../api/client";
+import { cotizarLista, dondeComprarLista, leerTicket, obtenerEstadoGastos, obtenerPromosDeProductos } from "../api/client";
 import { ContextoZona, type EstadoZona } from "../contexto/zona";
 import type { Gasto, LineaGasto, ResultadoLista, TicketLeido } from "../types";
 import { achicarFoto } from "../utils/fotos";
@@ -18,6 +18,7 @@ vi.mock("../api/client", () => ({
   cotizarLista: vi.fn(),
   dondeComprarLista: vi.fn(),
   obtenerEstadoGastos: vi.fn(() => Promise.resolve({ fotos: true })),
+  obtenerPromosDeProductos: vi.fn(() => Promise.resolve({})),
 }));
 vi.mock("../utils/fotos", () => ({ achicarFoto: vi.fn() }));
 
@@ -119,8 +120,10 @@ describe("Mis gastos", () => {
     const click = vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(() => {});
     await tocar("Sacar foto del ticket");
     expect(texto(contenedor)).toContain("no se guarda");
+    expect(texto(contenedor)).toContain("Google Gemini");
+    expect(texto(contenedor)).toContain("Estados Unidos");
     expect(click).not.toHaveBeenCalled();
-    await tocar("Entendido, sacar la foto");
+    await tocar("Acepto y saco la foto");
     expect(click).toHaveBeenCalledTimes(1);
     await tocar("Sacar foto del ticket");
     expect(click).toHaveBeenCalledTimes(2);
@@ -131,7 +134,7 @@ describe("Mis gastos", () => {
     await mostrar();
     vi.spyOn(HTMLInputElement.prototype, "click").mockImplementation(() => {});
     await tocar("Sacar foto del ticket");
-    await tocar("Entendido, sacar la foto");
+    await tocar("Acepto y saco la foto");
     await elegirFoto();
     expect(leerTicket).toHaveBeenCalledWith(["Zm90bw=="]);
     expect(texto(contenedor)).toContain("Revisá el ticket");
@@ -312,6 +315,68 @@ describe("Mis gastos", () => {
         total: 5000, lineas: [], descuentos: [], creado: 0 }]);
       await mostrar();
       expect(contenedor.querySelector('[aria-label="Tu mes en los súper de tu zona"]')).toBeNull();
+    });
+  });
+
+  describe("para volver (mis-gastos-para-volver)", () => {
+    // Tres productos que se repiten en dos tickets de este mes: la compra habitual.
+    const conHabitual = () => {
+      guardarConstantes({ cobertura_minima_comparacion: 0.6 });
+      const hoy = new Intl.DateTimeFormat("en-CA", { timeZone: "America/Argentina/Buenos_Aires" }).format(new Date());
+      const lineas = [linea("YERBA", 5000, "y"), linea("ACEITE", 4000, "a"), linea("PAN", 1000, "p")];
+      guardarGastos([
+        { id: "1", origen: "foto", cadena: "COTO", cadenas_sepa: ["Coto"], sucursal: null, fecha: hoy, comprobante: "1", total: 10000, lineas, descuentos: [], creado: 1 },
+        { id: "2", origen: "foto", cadena: "COTO", cadenas_sepa: ["Coto"], sucursal: null, fecha: hoy, comprobante: "2", total: 10000, lineas, descuentos: [], creado: 2 },
+      ]);
+    };
+    const promo = (id: string) => ({
+      id_producto: id, descripcion: id, cadena: "Día", nombre_sucursal: "S", calle: "Rivadavia", numero: "1", barrio: null,
+      localidad: "Lomas", provincia: "AR-B", latitud: 0, longitud: 0, distancia_km: 1, otras_sucursales_cerca: 0,
+      precio_lista: 5000, precio_promo: 4000, descuento_pct: 20, leyenda: null, nivel_evidencia: "leyenda" as const,
+      vigente_hasta: null, requiere_compra_multiple: false,
+    });
+
+    it("lo que comprás seguido en promo cerca y dónde te conviene la próxima compra", async () => {
+      conHabitual();
+      vi.mocked(obtenerPromosDeProductos).mockResolvedValue({ y: [promo("y")], a: [promo("a")] });
+      vi.mocked(dondeComprarLista).mockResolvedValue({
+        radio_km: 3, productos: 3, sin_precio_cerca: [],
+        opciones: [{ max_sucursales: 1, total: 9500, productos_cubiertos: 3, distancia_suma_km: 1, sucursales: [{
+          id: "d", cadena: "Día", nombre_sucursal: "D", direccion: null, localidad: "Lomas", provincia: "AR-B", latitud: 0, longitud: 0,
+          distancia_km: 1, subtotal: 9500, productos: ["y", "a", "p"].map((id) => ({ id_producto: id, descripcion: id, cantidad: 1, precio_unitario: 1, costo: 1 })),
+        }] }],
+      });
+      await mostrar();
+      const t = texto(contenedor);
+      expect(t).toContain("Para tu próxima compra");
+      expect(t).toContain("2 cosas que comprás seguido están en promo cerca");
+      expect(t).toContain("Tu compra habitual sale menos en Día: $ 9.500");
+      expect(obtenerPromosDeProductos).toHaveBeenCalledWith(["y", "a", "p"], { latitud: ZONA.latitud, longitud: ZONA.longitud });
+    });
+
+    it("sin zona invita a elegirla", async () => {
+      conHabitual();
+      await mostrar(null);
+      expect(texto(contenedor)).toContain("Elegí tu zona arriba y te decimos qué de lo que comprás seguido está en promo cerca");
+      expect(obtenerPromosDeProductos).not.toHaveBeenCalled();
+    });
+
+    it("presupuesto: se pone y avisa cerca del tope", async () => {
+      conHabitual();
+      await mostrar();
+      await tocar("Ponerte un presupuesto para el mes");
+      escribir(contenedor.querySelector<HTMLInputElement>("#presupuesto")!, "23.000");
+      await tocar("Guardar");
+      // Gastó $ 20.000 de $ 23.000: 87 %.
+      expect(texto(contenedor)).toContain("87% de tu presupuesto de $ 23.000");
+      expect(texto(contenedor)).toContain("Estás cerca del tope: te quedan $ 3.000");
+      expect(JSON.parse(window.localStorage.getItem("changuito.presupuesto.v1")!)).toEqual({ monto: 23000 });
+    });
+
+    it("compartir el mes", async () => {
+      conHabitual();
+      await mostrar();
+      expect(boton("Compartir el mes")).toBeTruthy();
     });
   });
 });

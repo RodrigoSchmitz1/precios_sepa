@@ -12,7 +12,10 @@ export const MAXIMO_FOTOS = 3;
 export function TextoAviso() {
   return (
     <ul className="grid gap-2 text-sm text-tinta-media leading-relaxed list-disc pl-5">
-      <li>La foto se manda a leer y <strong className="text-tinta">no se guarda</strong> en ningún lado.</li>
+      <li>
+        La foto la lee <strong className="text-tinta">Google Gemini</strong>, en servidores de{" "}
+        <strong className="text-tinta">Estados Unidos</strong>, y <strong className="text-tinta">no se guarda</strong> en ningún lado.
+      </li>
       <li>El DNI, la tarjeta y el nombre que figuren en el ticket se descartan.</li>
       <li>Tus gastos quedan <strong className="text-tinta">solo en este teléfono</strong>: no hace falta cuenta.</li>
     </ul>
@@ -143,7 +146,7 @@ export default function CargarTicket({
                 entrada.current?.click();
               }}
             >
-              Entendido, sacar la foto
+              Acepto y saco la foto
             </button>
             <button type="button" className="text-tinta-media font-semibold min-h-12 px-3" onClick={() => setEstado({ paso: "inicio" })}>
               Ahora no

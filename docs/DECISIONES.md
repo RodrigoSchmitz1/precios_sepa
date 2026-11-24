@@ -1537,6 +1537,40 @@ requieren registro ante la AAIP (ver DEPLOY.md). Las líneas de ticket quedan
 afuera: son compras de una persona y van a necesitar un consentimiento
 explícito cuando se prendan las fotos.
 
+## Mis gastos para volver: el incentivo es la información
+
+Openspec `mis-gastos-para-volver` (2026-11-24). El informe de paneles e
+incentivos del 24-11 (Desktop/investigaciones) concluyó que pagar por ticket no
+tiene sentido en la Argentina:
+- Fetch paga unos 2,5 centavos de dólar por ticket y factura unos 12;
+- los reintegros bancarios de $ 6.000 a $ 15.000 por semana aplastan cualquier
+  cupón;
+- un premio atado a marcas ensucia el dato que después se quiere vender.
+
+Rodrigo coincidió: el incentivo de Mis gastos es devolver información útil
+sobre la propia compra.
+
+**Compra habitual.** Son los productos vinculados que aparecen en al menos dos
+tickets de los últimos 90 días, hasta 30, con la cantidad típica (mediana). Con
+menos de 3 productos así no se muestra nada. De ella salen dos cosas:
+- "lo que comprás seguido está en promo cerca", con `/promos/productos`, la
+  misma búsqueda que los avisos de oferta;
+- "dónde te conviene la próxima compra", con `/mismo-producto/lista/donde-comprar`.
+
+La regla de "mezclar dos" pasó a `utils/mezclarDos.ts` y la comparten el
+resumen del mes y la próxima compra.
+
+**Presupuesto, informe y racha.**
+- **Presupuesto:** en el teléfono, con aviso desde el 80 % (`AVISO_PRESUPUESTO`).
+- **Informe del mes para compartir:** sale del mismo resumen de la pantalla y no
+  nombra súper ni sucursales.
+- **Racha:** cuenta semanas seguidas con un gasto, terminando en la actual o en
+  la anterior, para que no se corte todos los lunes.
+
+**Aviso de la foto.** Ahora dice que la lee Google Gemini en servidores de
+Estados Unidos, y el botón es "Acepto y saco la foto": es el consentimiento
+expreso para la transferencia internacional (Ley 25.326, art. 12).
+
 ## Tests
 
 Además de los genéricos, hay tests singulares de dbt para lo que sólo se
