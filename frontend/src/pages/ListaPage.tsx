@@ -1,5 +1,5 @@
 import { useCallback, useState, type FormEvent } from "react";
-import { useNavigate, useSearchParams } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import Titular from "../components/Titular";
 import TuLista from "../components/TuLista";
 import ArmadoRapido from "../components/ArmadoRapido";
@@ -7,6 +7,7 @@ import ListaRecibida from "../components/ListaRecibida";
 import PegarLista from "../components/PegarLista";
 import ArmarCompra from "../components/ArmarCompra";
 import DondeComprarLista from "../components/DondeComprarLista";
+import EjemploDeCompra from "../components/EjemploDeCompra";
 import { useLista } from "../contexto/lista";
 import { listaDelLink } from "../utils/lista";
 
@@ -16,13 +17,19 @@ import { listaDelLink } from "../utils/lista";
   en Mismo producto se sigue armando.
 */
 function ListaPage() {
-  const { lista, cambiarCantidad, quitar, vaciar } = useLista();
+  const { lista, cambiarCantidad, quitar, vaciar, esEjemplo } = useLista();
   const navegar = useNavigate();
   const [texto, setTexto] = useState("");
   // Si se entro con la lista vacia, el armado rapido queda abierto toda la
   // visita: al sumar el primer basico la pagina pasa a "con productos", y
   // plegarlo ahi escondia los demas justo cuando se estaba armando la lista.
   const [armadoAbierto] = useState(lista.length === 0);
+  // La compra de ejemplo llega un momento despues de abrir con la lista vacia
+  // (ejemplo-para-empezar): si se vio, el armado rapido no va arriba ni
+  // aparece de golpe cuando la lista pasa a ser propia.
+  const [vioEjemplo, setVioEjemplo] = useState(esEjemplo);
+  if (esEjemplo && !vioEjemplo) setVioEjemplo(true);
+  const armadoArriba = lista.length === 0 || (armadoAbierto && !vioEjemplo);
   // Una lista compartida por link (openspec compartir-y-pegar-la-lista). Se lee
   // una vez; al resolverla se saca "l" de la URL, asi recargar no repite la
   // pregunta.
@@ -47,6 +54,8 @@ function ListaPage() {
     if (consulta.length >= 2) navegar(`/mismo-producto?q=${encodeURIComponent(consulta)}`);
   };
 
+  const armarCompra = <ArmarCompra onVer={(id) => navegar(`/mismo-producto?p=${encodeURIComponent(id)}`)} />;
+
   return (
     <div className="max-w-4xl mx-auto">
       <Titular antetitulo="Mi compra" compacto>
@@ -58,7 +67,7 @@ function ListaPage() {
       {/* Con la lista vacia al entrar, el armado rapido va primero y queda
           arriba toda la visita: si quedara abajo de la comparacion, cada
           producto sumado empujaria los botones hacia abajo. */}
-      {(armadoAbierto || lista.length === 0) && (
+      {armadoArriba && (
         <section className="tarjeta p-5 sm:p-6 mb-10">
           {/* Lista vacia: lo primero es armarla con un toque (lista-en-el-centro). */}
           <h2 className="text-lg font-bold text-tinta mb-1">Empezá con lo de siempre</h2>
@@ -86,7 +95,9 @@ function ListaPage() {
           </form>
         </section>
       )}
-      <ArmarCompra onVer={(id) => navegar(`/mismo-producto?p=${encodeURIComponent(id)}`)} />
+      <EjemploDeCompra />
+      {/* Con la compra de ejemplo, lo primero es cuanto sale en cada cadena: el armado por categorias va al final. */}
+      {!esEjemplo && armarCompra}
       {lista.length > 0 && (
         <TuLista
           lista={lista}
@@ -97,14 +108,23 @@ function ListaPage() {
         />
       )}
       <DondeComprarLista lista={lista} />
+      {lista.length > 0 && (
+        <p className="-mt-6 mb-10 text-base text-tinta-media">
+          ¿Y lo que ya gastaste este mes?{" "}
+          <Link to="/gastos" className="font-bold text-marca underline underline-offset-2">
+            Mirá Mis gastos
+          </Link>
+        </p>
+      )}
       <details className="tarjeta p-5 sm:p-6 mb-6">
         <summary className="cursor-pointer text-base font-bold text-tinta">Pegar una lista de WhatsApp</summary>
         <div className="mt-4">
           <PegarLista />
         </div>
       </details>
+      {esEjemplo && armarCompra}
       {/* Con productos al entrar, los basicos quedan plegados para no tapar la comparacion. */}
-      {!armadoAbierto && lista.length > 0 && (
+      {!armadoArriba && lista.length > 0 && (
         <details className="tarjeta p-5 sm:p-6 mb-10">
           <summary className="cursor-pointer text-base font-bold text-tinta">Sumar básicos</summary>
           <div className="mt-4">

@@ -1,4 +1,6 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { obtenerBasicos } from "../api/client";
+import { useZona } from "../contexto/zona";
 import Titular from "../components/Titular";
 import AnotarMonto from "../components/gastos/AnotarMonto";
 import CargarTicket, { TextoAviso } from "../components/gastos/CargarTicket";
@@ -8,7 +10,8 @@ import ParaTuProximaCompra from "../components/gastos/ParaTuProximaCompra";
 import PresupuestoDelMes from "../components/gastos/PresupuestoDelMes";
 import BotonCompartir from "../components/BotonCompartir";
 import { compraHabitual } from "../utils/compraHabitual";
-import type { Gasto } from "../types";
+import type { Basico, Gasto } from "../types";
+import { descartarEjemplo, ejemploDescartado, gastosDeEjemplo } from "../utils/gastosDeEjemplo";
 import { bajarExcel } from "../utils/excelGastos";
 import { formatearPesos, mesEnPalabras, porcentajeEntero } from "../utils/formato";
 import { MAXIMO_GASTOS, agregarGasto, borrarTodos, guardarGastos, hoyEnArgentina, leerCoberturaMinima, leerGastos } from "../utils/gastos";
@@ -19,19 +22,49 @@ import { mesDe, mesesConGastos, rachaDeSemanas, resumirMes, textoInformeDelMes, 
   Mis gastos (openspec mis-gastos-y-barra-nueva): el registro de lo que se gasta
   en el super, a partir de fotos de tickets o montos anotados a mano, guardado
   solo en este telefono.
+
+  Con cero gastos se ve un mes de ejemplo (openspec ejemplo-para-empezar): los
+  numeros salen de los basicos reales, pero viven solo en memoria. El
+  presupuesto, el Excel, la compra habitual, la racha y compartir leen solo los
+  gastos reales.
 */
 function GastosPage() {
   const [gastos, setGastos] = useState<Gasto[]>(() => leerGastos());
+  const { zona } = useZona();
+  const [descartado, setDescartado] = useState(ejemploDescartado);
+  const [basicos, setBasicos] = useState<Basico[]>([]);
+  const pideEjemplo = gastos.length === 0 && !descartado;
+  useEffect(() => {
+    if (!pideEjemplo) return;
+    let cancelado = false;
+    Promise.resolve()
+      .then(() => obtenerBasicos())
+      .then((b) => !cancelado && setBasicos(b))
+      .catch(() => {
+        /* sin basicos no hay ejemplo: la pagina queda como antes */
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [pideEjemplo]);
+  const hoy = hoyEnArgentina();
+  const cadenasZona = zona?.cadenas.join("|") ?? "";
+  const ejemplo = useMemo(
+    () => (pideEjemplo ? gastosDeEjemplo(basicos, cadenasZona ? cadenasZona.split("|") : [], hoy) : []),
+    [pideEjemplo, basicos, cadenasZona, hoy]
+  );
+  const verEjemplo = ejemplo.length > 0;
+  const mostrados = verEjemplo ? ejemplo : gastos;
   const [anotando, setAnotando] = useState(false);
   const [sinGuardar, setSinGuardar] = useState(false);
   const [lleno, setLleno] = useState(false);
   const [confirmarBorrarTodo, setConfirmarBorrarTodo] = useState(false);
-  const meses = useMemo(() => mesesConGastos(gastos), [gastos]);
+  const meses = useMemo(() => mesesConGastos(mostrados), [mostrados]);
   const [mesElegido, setMesElegido] = useState<string | null>(null);
   const mes = mesElegido && meses.includes(mesElegido) ? mesElegido : (meses[0] ?? mesDe(hoyEnArgentina()));
-  const resumen = useMemo(() => resumirMes(gastos, mes), [gastos, mes]);
-  const coberturaMinima = leerCoberturaMinima();
-  const hoy = hoyEnArgentina();
+  const resumen = useMemo(() => resumirMes(mostrados, mes), [mostrados, mes]);
+  // En el ejemplo todas las lineas estan vinculadas: se compara siempre.
+  const coberturaMinima = verEjemplo ? 0 : leerCoberturaMinima();
   const habitual = useMemo(() => compraHabitual(gastos, hoy), [gastos, hoy]);
   const racha = useMemo(() => rachaDeSemanas(gastos, hoy), [gastos, hoy]);
 
@@ -48,6 +81,10 @@ function GastosPage() {
     }
     setLleno(false);
     setAnotando(false);
+    if (!descartado) {
+      descartarEjemplo();
+      setDescartado(true);
+    }
     setMesElegido(mesDe(gasto.fecha));
     actualizar(nuevos);
   };
@@ -57,12 +94,32 @@ function GastosPage() {
   return (
     <div className="max-w-3xl mx-auto">
       <Titular antetitulo="Mis gastos" compacto>
-        {gastos.length === 0
+        {mostrados.length === 0
           ? "Llevá la cuenta de lo que gastás en el súper"
           : `En ${mesEnPalabras(`${mes}-01`)} gastaste ${formatearPesos(resumen.total)}`}
       </Titular>
 
-      {gastos.length === 0 && (
+      {verEjemplo && (
+        <section role="note" aria-label="Mes de ejemplo" className="tarjeta p-5 sm:p-6 mb-6 border-l-4 border-marca">
+          <p className="text-xs font-bold uppercase tracking-wide text-marca mb-1">Ejemplo</p>
+          <p className="text-base font-bold text-tinta">Así se ve con tus tickets. Es un ejemplo.</p>
+          <p className="text-sm text-tinta-media mt-1 mb-4">
+            Son 7 compras armadas con precios de hoy. Cuando cargues tu primer gasto, el ejemplo se va solo.
+          </p>
+          <button
+            type="button"
+            onClick={() => {
+              descartarEjemplo();
+              setDescartado(true);
+            }}
+            className="rounded-xl border border-linea-fuerte px-4 py-2.5 text-sm font-bold text-tinta hover:border-marca"
+          >
+            Borrar el ejemplo y empezar
+          </button>
+        </section>
+      )}
+
+      {mostrados.length === 0 && (
         <p className="text-base text-tinta-media leading-relaxed mb-6">
           Cargá cada compra del súper. Vas a ver cuánto gastás por mes, en qué súper y en qué categorías,
           cuánto ahorraste en promos y cuánto salía lo mismo en la cadena más barata de tu zona.
@@ -86,7 +143,7 @@ function GastosPage() {
         <CargarTicket gastos={gastos} onGuardar={guardar} onAnotarAMano={() => setAnotando(true)} />
       )}
 
-      {gastos.length > 0 && (
+      {mostrados.length > 0 && (
         <>
           <section className="tarjeta p-5 sm:p-6 mb-6" aria-label="Resumen del mes">
             <div className="flex items-center justify-between gap-2">
@@ -121,29 +178,31 @@ function GastosPage() {
             {resumen.ahorroPromos > 0 && (
               <p className="mt-2 text-base font-semibold text-ahorro">Ahorraste {formatearPesos(resumen.ahorroPromos)} en promos</p>
             )}
-            <PresupuestoDelMes gastado={resumen.total} />
+            {!verEjemplo && <PresupuestoDelMes gastado={resumen.total} />}
             <div className="mt-5 grid gap-6 sm:grid-cols-2">
               <Barras titulo="Por súper" filas={resumen.porSuper} total={resumen.total} />
               <Barras titulo="Por categoría" filas={resumen.porCategoria.map((f) => ({ ...f, nombre: nombreCategoria(f.nombre) }))} total={resumen.total} maximo={8} />
             </div>
-            <ElMesEnTuZona gastos={gastos} mes={mes} coberturaMinima={coberturaMinima} />
+            <ElMesEnTuZona gastos={mostrados} mes={mes} coberturaMinima={coberturaMinima} />
             {/* Informe del mes para compartir y racha (openspec mis-gastos-para-volver). */}
-            <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
-              {racha >= 2 ? (
-                <p className="text-sm font-semibold text-tinta">🔥 {racha} semanas seguidas cargando tus gastos</p>
-              ) : (
-                <span />
-              )}
-              <BotonCompartir
-                etiqueta="Compartir el mes"
-                copiarTexto
-                datos={() => ({
-                  titulo: "Mis gastos en el súper · Changuito",
-                  texto: textoInformeDelMes(resumen, nombreCategoria),
-                  url: `${window.location.origin}/gastos`,
-                })}
-              />
-            </div>
+            {!verEjemplo && (
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3">
+                {racha >= 2 ? (
+                  <p className="text-sm font-semibold text-tinta">🔥 {racha} semanas seguidas cargando tus gastos</p>
+                ) : (
+                  <span />
+                )}
+                <BotonCompartir
+                  etiqueta="Compartir el mes"
+                  copiarTexto
+                  datos={() => ({
+                    titulo: "Mis gastos en el súper · Changuito",
+                    texto: textoInformeDelMes(resumen, nombreCategoria),
+                    url: `${window.location.origin}/gastos`,
+                  })}
+                />
+              </div>
+            )}
           </section>
 
           <ParaTuProximaCompra habitual={habitual} />
@@ -154,44 +213,46 @@ function GastosPage() {
                 key={g.id}
                 gasto={g}
                 coberturaMinima={coberturaMinima}
-                onBorrar={() => actualizar(gastos.filter((x) => x.id !== g.id))}
+                onBorrar={verEjemplo ? undefined : () => actualizar(gastos.filter((x) => x.id !== g.id))}
               />
             ))}
           </section>
 
-          <div className="flex flex-wrap items-center gap-3 mb-6">
-            <button
-              type="button"
-              onClick={() => bajarExcel(gastos, hoyEnArgentina())}
-              className="bg-ahorro text-white font-bold rounded-2xl min-h-12 px-5"
-            >
-              Bajar a Excel
-            </button>
-            {confirmarBorrarTodo ? (
-              <span className="flex flex-wrap items-center gap-2">
-                <span className="text-sm text-tinta">¿Borrar todos tus gastos? No se puede deshacer.</span>
-                <button
-                  type="button"
-                  className="text-alerta font-bold min-h-11 px-3"
-                  onClick={() => {
-                    borrarTodos();
-                    setGastos([]);
-                    setMesElegido(null);
-                    setConfirmarBorrarTodo(false);
-                  }}
-                >
-                  Sí, borrar todo
-                </button>
-                <button type="button" className="text-tinta-media font-semibold min-h-11 px-3" onClick={() => setConfirmarBorrarTodo(false)}>
-                  No
-                </button>
-              </span>
-            ) : (
-              <button type="button" onClick={() => setConfirmarBorrarTodo(true)} className="text-tinta-media text-sm font-semibold min-h-11 px-2">
-                Borrar todos mis gastos
+          {!verEjemplo && (
+            <div className="flex flex-wrap items-center gap-3 mb-6">
+              <button
+                type="button"
+                onClick={() => bajarExcel(gastos, hoyEnArgentina())}
+                className="bg-ahorro text-white font-bold rounded-2xl min-h-12 px-5"
+              >
+                Bajar a Excel
               </button>
-            )}
-          </div>
+              {confirmarBorrarTodo ? (
+                <span className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-tinta">¿Borrar todos tus gastos? No se puede deshacer.</span>
+                  <button
+                    type="button"
+                    className="text-alerta font-bold min-h-11 px-3"
+                    onClick={() => {
+                      borrarTodos();
+                      setGastos([]);
+                      setMesElegido(null);
+                      setConfirmarBorrarTodo(false);
+                    }}
+                  >
+                    Sí, borrar todo
+                  </button>
+                  <button type="button" className="text-tinta-media font-semibold min-h-11 px-3" onClick={() => setConfirmarBorrarTodo(false)}>
+                    No
+                  </button>
+                </span>
+              ) : (
+                <button type="button" onClick={() => setConfirmarBorrarTodo(true)} className="text-tinta-media text-sm font-semibold min-h-11 px-2">
+                  Borrar todos mis gastos
+                </button>
+              )}
+            </div>
+          )}
         </>
       )}
 

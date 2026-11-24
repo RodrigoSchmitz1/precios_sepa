@@ -19,7 +19,8 @@ export default function TicketGuardado({
   gasto: Gasto;
   /** La regla que mando la API al leer un ticket; null: no se compara. */
   coberturaMinima: number | null;
-  onBorrar: () => void;
+  /** Sin onBorrar no se ofrece borrar: los tickets de ejemplo (ejemplo-para-empezar). */
+  onBorrar?: () => void;
 }) {
   const { zona } = useZona();
   const [comparacion, setComparacion] = useState<Comparacion | "cargando" | "error" | null>(null);
@@ -73,19 +74,21 @@ export default function TicketGuardado({
           </ul>
         )}
         {ahorro > 0 && <p className="mt-2 text-sm text-ahorro font-semibold">Ahorraste {formatearPesos(ahorro)} en promos</p>}
-        <div className="mt-3 flex flex-wrap items-center gap-2">
-          {confirmar ? (
-            <>
-              <span className="text-sm text-tinta">¿Borrar este gasto?</span>
-              <button type="button" onClick={onBorrar} className="text-alerta font-bold min-h-11 px-3">Sí, borrar</button>
-              <button type="button" onClick={() => setConfirmar(false)} className="text-tinta-media font-semibold min-h-11 px-3">No</button>
-            </>
-          ) : (
-            <button type="button" onClick={() => setConfirmar(true)} className="text-tinta-media text-sm font-semibold min-h-11 px-1">
-              Borrar este gasto
-            </button>
-          )}
-        </div>
+        {onBorrar && (
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            {confirmar ? (
+              <>
+                <span className="text-sm text-tinta">¿Borrar este gasto?</span>
+                <button type="button" onClick={onBorrar} className="text-alerta font-bold min-h-11 px-3">Sí, borrar</button>
+                <button type="button" onClick={() => setConfirmar(false)} className="text-tinta-media font-semibold min-h-11 px-3">No</button>
+              </>
+            ) : (
+              <button type="button" onClick={() => setConfirmar(true)} className="text-tinta-media text-sm font-semibold min-h-11 px-1">
+                Borrar este gasto
+              </button>
+            )}
+          </div>
+        )}
       </div>
     </details>
   );

@@ -3,9 +3,9 @@ import { act } from "react";
 import { createRoot, type Root } from "react-dom/client";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { cotizarLista, dondeComprarLista, leerTicket, obtenerEstadoGastos, obtenerPromosDeProductos } from "../api/client";
+import { cotizarLista, dondeComprarLista, leerTicket, obtenerBasicos, obtenerEstadoGastos, obtenerPromosDeProductos } from "../api/client";
 import { ContextoZona, type EstadoZona } from "../contexto/zona";
-import type { Gasto, LineaGasto, ResultadoLista, TicketLeido } from "../types";
+import type { Basico, Gasto, LineaGasto, ProductoComparado, ResultadoLista, TicketLeido } from "../types";
 import { achicarFoto } from "../utils/fotos";
 import { guardarConstantes, guardarGastos, leerGastos } from "../utils/gastos";
 import type { Zona } from "../utils/zona";
@@ -19,6 +19,7 @@ vi.mock("../api/client", () => ({
   dondeComprarLista: vi.fn(),
   obtenerEstadoGastos: vi.fn(() => Promise.resolve({ fotos: true })),
   obtenerPromosDeProductos: vi.fn(() => Promise.resolve({})),
+  obtenerBasicos: vi.fn(() => Promise.resolve([])),
 }));
 vi.mock("../utils/fotos", () => ({ achicarFoto: vi.fn() }));
 
@@ -377,6 +378,65 @@ describe("Mis gastos", () => {
       conHabitual();
       await mostrar();
       expect(boton("Compartir el mes")).toBeTruthy();
+    });
+  });
+
+  describe("mes de ejemplo (ejemplo-para-empezar)", () => {
+    const basico = (n: number): Basico => ({
+      grupo: n % 2 ? "Almacén" : "Lácteos",
+      nombre: `B${n}`,
+      producto: {
+        id_producto: String(1000 + n), descripcion: `PRODUCTO ${n}`, marca: null, categoria: "Almacen",
+        precio_mas_bajo: 1000 + n * 100, precio_mas_alto: 1500 + n * 100,
+      } as unknown as ProductoComparado,
+    });
+    const BASICOS = Array.from({ length: 12 }, (_, i) => basico(i + 1));
+
+    beforeEach(() => {
+      vi.mocked(obtenerBasicos).mockResolvedValue(BASICOS);
+    });
+
+    it("con cero gastos muestra el ejemplo, sin guardarlo ni ofrecer Excel ni presupuesto", async () => {
+      await mostrar();
+      expect(texto(contenedor)).toContain("Así se ve con tus tickets. Es un ejemplo.");
+      expect(texto(contenedor)).toContain("Por súper");
+      expect(texto(contenedor)).toContain("Ahorraste");
+      expect(texto(contenedor)).toContain("Coto");
+      expect(boton("Bajar a Excel")).toBeUndefined();
+      expect(boton("Compartir el mes")).toBeUndefined();
+      expect(boton("Borrar este gasto")).toBeUndefined();
+      expect(leerGastos()).toEqual([]);
+      expect(dondeComprarLista).toHaveBeenCalled();
+    });
+
+    it("borrar el ejemplo deja la página vacía y no vuelve", async () => {
+      await mostrar();
+      await tocar("Borrar el ejemplo y empezar");
+      expect(texto(contenedor)).not.toContain("Es un ejemplo");
+      expect(texto(contenedor)).toContain("Llevá la cuenta de lo que gastás en el súper");
+      act(() => raiz.unmount());
+      raiz = createRoot(contenedor);
+      await mostrar();
+      expect(texto(contenedor)).not.toContain("Es un ejemplo");
+    });
+
+    it("el primer gasto real reemplaza al ejemplo", async () => {
+      await mostrar();
+      await tocar("Anotar un monto");
+      const [supers, fecha, monto] = [...contenedor.querySelectorAll<HTMLInputElement>("form input")];
+      escribir(supers, "Carrefour");
+      escribir(fecha, "2026-11-20");
+      escribir(monto, "25.000");
+      await tocar("Guardar");
+      expect(texto(contenedor)).not.toContain("Es un ejemplo");
+      expect(texto(contenedor)).toContain("En noviembre gastaste $ 25.000");
+      expect(leerGastos()).toHaveLength(1);
+    });
+
+    it("sin básicos no hay ejemplo", async () => {
+      vi.mocked(obtenerBasicos).mockRejectedValue(new Error("x"));
+      await mostrar();
+      expect(texto(contenedor)).not.toContain("Es un ejemplo");
     });
   });
 });

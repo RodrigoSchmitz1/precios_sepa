@@ -86,4 +86,17 @@ describe("TarjetaTuLista", () => {
     expect(await mostrar(TRES_ARROYOS)).toBe("");
     expect(cotizarLista).not.toHaveBeenCalled();
   });
+
+  it("con la compra de ejemplo: cuánto ahorrás entre la más cara y la más barata (ejemplo-para-empezar)", async () => {
+    window.localStorage.setItem("changuito.lista.v1", JSON.stringify([
+      { id_producto: "1", nombre: "Yerba", cantidad: 1, grupo: "Almacén" },
+      { id_producto: "2", nombre: "Aceite", cantidad: 1, grupo: "Almacén" },
+    ]));
+    window.localStorage.setItem("changuito.lista.ejemplo.v1", "activo");
+    const texto = await mostrar(TRES_ARROYOS);
+    expect(texto).toContain("Mirá cuánto ahorrás en tu compra");
+    expect(texto).toContain("Una compra de ejemplo de 2 productos sale $ 13.465 en Vea y $ 535 más en Día.");
+    expect(contenedor.querySelector("a")?.getAttribute("href")).toBe("/lista");
+  });
 });
+

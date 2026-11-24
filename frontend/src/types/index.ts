@@ -387,6 +387,9 @@ export type ItemLista = {
   /** La categoria, para saber que ya se eligio la marca de esa categoria de Tu
    *  canasta. Opcional: las listas guardadas antes no la tienen. */
   categoria?: string | null;
+  /** El grupo de basicos (Almacen, Lacteos...), solo en la compra de ejemplo:
+   *  lo usan los chips para sacar un grupo entero (ejemplo-para-empezar). */
+  grupo?: string;
 };
 
 /** Tu canasta en cada cadena (POST /canasta-personalizada/por-cadena). */

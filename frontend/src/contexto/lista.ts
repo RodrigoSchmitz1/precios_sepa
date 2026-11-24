@@ -17,6 +17,12 @@ export type EstadoLista = {
   /** La lista recibida pasa a ser la lista. */
   reemplazar: (items: ItemLista[]) => void;
   enLista: (idProducto: string) => boolean;
+  /** La lista es la compra de ejemplo de la primera visita (ejemplo-para-empezar). */
+  esEjemplo: boolean;
+  /** Vacia la lista; el ejemplo no vuelve. */
+  borrarEjemplo: () => void;
+  /** Saca un grupo entero de basicos sin que la lista deje de ser ejemplo. */
+  quitarGrupo: (grupo: string) => void;
 };
 
 export const ContextoLista = createContext<EstadoLista | null>(null);

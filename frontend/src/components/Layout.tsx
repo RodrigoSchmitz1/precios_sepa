@@ -11,7 +11,7 @@ import { SECCIONES } from "../utils/secciones";
 function Layout() {
   return (
     <ProveedorZona>
-    <ProveedorLista>
+    <ProveedorLista conEjemplo>
     <div className="min-h-screen bg-lienzo">
       <header className="sticky top-0 z-20 bg-papel shadow-[0_1px_0_var(--color-linea)]">
         {/*
