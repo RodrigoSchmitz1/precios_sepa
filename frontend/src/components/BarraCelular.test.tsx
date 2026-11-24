@@ -84,11 +84,11 @@ describe("BarraCelular", () => {
     expect(mas.getAttribute("aria-current")).toBe("page");
   });
 
-  it("la hoja tiene Más barato, Inflación y Cómo se calcula", () => {
+  it("la hoja tiene Más barato, Inflación, Cómo se calcula y Privacidad", () => {
     mostrar("/gastos");
     act(() => contenedor.querySelector<HTMLButtonElement>("button[aria-controls='hoja-mas']")!.click());
     const items = [...contenedor.querySelectorAll("#hoja-mas a")].map((a) => a.getAttribute("href"));
-    expect(items).toEqual(["/quien-gana", "/inflacion", "/como-se-calcula"]);
+    expect(items).toEqual(["/quien-gana", "/inflacion", "/como-se-calcula", "/privacidad"]);
   });
 
   it("en Mis gastos marca Mis gastos y no Más", () => {

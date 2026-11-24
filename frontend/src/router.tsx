@@ -9,6 +9,7 @@ import MismoProductoPage from "./pages/MismoProductoPage";
 import ListaPage from "./pages/ListaPage";
 import GastosPage from "./pages/GastosPage";
 import ComoSeCalculaPage from "./pages/ComoSeCalculaPage";
+import PrivacidadPage from "./pages/PrivacidadPage";
 import NoEncontradaPage from "./pages/NoEncontradaPage";
 
 const router = createBrowserRouter([
@@ -30,6 +31,7 @@ const router = createBrowserRouter([
       { path: "gastos", element: <GastosPage /> },
       { path: "inflacion", element: <InflacionPage /> },
       { path: "como-se-calcula", element: <ComoSeCalculaPage /> },
+      { path: "privacidad", element: <PrivacidadPage /> },
       // Cualquier otra direccion: una pagina propia con el menu, no el error de React Router.
       { path: "*", element: <NoEncontradaPage /> },
     ],

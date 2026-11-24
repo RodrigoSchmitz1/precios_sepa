@@ -123,6 +123,10 @@ class TestPaginas(unittest.TestCase):
         r = self.cliente.get("/promos/<script>")
         self.assertEqual(meta(r.text, "og:title"), compartir.TITULO_GENERAL)
 
+    def test_privacidad(self):
+        r = self.cliente.get("/privacidad")
+        self.assertEqual(meta(r.text, "og:title"), "Privacidad · Changuito")
+
     def test_mi_compra_y_mis_gastos(self):
         r = self.cliente.get("/lista")
         self.assertEqual(meta(r.text, "og:title"), "Mi compra · Changuito")

@@ -40,6 +40,10 @@ SECCIONES = {
         "Cuánto subió la canasta · Changuito",
         "La inflación del súper mes a mes, con lo que aporta cada categoría y cada cadena.",
     ),
+    "privacidad": (
+        "Privacidad · Changuito",
+        "Qué pasa con tus datos en Changuito: casi todo queda en tu teléfono.",
+    ),
     "mismo-producto": (
         "El mismo producto en cada súper · Changuito",
         "Buscá un producto y mirá cuánto cuesta en cada cadena de tu zona.",

@@ -35,6 +35,7 @@ export const MENU_MAS: Seccion[] = [
   { ruta: "/quien-gana", nombre: "Más barato", corto: "Barato", icono: "🏷️" },
   { ruta: "/inflacion", nombre: "Inflación", corto: "Inflación", icono: "📊" },
   { ruta: "/como-se-calcula", nombre: "Cómo se calcula", corto: "Cómo se calcula", icono: "ℹ️" },
+  { ruta: "/privacidad", nombre: "Privacidad", corto: "Privacidad", icono: "🔒" },
 ];
 
 /** "Mas" queda marcado cuando la pagina abierta es una de las suyas. */

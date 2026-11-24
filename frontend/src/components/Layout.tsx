@@ -102,6 +102,10 @@ function Layout() {
           <NavLink to="/como-se-calcula" className="underline underline-offset-2 hover:text-tinta-media">
             Cómo se calcula cada número
           </NavLink>
+          .{" "}
+          <NavLink to="/privacidad" className="underline underline-offset-2 hover:text-tinta-media">
+            Privacidad
+          </NavLink>
           .
           <LinkDatosAnonimos />
         </div>
