@@ -224,3 +224,52 @@ Calcular el resumen del mes SHALL resolverse con los datos que la API ya tiene e
 - **GIVEN** un usuario con 12 tickets en el mes
 - **WHEN** abre Mis gastos
 - **THEN** el sitio pide la cuenta con la lista de productos y cantidades del mes, no ejecuta ninguna consulta nueva en BigQuery y no guarda nada en el servidor
+
+### Requirement: Mes de ejemplo con cero gastos
+Con cero gastos guardados y sin haber descartado el ejemplo, Mis gastos SHALL mostrar un mes de ejemplo de 7 tickets en varias cadenas y categorías, armados con productos y precios reales de los básicos, con al menos dos líneas de promo, y SHALL mostrar con ellos lo mismo que con tickets reales: total del mes, por súper, por categoría, ahorro en promos y lo que hubiera costado en el súper más barato de la zona.
+
+#### Scenario: Primera visita a Mis gastos
+- **WHEN** alguien abre Mis gastos sin gastos guardados
+- **THEN** ve el resumen de un mes de ejemplo con el ahorro en promos y lo que hubiera pagado en el súper más barato
+
+### Requirement: Cartel del ejemplo
+Con el ejemplo a la vista, un cartel SHALL decir "Así se ve con tus tickets. Es un ejemplo." con el botón "Borrar el ejemplo y empezar", y las formas de cargar un ticket SHALL seguir a la vista.
+
+#### Scenario: Borrar el ejemplo
+- **WHEN** el usuario toca "Borrar el ejemplo y empezar"
+- **THEN** ve la página vacía con las formas de cargar un ticket, y el ejemplo no vuelve
+
+### Requirement: El ejemplo no es un gasto
+Los gastos de ejemplo SHALL vivir solo en memoria: no se guardan en el teléfono ni entran en el presupuesto, el Excel, la compra habitual, la racha, el informe del mes ni las señales anónimas. Al guardar el primer gasto real, el ejemplo SHALL desaparecer y la página SHALL mostrar solo los gastos reales.
+
+#### Scenario: Primer gasto real
+- **WHEN** con el ejemplo a la vista el usuario anota un monto a mano
+- **THEN** el ejemplo desaparece y el mes muestra solo ese gasto
+
+### Requirement: Resumen del mes como app de gastos
+Mis gastos SHALL mostrar el mes elegido con: meses en pastillas, una tarjeta principal con el total, la variación contra el mes anterior, la cantidad de compras, el gasto por compra y el gasto por día; una tarjeta de ahorro (promos y súper más barato de la zona); una dona por categoría con porcentajes; barras por semana del mes con el promedio; y el gasto por súper con cantidad de compras y porcentaje.
+
+#### Scenario: Un mes con tickets
+- **WHEN** el usuario abre Mis gastos con 3 compras en noviembre por $90.000
+- **THEN** ve $90.000, 3 compras, $30.000 por compra, la dona por categoría, las semanas y el gasto por súper
+
+### Requirement: Gasto por día
+El gasto por día SHALL dividir el total del mes por los días transcurridos: hasta hoy si es el mes en curso, o todos los días del mes si ya terminó.
+
+#### Scenario: Mes en curso
+- **WHEN** hoy es 26 de noviembre y el mes suma $52.000
+- **THEN** el gasto por día es $2.000
+
+### Requirement: Movimientos por día
+Los tickets del mes SHALL listarse agrupados por fecha, del más nuevo al más viejo, con un encabezado por día ("Hoy · 26 nov" para hoy, el día de la semana y la fecha para el resto). Cada uno SHALL mostrar la cadena, la cantidad de productos o "a mano", el total y el ahorro en promos si lo hubo.
+
+#### Scenario: Dos tickets el mismo día
+- **WHEN** hay dos tickets del 20 de noviembre
+- **THEN** aparecen juntos bajo un solo encabezado "Viernes 20 nov"
+
+### Requirement: Aviso del ejemplo con su origen
+Con el mes de ejemplo, el aviso SHALL decir cuántos tickets y qué total lo forman, y que la página va a mostrar los tickets que se carguen.
+
+#### Scenario: Mes de ejemplo
+- **WHEN** se ve el ejemplo de 7 tickets por $158.473
+- **THEN** el aviso dice "7 tickets por $ 158.473" y que cuando cargues tus tickets la página va a mostrar tus compras
