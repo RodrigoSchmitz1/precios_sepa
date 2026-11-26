@@ -143,3 +143,70 @@ export function textoInformeDelMes(resumen: ResumenMes, nombreDeCategoria: (c: s
   if (resumen.ahorroPromos > 0) partes.push(`ahorré ${formatearPesos(resumen.ahorroPromos)} en promos`);
   return `${partes.join(", ")}. Lo llevo con Changuito.`;
 }
+
+/* Mis gastos como app (openspec mis-gastos-como-app). */
+
+export type TramoSemana = { etiqueta: string; total: number };
+
+function diasDelMes(mes: string): number {
+  const [anio, m] = mes.split("-").map(Number);
+  // Dia 0 del mes siguiente = ultimo dia de este; en UTC no hay corrimiento.
+  return new Date(Date.UTC(anio, m, 0)).getUTCDate();
+}
+
+/** Cinco tramos fijos del mes (1-7, 8-14, 15-21, 22-28 y 29 al fin); el ultimo no existe en un febrero de 28. */
+export function semanasDelMes(gastos: Gasto[], mes: string): TramoSemana[] {
+  const fin = diasDelMes(mes);
+  const tramos: TramoSemana[] = [];
+  for (let desde = 1; desde <= fin; desde += 7) {
+    const hasta = desde === 29 || desde + 6 >= fin ? fin : desde + 6;
+    const total = gastos
+      .filter((g) => mesDe(g.fecha) === mes)
+      .filter((g) => {
+        const dia = Number(g.fecha.slice(8, 10));
+        return dia >= desde && dia <= hasta;
+      })
+      .reduce((s, g) => s + g.total, 0);
+    tramos.push({ etiqueta: desde === hasta ? `${desde}` : `${desde}–${hasta}`, total: Math.round(total * 100) / 100 });
+    if (hasta === fin) break;
+  }
+  return tramos;
+}
+
+/** Cuantas compras hubo en cada super entre los gastos dados. */
+export function comprasPorSuper(gastos: Gasto[]): Map<string, number> {
+  const mapa = new Map<string, number>();
+  for (const g of gastos) mapa.set(g.cadena, (mapa.get(g.cadena) ?? 0) + 1);
+  return mapa;
+}
+
+/** El total sobre los dias que pasaron: hasta hoy en el mes en curso, el mes entero si ya termino. */
+export function gastoPorDia(total: number, mes: string, hoy: string): number {
+  const dias = mesDe(hoy) === mes ? Number(hoy.slice(8, 10)) : diasDelMes(mes);
+  return dias > 0 ? Math.round((total / dias) * 100) / 100 : 0;
+}
+
+const DIAS_SEMANA = ["Domingo", "Lunes", "Martes", "Miércoles", "Jueves", "Viernes", "Sábado"];
+const MESES_CORTOS = ["ene", "feb", "mar", "abr", "may", "jun", "jul", "ago", "sep", "oct", "nov", "dic"];
+
+/** "Hoy · 26 nov", "Ayer · 25 nov" o "Jueves 20 nov": el encabezado de un dia en Movimientos. */
+export function encabezadoDeDia(fecha: string, hoy: string): string {
+  const [anio, mes, dia] = fecha.split("-").map(Number);
+  const corto = `${dia} ${MESES_CORTOS[mes - 1]}`;
+  if (fecha === hoy) return `Hoy · ${corto}`;
+  const [ah, mh, dh] = hoy.split("-").map(Number);
+  const diferencia = (Date.UTC(ah, mh - 1, dh) - Date.UTC(anio, mes - 1, dia)) / 86400000;
+  if (diferencia === 1) return `Ayer · ${corto}`;
+  return `${DIAS_SEMANA[new Date(Date.UTC(anio, mes - 1, dia)).getUTCDay()]} ${corto}`;
+}
+
+/** Los gastos agrupados por fecha, del dia mas nuevo al mas viejo (vienen ordenados de resumirMes). */
+export function porDia(gastos: Gasto[]): { fecha: string; gastos: Gasto[] }[] {
+  const grupos: { fecha: string; gastos: Gasto[] }[] = [];
+  for (const g of gastos) {
+    const ultimo = grupos.at(-1);
+    if (ultimo && ultimo.fecha === g.fecha) ultimo.gastos.push(g);
+    else grupos.push({ fecha: g.fecha, gastos: [g] });
+  }
+  return grupos;
+}

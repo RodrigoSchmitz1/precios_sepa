@@ -224,7 +224,7 @@ describe("Mis gastos", () => {
     };
     vi.mocked(cotizarLista).mockResolvedValue(cot);
     await mostrar();
-    const detalle = contenedor.querySelector("details.tarjeta") as HTMLDetailsElement;
+    const detalle = contenedor.querySelector('[aria-labelledby="titulo-movimientos"] details') as HTMLDetailsElement;
     await act(async () => {
       detalle.open = true;
       detalle.dispatchEvent(new Event("toggle"));
@@ -248,7 +248,7 @@ describe("Mis gastos", () => {
       ], combinando_cadenas: 0, no_en_zona: [], mas_barato: {} },
     });
     await mostrar();
-    const detalle = contenedor.querySelector("details.tarjeta") as HTMLDetailsElement;
+    const detalle = contenedor.querySelector('[aria-labelledby="titulo-movimientos"] details') as HTMLDetailsElement;
     await act(async () => {
       detalle.open = true;
       detalle.dispatchEvent(new Event("toggle"));
@@ -398,7 +398,8 @@ describe("Mis gastos", () => {
 
     it("con cero gastos muestra el ejemplo, sin guardarlo ni ofrecer Excel ni presupuesto", async () => {
       await mostrar();
-      expect(texto(contenedor)).toContain("Así se ve con tus tickets. Es un ejemplo.");
+      expect(texto(contenedor)).toContain("Son datos de ejemplo: 7 tickets por $");
+      expect(texto(contenedor)).toContain("Cuando cargues tus tickets, esta página va a mostrar tus compras.");
       expect(texto(contenedor)).toContain("Por súper");
       expect(texto(contenedor)).toContain("Ahorraste");
       expect(texto(contenedor)).toContain("Coto");
@@ -412,12 +413,12 @@ describe("Mis gastos", () => {
     it("borrar el ejemplo deja la página vacía y no vuelve", async () => {
       await mostrar();
       await tocar("Borrar el ejemplo y empezar");
-      expect(texto(contenedor)).not.toContain("Es un ejemplo");
+      expect(texto(contenedor)).not.toContain("Son datos de ejemplo");
       expect(texto(contenedor)).toContain("Llevá la cuenta de lo que gastás en el súper");
       act(() => raiz.unmount());
       raiz = createRoot(contenedor);
       await mostrar();
-      expect(texto(contenedor)).not.toContain("Es un ejemplo");
+      expect(texto(contenedor)).not.toContain("Son datos de ejemplo");
     });
 
     it("el primer gasto real reemplaza al ejemplo", async () => {
@@ -428,7 +429,7 @@ describe("Mis gastos", () => {
       escribir(fecha, "2026-11-20");
       escribir(monto, "25.000");
       await tocar("Guardar");
-      expect(texto(contenedor)).not.toContain("Es un ejemplo");
+      expect(texto(contenedor)).not.toContain("Son datos de ejemplo");
       expect(texto(contenedor)).toContain("En noviembre gastaste $ 25.000");
       expect(leerGastos()).toHaveLength(1);
     });
@@ -436,7 +437,35 @@ describe("Mis gastos", () => {
     it("sin básicos no hay ejemplo", async () => {
       vi.mocked(obtenerBasicos).mockRejectedValue(new Error("x"));
       await mostrar();
-      expect(texto(contenedor)).not.toContain("Es un ejemplo");
+      expect(texto(contenedor)).not.toContain("Son datos de ejemplo");
+    });
+  });
+
+  describe("como app (mis-gastos-como-app)", () => {
+    const g = (id: string, cadena: string, fecha: string, total: number): Gasto => ({
+      id, origen: "mano", cadena, cadenas_sepa: [cadena], sucursal: null, fecha, comprobante: null, total,
+      lineas: [], descuentos: [], creado: Number(id),
+    });
+
+    it("tarjeta principal, por súper con compras y movimientos agrupados por día", async () => {
+      guardarGastos([g("1", "Coto", "2026-10-03", 30000), g("2", "Coto", "2026-10-20", 30000), g("3", "Dia", "2026-10-20", 30000)]);
+      await mostrar();
+      const t = texto(contenedor);
+      expect(t).toContain("En octubre gastaste $ 90.000");
+      expect(t).toContain("3compras");
+      expect(t).toContain("$ 30.000por compra");
+      expect(t).toContain("$ 2.903por día");
+      expect(t).toContain("Coto2 compras");
+      const encabezados = [...contenedor.querySelectorAll('[aria-labelledby="titulo-movimientos"] h3')].map((h) => h.textContent);
+      expect(encabezados).toEqual(["Martes 20 oct", "Sábado 3 oct"]);
+    });
+
+    it("con dos meses, se cambia de mes con las pastillas", async () => {
+      guardarGastos([g("1", "Coto", "2026-10-03", 30000), g("2", "Dia", "2026-09-10", 12000)]);
+      await mostrar();
+      await tocar("septiembre");
+      expect(texto(contenedor)).toContain("En septiembre gastaste $ 12.000");
     });
   });
 });
+

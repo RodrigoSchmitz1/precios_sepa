@@ -5,6 +5,7 @@ import type { Gasto } from "../../types";
 import { compararTicket, itemsDelTicket, type Comparacion } from "../../utils/comparacionTicket";
 import { formatearPesos, porcentajeEntero } from "../../utils/formato";
 import { nombreCategoria } from "../../utils/nombres";
+import { InicialDeCadena } from "./GraficosDelMes";
 
 /*
   Un gasto de la lista del mes, plegado. Al abrirlo se ven sus lineas y, si es
@@ -48,14 +49,22 @@ export default function TicketGuardado({
   };
 
   return (
-    <details className="tarjeta px-4 py-3" onToggle={(e) => (e.currentTarget as HTMLDetailsElement).open && cotizar()}>
-      <summary className="flex items-center gap-3 min-h-11 cursor-pointer list-none">
-        <span className="text-sm text-tinta-suave numero w-12 shrink-0">{gasto.fecha.slice(8, 10)}/{gasto.fecha.slice(5, 7)}</span>
-        <span className="flex-1 min-w-0 text-base font-semibold text-tinta truncate">
-          {gasto.cadena}
-          {gasto.origen === "mano" && <span className="ml-2 text-xs font-normal text-tinta-suave">a mano</span>}
+    <details className="py-2" onToggle={(e) => (e.currentTarget as HTMLDetailsElement).open && cotizar()}>
+      {/* Un movimiento como en una app de gastos (mis-gastos-como-app): la fecha la da el encabezado del dia. */}
+      <summary className="flex items-center gap-3 min-h-12 cursor-pointer list-none">
+        <InicialDeCadena cadena={gasto.cadena} />
+        <span className="flex-1 min-w-0">
+          <span className="block text-base font-semibold text-tinta truncate">{gasto.cadena}</span>
+          <span className="block text-xs text-tinta-suave">
+            {gasto.origen === "mano"
+              ? "a mano"
+              : `${gasto.lineas.length} ${gasto.lineas.length === 1 ? "producto" : "productos"} · ticket`}
+          </span>
         </span>
-        <span className="text-base font-bold text-tinta numero shrink-0">{formatearPesos(gasto.total)}</span>
+        <span className="text-right shrink-0">
+          <span className="block text-base font-bold text-tinta numero">{formatearPesos(gasto.total)}</span>
+          {ahorro > 0 && <span className="block text-xs font-semibold text-ahorro numero">−{formatearPesos(ahorro)} en promos</span>}
+        </span>
       </summary>
 
       <div className="pt-3">
