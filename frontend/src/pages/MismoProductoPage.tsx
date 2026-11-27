@@ -17,6 +17,7 @@ import { etiquetaFechaPrecio } from "../utils/cadenasDeOtroDia";
 import AvisoCadenasDeOtroDia from "../components/AvisoCadenasDeOtroDia";
 import type { PrecioEnCadena, ProductoComparado, ProductoDetalle } from "../types";
 import PromosCercaDelProducto from "../components/PromosCercaDelProducto";
+import BloqueMayoristas from "../components/BloqueMayoristas";
 import { usePromosCerca } from "../contexto/usePromosCerca";
 import { avisoPromoEnTitular } from "../utils/promosCerca";
 import BotonCompartir from "../components/BotonCompartir";
@@ -529,6 +530,13 @@ function VistaProducto({
       </div>
 
       <ListaDePrecios p={p} zona={zona} />
+      {/* Mayoristas aparte, comprando el bulto (openspec sumar-mayoristas). */}
+      <BloqueMayoristas
+        mayoristas={p.mayoristas}
+        precioSuper={deZona ? c.precio : p.precio_mas_bajo}
+        deZona={deZona}
+        cercanos={zona?.mayoristas ?? null}
+      />
     </section>
   );
 }

@@ -1571,6 +1571,112 @@ resumen del mes y la próxima compra.
 Estados Unidos, y el botón es "Acepto y saco la foto": es el consentimiento
 expreso para la transferencia internacional (Ley 25.326, art. 12).
 
+## SEPA mayoristas
+
+Openspec `sumar-mayoristas` (2026-11-26). SEPA publica aparte el dataset de
+mayoristas (`precios-claros-sepa-mayoristas`, mismo portal y mismo formato de
+ZIP). Entra con el mismo detalle que los minoristas: producto, sucursal, día,
+precio y promos. Agregar por cadena perdía la sucursal y la promo, que necesitan
+el mapa, el perfil Comercio y Changuito Empresas.
+
+**Qué entró** (semana del 20 al 26-11, siempre los mismos):
+
+| Mayorista | Sucursales | Productos por día |
+|---|---|---|
+| Makro | 24 | ~11.000 |
+| Maxiconsumo | 38 | ~6.500 |
+| Yaguar | 19 | ~1.400 |
+| Basualdo | 4 (precios de 1) | ~5.200 |
+| Nini | 2 | ~16.800 |
+| La Agrícola Regional | 4 | ~2.650 |
+
+Son 91 sucursales y ~390 mil filas por día, 1/37 del minorista. Vital y Diarco
+no informan a SEPA en ningún dataset. Maxi sigue en minoristas: SEPA declara sus
+sucursales como hiper o súper y no tiene compra mínima.
+
+**Unidades.** SEPA trae, por producto y sucursal:
+- el precio del bulto;
+- las unidades por bulto;
+- el precio por unidad comprando el bulto.
+
+Cada uno viene con y sin IVA. Precio del bulto = unidad × unidades en todas las
+filas menos 21 de Nini. El precio de lista de un mayorista es el precio por
+unidad comprando el bulto, con IVA, que es lo comparable con el precio de lista
+del súper. El precio del bulto, las unidades y los precios sin IVA quedan en el
+crudo.
+
+No trae gramos ni cc. El crudo lo carga como "1 UNI", que es el caso en que
+`stg_productos` ya lee el tamaño de la descripción (la regla de Carrefour).
+
+**Dónde vive.**
+- Crudo hermano `sepa.productos_mayoristas`, con las mismas columnas que
+  `sepa.productos` más las del bulto. Misma partición, 3 días de retención y
+  clustering por comercio, producto y sucursal.
+- Tabla aparte porque cada fuente reemplaza su día con `WRITE_TRUNCATE`: con una
+  sola tabla, una carga pisaría a la otra.
+- Sucursales y comercio van a las tablas de siempre, en una sola carga con los
+  dos datasets: dos cargas por día pisarían la foto anterior de la detección de
+  cambios.
+- Se descartó guardar solo los cambios de precio, aunque cambia el 6,8% de las
+  filas por día: leer un día obligaría a reconstruirlo, y nadie necesita la
+  historia por sucursal. También se descartó guardar meses de detalle: 90 días
+  son 5,2 GiB y se pasa de los 10 GiB gratis.
+
+**Mayorista como formato.** `formato = 'mayorista'`, como la farmacia: lo marca
+el seed o el tipo de sucursal "mayorista", que ninguna de las ~2.900 sucursales
+minoristas declara.
+
+Muestran a los mayoristas aparte, con "comprando el bulto de N":
+- el detalle de un producto;
+- Tu lista;
+- las zonas ("mayoristas cerca");
+- las promos y el mapa.
+
+Quedan afuera de:
+- la más barata y la brecha;
+- Más barato, Tu canasta y la gama;
+- el índice de inflación;
+- los titulares de la portada.
+
+`compite_en_rubro` se corrigió para eso: dejaba competir en Higiene y Bebés a
+cualquier formato que no fuera súper. Un interruptor de dbt
+(`mayoristas_activos`) deja la ingesta cargando y el sitio igual hasta
+encenderlo.
+
+**Coordenadas.** Makro publica sus 24 sucursales sin longitud. Su ubicación sale
+una vez de OpenStreetMap: el local de Makro de cada localidad, a menos de
+0,006° de la latitud que sí publica SEPA, revisado a mano. Queda en
+`seeds/coordenadas_sucursales.csv` y se usa solo cuando SEPA no trae las dos
+coordenadas.
+
+**Calidad.** Basualdo publica precios de una sola sucursal y ~15% de los que
+coinciden con productos de súper son absurdos ($ 6 en productos de miles). Quedan
+como no creíbles contra la referencia de los súper y no se muestran.
+
+**Lo que dicen los números** (25-11, mismo código de barras):
+- Contra la mediana de los súper, comprando el bulto: Nini −25%, Yaguar −22%,
+  Maxiconsumo −15% y Makro −8%.
+- Contra el súper más barato del producto, solo Nini y Basualdo salen más
+  baratos. Makro sale 9% más caro y Maxiconsumo 4%.
+- La Agrícola Regional cobra 13% menos en su mayorista que en su súper.
+
+**Costo.**
+- **Antes:** 7,18 GiB de almacenamiento (10 gratis) y unos 13 GiB de consultas
+  por día (noviembre al 26: 322 GiB de 1024).
+- **Después, medido antes del deploy:**
+  - crudo mayorista con 3 días: 155 MiB;
+  - la ingesta no usa cuota (*load jobs* y lista de particiones);
+  - en dbt, el crudo mayorista suma unos 52 MiB leídos por día en
+    `stg_productos`, y los marts leen lo mismo que antes.
+- **Pendiente:** medir una semana con el interruptor prendido.
+- La validación de dbt costó ~17 GiB de un día: los modelos incrementales
+  informan "0 processed" pero leen el crudo de un día cada vez.
+
+**Hallazgo aparte.** `int_precio_producto_cadena` usa `APPROX_QUANTILES`: con
+los mismos datos, 123 medianas por cadena cambiaron entre dos corridas, hasta
+22%. `mart_mismo_producto` tiene empates sin desempate en la marca (~150
+productos) y en el voto del tamaño (~10). No es de este cambio.
+
 ## Tests
 
 Además de los genéricos, hay tests singulares de dbt para lo que sólo se

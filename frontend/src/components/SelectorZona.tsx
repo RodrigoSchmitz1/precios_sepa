@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useZona } from "../contexto/zona";
 import { formatearNumero } from "../utils/formato";
+import { nombreCadena } from "../utils/nombres";
 import { buscarZonas, rotuloZona, type Zona } from "../utils/zona";
 
 /*
@@ -137,8 +138,16 @@ function SelectorZona() {
                         className="w-full flex items-baseline justify-between gap-3 py-3 text-left"
                       >
                         <span className="text-base text-tinta">{rotuloZona(opcion)}</span>
-                        <span className="text-xs text-tinta-suave shrink-0">
+                        <span className="text-xs text-tinta-suave shrink-0 text-right">
                           {formatearNumero(opcion.cadenas.length)} {opcion.cadenas.length === 1 ? "cadena cerca" : "cadenas cerca"}
+                          {/* Los mayoristas no cuentan como cadena cerca: se nombran
+                              aparte (openspec sumar-mayoristas). */}
+                          {opcion.mayoristas && opcion.mayoristas.length > 0 && (
+                            <span className="block">
+                              {opcion.mayoristas.length === 1 ? "mayorista cerca: " : "mayoristas cerca: "}
+                              {opcion.mayoristas.map(nombreCadena).join(", ")}
+                            </span>
+                          )}
                         </span>
                       </button>
                     </li>

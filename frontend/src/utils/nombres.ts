@@ -65,6 +65,8 @@ const CADENAS: Record<string, string> = {
   Comodin: "Comodín",
   "Maxi Comodin": "Maxi Comodín",
   "La Agricola Regional": "La Agrícola Regional",
+  // Mayoristas (openspec sumar-mayoristas): la cooperativa esta en los dos datasets.
+  "La Agricola Regional (mayorista)": "La Agrícola Regional (mayorista)",
 };
 
 export function nombreCadena(cadena: string): string {

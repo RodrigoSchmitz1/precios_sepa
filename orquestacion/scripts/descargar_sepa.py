@@ -3,11 +3,12 @@ import os
 import shutil
 import zipfile
 import glob
+import re
 from datetime import date, timedelta
 import requests
 
 # --- Configuración ---
-API_URL = "https://datos.produccion.gob.ar/api/3/action/package_show?id=sepa-precios"
+API_BASE = "https://datos.produccion.gob.ar/api/3/action/package_show?id="
 
 # El portal rechaza pedidos sin User-Agent de navegador (403), sin importar si el request es legitimo.
 HEADERS = {
@@ -25,6 +26,23 @@ HEADERS = {
 # en seeds/mapeo_cadenas.csv.
 COMERCIOS_OBJETIVO = [2, 5, 6, 8, 9, 10, 11, 12, 13, 15, 16, 20, 21, 24, 47]
 
+# SEPA publica dos datasets con el mismo formato de ZIP (openspec sumar-mayoristas,
+# 2026-11-26). Los mayoristas no tienen lista fija: entra todo comercio cuyo
+# productos.csv traiga las columnas del bulto, asi un mayorista que empiece a
+# informar se baja solo. El que llega con el esquema minorista (el 68, vacio
+# toda la semana del 20 al 26-11) se saltea con aviso.
+#
+# Carpeta propia por dataset: los mayoristas van a mayoristaN/ y no a sepaN/.
+# Asi la limpieza de una descarga no borra lo que bajo la otra, y
+# ingesta_backfill.py sigue leyendo sepaN/ como "hay minoristas descargados".
+DATASETS = {
+    "minoristas": {"paquete": "sepa-precios", "prefijo": "sepa"},
+    "mayoristas": {"paquete": "precios-claros-sepa-mayoristas", "prefijo": "mayorista"},
+}
+
+# La columna que distingue el esquema mayorista (unidades por bulto).
+COLUMNA_MAYORISTA = "unidad_venta"
+
 # Mapa día-de-semana (Python: lunes=0) -> nombre del recurso en SEPA
 DIAS_SEMANA = {
     0: "Lunes", 1: "Martes", 2: "Miércoles", 3: "Jueves",
@@ -39,6 +57,8 @@ def parsear_argumentos():
     parser = argparse.ArgumentParser(description="Descarga datos de SEPA.")
     parser.add_argument("--dia", help="Forzar un día específico para probar (ej: Viernes)")
     parser.add_argument("--fecha", help="Descargar una fecha puntual (AAAA-MM-DD), para backfill")
+    parser.add_argument("--dataset", choices=sorted(DATASETS), default="minoristas",
+                        help="Que dataset de SEPA bajar (default minoristas)")
     return parser.parse_args()
 
 
@@ -49,15 +69,15 @@ def calcular_fecha_objetivo():
     return ayer, nombre_dia
 
 
-def obtener_recurso(nombre_dia, fecha_esperada=None):
+def obtener_recurso(nombre_dia, fecha_esperada=None, dataset="minoristas"):
     """
     Consulta la API y busca el recurso del día.
     Si fecha_esperada se pasa, verifica que coincida (modo normal).
     Si es None, no verifica (modo prueba).
     """
     modo = "modo prueba" if fecha_esperada is None else "modo normal"
-    print(f"Consultando la API de SEPA para el recurso '{nombre_dia}' ({modo})...")
-    respuesta = requests.get(API_URL, headers=HEADERS, timeout=60)
+    print(f"Consultando la API de SEPA ({dataset}) para el recurso '{nombre_dia}' ({modo})...")
+    respuesta = requests.get(API_BASE + DATASETS[dataset]["paquete"], headers=HEADERS, timeout=60)
     respuesta.raise_for_status()
     datos = respuesta.json()
 
@@ -93,7 +113,7 @@ def descargar_zip(url, destino):
     print(f"  -> OK: descargado ({tam_mb:.1f} MB)")
 
 
-def limpiar_carpetas_comercios():
+def limpiar_carpetas_comercios(prefijo="sepa"):
     """
     Borra las carpetas sepaN/ de una corrida anterior.
     Imprescindible para el backfill, por dos caminos distintos:
@@ -103,14 +123,58 @@ def limpiar_carpetas_comercios():
       - si el portal todavia no publico la fecha, main() sale temprano sin
         bajar nada y TODAS las carpetas viejas quedarian en disco.
     En los dos casos se terminan mezclando dias distintos.
+
+    Solo las del dataset que se va a bajar (prefijo): la descarga de mayoristas
+    no tiene que borrar los minoristas que se bajaron un momento antes.
     """
-    for carpeta in glob.glob(os.path.join(CARPETA_DESTINO, "sepa*")):
-        if os.path.isdir(carpeta):
-            shutil.rmtree(carpeta)
+    for carpeta in carpetas_del_dataset(prefijo):
+        shutil.rmtree(carpeta)
 
 
-def extraer_comercios_objetivo(zip_principal, carpeta_trabajo):
+def carpetas_del_dataset(prefijo, base=None):
+    """Las carpetas prefijoN/ (N numerico) que hay en disco."""
+    base = base or CARPETA_DESTINO
+    patron = re.compile(re.escape(prefijo) + r"\d+$")
+    return sorted(
+        c for c in glob.glob(os.path.join(base, prefijo + "*"))
+        if os.path.isdir(c) and patron.match(os.path.basename(c))
+    )
+
+
+def encabezado_productos(zip_comercio):
+    """La primera linea de productos.csv dentro del ZIP de un comercio, o None."""
+    nombres = [n for n in zip_comercio.namelist() if n.lower().endswith("productos.csv")]
+    if not nombres:
+        return None
+    with zip_comercio.open(nombres[0]) as f:
+        return f.readline().decode("utf-8-sig", errors="replace")
+
+
+def es_esquema_mayorista(encabezado):
+    """True si el encabezado de productos.csv trae las columnas del bulto."""
+    if not encabezado:
+        return False
+    columnas = {c.replace("\ufeff", "").strip().lower() for c in encabezado.split("|")}
+    return COLUMNA_MAYORISTA in columnas
+
+
+def debe_extraer(dataset, id_comercio, encabezado):
+    """
+    Decide si un comercio del ZIP se extrae. Devuelve (extraer, motivo).
+
+    Minoristas: los de COMERCIOS_OBJETIVO (ver ahi por que esa lista).
+    Mayoristas: todos los que traen el esquema del bulto.
+    """
+    if dataset == "minoristas":
+        return id_comercio in COMERCIOS_OBJETIVO, None
+    if es_esquema_mayorista(encabezado):
+        return True, None
+    return False, "no trae el esquema mayorista (sin columnas del bulto)"
+
+
+def extraer_comercios_objetivo(zip_principal, carpeta_trabajo, dataset="minoristas"):
     """Descomprime el ZIP principal y extrae SOLO los CSV de los comercios objetivo."""
+    prefijo = DATASETS[dataset]["prefijo"]
     with zipfile.ZipFile(zip_principal, 'r') as z:
         z.extractall(carpeta_trabajo)
 
@@ -130,16 +194,23 @@ def extraer_comercios_objetivo(zip_principal, carpeta_trabajo):
         except (IndexError, ValueError):
             continue
 
-        if id_comercio not in COMERCIOS_OBJETIVO:
+        # Minoristas filtra por la lista antes de abrir el ZIP: el 36 llega vacio
+        # y, abierto, daria un aviso de "corrupto" todos los dias.
+        if dataset == "minoristas" and id_comercio not in COMERCIOS_OBJETIVO:
             continue
 
-        destino_comercio = os.path.join(CARPETA_DESTINO, f"sepa{id_comercio}")
-        os.makedirs(destino_comercio, exist_ok=True)
         try:
             with zipfile.ZipFile(zip_interno, 'r') as z:
+                extraer, motivo = debe_extraer(dataset, id_comercio, encabezado_productos(z))
+                if not extraer:
+                    if motivo:
+                        print(f"  -> ATENCIÓN: el comercio {id_comercio} {motivo}; se saltea.")
+                    continue
+                destino_comercio = os.path.join(CARPETA_DESTINO, f"{prefijo}{id_comercio}")
+                os.makedirs(destino_comercio, exist_ok=True)
                 z.extractall(destino_comercio)
             comercios_extraidos.append(id_comercio)
-            print(f"  -> OK: comercio {id_comercio} extraído a sepa{id_comercio}/")
+            print(f"  -> OK: comercio {id_comercio} extraído a {prefijo}{id_comercio}/")
         except zipfile.BadZipFile:
             print(f"  -> ATENCIÓN: el ZIP del comercio {id_comercio} está corrupto, se saltea.")
 
@@ -148,46 +219,49 @@ def extraer_comercios_objetivo(zip_principal, carpeta_trabajo):
 
 def main():
     args = parsear_argumentos()
+    dataset = args.dataset
+    prefijo = DATASETS[dataset]["prefijo"]
 
     if args.dia:
         nombre_dia = args.dia.capitalize()
         fecha_esperada = None
-        print(f"=== Descarga SEPA — MODO PRUEBA: {nombre_dia} ===\n")
+        print(f"=== Descarga SEPA {dataset} — MODO PRUEBA: {nombre_dia} ===\n")
     elif args.fecha:
         fecha = date.fromisoformat(args.fecha)
         nombre_dia = DIAS_SEMANA[fecha.weekday()]
         fecha_esperada = fecha
-        print(f"=== Descarga SEPA — BACKFILL: {nombre_dia} {fecha} ===\n")
+        print(f"=== Descarga SEPA {dataset} — BACKFILL: {nombre_dia} {fecha} ===\n")
     else:
         fecha, nombre_dia = calcular_fecha_objetivo()
         fecha_esperada = fecha
-        print(f"=== Descarga SEPA — objetivo: {nombre_dia} {fecha} ===\n")
+        print(f"=== Descarga SEPA {dataset} — objetivo: {nombre_dia} {fecha} ===\n")
 
-    if os.path.exists(CARPETA_TEMP):
-        shutil.rmtree(CARPETA_TEMP)
-    os.makedirs(CARPETA_TEMP)
+    carpeta_temp = f"{CARPETA_TEMP}_{dataset}"
+    if os.path.exists(carpeta_temp):
+        shutil.rmtree(carpeta_temp)
+    os.makedirs(carpeta_temp)
 
     # Se limpia ANTES de consultar la API, no despues de descargar: si el portal
     # todavia no publico esta fecha se sale sin bajar nada, y las carpetas de la
     # corrida anterior sobrevivirian. ingesta_backfill.py las leeria como "hay
     # datos descargados" y cargar_datos.py las subiria con la fecha de hoy.
     # Paso exactamente eso el 2026-09-08: se cargo el 09-07 duplicado.
-    limpiar_carpetas_comercios()
+    limpiar_carpetas_comercios(prefijo)
 
-    url = obtener_recurso(nombre_dia, fecha_esperada)
+    url = obtener_recurso(nombre_dia, fecha_esperada, dataset)
     if not url:
         print("\nNo hay datos válidos para descargar. Saliendo sin error.")
-        if os.path.exists(CARPETA_TEMP):
-            shutil.rmtree(CARPETA_TEMP)
+        if os.path.exists(carpeta_temp):
+            shutil.rmtree(carpeta_temp)
         return
 
-    zip_principal = os.path.join(CARPETA_TEMP, "sepa_dia.zip")
+    zip_principal = os.path.join(carpeta_temp, "sepa_dia.zip")
     descargar_zip(url, zip_principal)
 
     print("Extrayendo comercios objetivo...")
-    extraidos = extraer_comercios_objetivo(zip_principal, CARPETA_TEMP)
+    extraidos = extraer_comercios_objetivo(zip_principal, carpeta_temp, dataset)
 
-    shutil.rmtree(CARPETA_TEMP)
+    shutil.rmtree(carpeta_temp)
 
     if extraidos:
         print(f"\n¡Listo! Comercios descargados: {sorted(extraidos)}")

@@ -265,6 +265,24 @@ def armar_indice(filas, cambios: dict | None = None) -> dict:
                 ),
                 "_palabras_categoria": _tupla_categoria(fila.get("categoria")),
             }
+        # MAYORISTAS (openspec sumar-mayoristas): van a su propia lista y no a
+        # "precios". El precio es por unidad comprando el bulto, no la compra de
+        # una persona: la mas barata, la zona, Tu lista, Donde comprarla, Mas
+        # barato y la portada leen "precios" y asi siguen siendo entre super sin
+        # tocar cada lugar. El detalle los muestra aparte, con el bulto.
+        if fila.get("formato") == "mayorista":
+            producto.setdefault("mayoristas", []).append({
+                "cadena": fila["cadena"],
+                "precio_mediano": fila["precio_mediano"],
+                "precio_minimo": fila["precio_minimo"],
+                "precio_maximo": fila["precio_maximo"],
+                "sucursales": fila["sucursales"],
+                "precio_creible": fila.get("precio_creible", True),
+                "fecha_precio": str(fila.get("fecha_precio") or fila["fecha_datos"]),
+                "unidades_bulto": fila.get("unidades_bulto"),
+                "precio_bulto": fila.get("precio_bulto"),
+            })
+            continue
         producto["precios"].append(
             {
                 "cadena": fila["cadena"],
@@ -293,6 +311,8 @@ def armar_indice(filas, cambios: dict | None = None) -> dict:
     for producto in productos.values():
         producto["precios"].sort(key=lambda p: (p["precio_mediano"], p["cadena"]))
         producto["extremos_respaldados"] = _extremos_respaldados(producto)
+        if "mayoristas" in producto:
+            producto["mayoristas"].sort(key=lambda p: (p["precio_mediano"], p["cadena"]))
     return productos
 
 
@@ -410,6 +430,9 @@ def detalle(indice: dict, id_producto: str) -> dict | None:
         "fecha_datos": producto["fecha_datos"],
         "precio_referencia": producto["precio_referencia"],
         "precios": producto["precios"],
+        # Mayoristas aparte (openspec sumar-mayoristas): precio por unidad
+        # comprando el bulto. Lista vacia si ningun mayorista lo vende.
+        "mayoristas": producto.get("mayoristas", []),
     }
 
 
@@ -618,7 +641,8 @@ MAXIMO_PRODUCTOS_LISTA = 50
 MAXIMO_UNIDADES_POR_PRODUCTO = 99
 
 
-def cotizar_lista(indice: dict, items: list[dict], cadenas: list[str] | None = None) -> dict:
+def cotizar_lista(indice: dict, items: list[dict], cadenas: list[str] | None = None,
+                  mayoristas: list[str] | None = None) -> dict:
     """Cuanto sale una lista de productos exactos (codigo de barras) en cada cadena.
 
     Es la pregunta de uso diario que la pagina respondia de a un producto: "si
@@ -637,6 +661,11 @@ def cotizar_lista(indice: dict, items: list[dict], cadenas: list[str] | None = N
     Con las cadenas de la zona del usuario se suma el bloque "zona", la misma
     cuenta entre esas cadenas (ver _lista_en_zona). Las filas nacionales no
     cambian.
+
+    Con los mayoristas cerca de la zona (openspec sumar-mayoristas) se suma
+    "mayoristas": por cada uno, cuantos productos de la lista tiene y cuanto
+    suman por unidad comprando el bulto. No entran en ningun total, titular ni
+    combinacion: esos siguen siendo entre super.
     """
     pedidos: dict[str, int] = {}
     for item in items[:MAXIMO_PRODUCTOS_LISTA]:
@@ -671,6 +700,7 @@ def cotizar_lista(indice: dict, items: list[dict], cadenas: list[str] | None = N
     por_cadena = _filas_por_cadena(productos, lambda p: p["_precios"])
     combinada = round(sum(p["mas_barato"]["precio"] * p["cantidad"] for p in productos), 2)
     zona = _lista_en_zona(productos, set(cadenas)) if cadenas else None
+    en_mayoristas = _lista_en_mayoristas(indice, productos, mayoristas) if mayoristas else None
     for p in productos:
         del p["_precios"], p["_cambios"]
     return {
@@ -680,7 +710,32 @@ def cotizar_lista(indice: dict, items: list[dict], cadenas: list[str] | None = N
         "combinando_cadenas": combinada,
         "fecha_datos": next((indice[p["id_producto"]]["fecha_datos"] for p in productos), None),
         **({"zona": zona} if zona is not None else {}),
+        **({"mayoristas": en_mayoristas} if en_mayoristas else {}),
     }
+
+
+def _lista_en_mayoristas(indice: dict, productos: list[dict], mayoristas: list[str]) -> list[dict]:
+    """Por cada mayorista cerca que vende algo de la lista: cuantos productos
+    tiene y cuanto suman por unidad comprando el bulto (precios creibles).
+    Ordenados por cantidad de productos y despues por total. Un mayorista que no
+    vende nada de la lista no aparece."""
+    filas = []
+    for cadena in dict.fromkeys(mayoristas):
+        con_precio = []
+        for p in productos:
+            precio = next((m for m in indice[p["id_producto"]].get("mayoristas", [])
+                           if m["cadena"] == cadena and m["precio_creible"]), None)
+            if precio:
+                con_precio.append((p, precio))
+        if con_precio:
+            filas.append({
+                "cadena": cadena,
+                "productos_con_precio": len(con_precio),
+                "productos": len(productos),
+                "total": round(sum(precio["precio_mediano"] * p["cantidad"] for p, precio in con_precio), 2),
+            })
+    filas.sort(key=lambda f: (-f["productos_con_precio"], f["total"], f["cadena"]))
+    return filas
 
 
 def _filas_por_cadena(productos: list[dict], precios_de) -> list[dict]:

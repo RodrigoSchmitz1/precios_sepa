@@ -78,6 +78,9 @@ precio_por_producto AS (
     JOIN envase AS e ON p.id_producto = e.id_producto
     WHERE p.cantidad_normalizada IS NOT NULL
         AND {{ cantidad_razonable("p", "e") }}
+        -- La gama es de supermercado: el precio por unidad comprando el bulto
+        -- de un mayorista correria los tercios (openspec sumar-mayoristas).
+        AND NOT IFNULL(p.es_mayorista, FALSE)
     GROUP BY p.id_producto, p.unidad_normalizada
 ),
 

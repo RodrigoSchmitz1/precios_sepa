@@ -254,6 +254,11 @@ body {
   del documento. El globo del popup se alinea con las tarjetas: mas redondeado,
   sombra suave y un poco mas de aire adentro.
 */
+/* El marcador de un mayorista en el mapa de promos (openspec sumar-mayoristas). */
+.leaflet-container .marcador-mayorista {
+  filter: hue-rotate(150deg) saturate(1.4);
+}
+
 /* Con body delante por la misma razon que los clusters: leaflet.css se importa
    despues de este archivo y, con igual especificidad, ganaba por orden. */
 body .leaflet-container {

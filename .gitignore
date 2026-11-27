@@ -19,6 +19,7 @@ __pycache__/
 
 # Datos crudos descargados (no van al repo)
 orquestacion/scripts/sepa*/
+orquestacion/scripts/mayorista*/
 *.zip
 
 # Sistema

@@ -4,6 +4,7 @@ import { EVIDENCIA } from "../utils/evidencia";
 import { formatearNumero, formatearPesos } from "../utils/formato";
 import { nombreLegible } from "../utils/texto";
 import { direccionPromo, textoVigencia } from "../utils/promosCerca";
+import { etiquetaMayorista } from "../utils/mayoristas";
 
 /*
   Una promo de la vidriera (openspec promos-navegables-y-mes-en-gastos): mas
@@ -30,7 +31,8 @@ function TarjetaPromoChica({ promo, clase: ancho = "" }: { promo: PromoVidriera;
       </div>
       <p className="mt-2 text-sm font-bold text-tinta leading-snug line-clamp-2">{nombreLegible(promo.descripcion, promo.marca)}</p>
       <p className="text-xs text-tinta-suave truncate">
-        <strong className="font-semibold text-tinta-media">{promo.cadena}</strong> · {donde}
+        <strong className="font-semibold text-tinta-media">{promo.cadena}</strong>
+        {etiquetaMayorista(promo) && <span> · {etiquetaMayorista(promo)}</span>} · {donde}
       </p>
       <p className="mt-1 flex items-center gap-1.5 min-w-0 text-[11px] text-tinta-suave">
         <span title={evidencia.ayuda} className={`shrink-0 rounded-full border px-1.5 py-px font-medium ${evidencia.clase}`}>

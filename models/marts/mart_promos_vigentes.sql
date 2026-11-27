@@ -29,7 +29,9 @@ WITH enriquecido AS (
         d.id_sucursal,
         d.fecha_datos,
         d.nivel_evidencia,
-        d.requiere_compra_multiple
+        d.requiere_compra_multiple,
+        COALESCE(c.formato, 'supermercado') AS formato,
+        d.unidades_bulto
     FROM {{ ref("promos_validas") }} AS d
     LEFT JOIN {{ ref("stg_categorias") }} AS cat ON d.id_producto = cat.id_producto
     LEFT JOIN {{ ref("stg_sucursales") }} AS s ON d.id_comercio = s.id_comercio AND d.id_sucursal = s.id_sucursal
@@ -53,9 +55,13 @@ SELECT
     COUNT(DISTINCT id_sucursal) AS sucursales_con_esta_promo,
     fecha_datos,
     nivel_evidencia,
-    requiere_compra_multiple
+    requiere_compra_multiple,
+    -- Mayoristas (openspec sumar-mayoristas): la promo es por unidad comprando
+    -- el bulto de unidades_bulto (NULL en las demas cadenas).
+    formato,
+    unidades_bulto
 FROM enriquecido
 GROUP BY
     id_producto, descripcion, marca, categoria, rubro, cadena, provincia,
     precio_lista, precio_promo, descuento_pct, leyenda, tipo_promo,
-    fecha_datos, nivel_evidencia, requiere_compra_multiple
+    fecha_datos, nivel_evidencia, requiere_compra_multiple, formato, unidades_bulto

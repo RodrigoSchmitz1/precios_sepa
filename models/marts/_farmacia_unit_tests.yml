@@ -43,3 +43,44 @@ unit_tests:
       rows:
         - {categoria: Perfumeria, cadena: Farmacity, productos_ganados: 25}
         - {categoria: Golosinas y chocolates, cadena: Coto, productos_ganados: 25}
+
+  - name: quien_gana_mayorista_no_compite
+    description: >
+      openspec sumar-mayoristas. Makro (mayorista) tiene el precio por unidad mas
+      bajo en un shampoo (rubro Higiene) y en un chocolate (Almacen). No compite
+      en ninguno: el shampoo lo gana Farmacity (farmacia, en su rubro) y el
+      chocolate Coto. Antes de la correccion de compite_en_rubro, cualquier
+      formato que no fuera supermercado competia en Higiene.
+    model: mart_quien_gana
+    overrides:
+      macros:
+        fechas_a_calcular: "DATE('2026-11-26')"
+      vars:
+        rubros_farmacia: ["Higiene", "Bebes"]
+    given:
+      - input: ref('int_precio_producto_cadena')
+        format: sql
+        rows: |
+          {% set filas = [] %}
+          {% for i in range(25) %}
+            {% do filas.append("SELECT DATE('2026-11-26') AS fecha_datos, 'S" ~ i ~ "' AS id_producto, 'Makro' AS cadena, '61' AS empresa, 'mayorista' AS formato, 700.0 AS precio_mediano") %}
+            {% do filas.append("SELECT DATE('2026-11-26'), 'S" ~ i ~ "', 'Farmacity', '24', 'farmacia', 900.0") %}
+            {% do filas.append("SELECT DATE('2026-11-26'), 'S" ~ i ~ "', 'Coto', '12', 'supermercado', 1000.0") %}
+            {% do filas.append("SELECT DATE('2026-11-26'), 'C" ~ i ~ "', 'Makro', '61', 'mayorista', 400.0") %}
+            {% do filas.append("SELECT DATE('2026-11-26'), 'C" ~ i ~ "', 'Coto', '12', 'supermercado', 600.0") %}
+            {% do filas.append("SELECT DATE('2026-11-26'), 'C" ~ i ~ "', 'Dia', '15', 'supermercado', 650.0") %}
+          {% endfor %}
+          {{ filas | join(" UNION ALL ") }}
+      - input: ref('stg_categorias')
+        format: sql
+        rows: |
+          {% set filas = [] %}
+          {% for i in range(25) %}
+            {% do filas.append("SELECT 'S" ~ i ~ "' AS id_producto, 'Perfumeria' AS categoria, 'Higiene' AS rubro") %}
+            {% do filas.append("SELECT 'C" ~ i ~ "', 'Golosinas y chocolates', 'Almacen'") %}
+          {% endfor %}
+          {{ filas | join(" UNION ALL ") }}
+    expect:
+      rows:
+        - {categoria: Perfumeria, cadena: Farmacity, productos_ganados: 25}
+        - {categoria: Golosinas y chocolates, cadena: Coto, productos_ganados: 25}

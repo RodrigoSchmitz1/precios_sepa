@@ -35,6 +35,7 @@ Sigue conviniendo correr dbt enseguida: el margen es de dias, no infinito.
 import argparse
 import glob
 import os
+import shutil
 import subprocess
 import sys
 from datetime import date, timedelta
@@ -48,6 +49,9 @@ CARPETA = os.path.dirname(os.path.abspath(__file__))
 CREDENCIALES = "credenciales.json"
 PROYECTO = "proyecto-precios-504221"
 TABLA_CRUDA = f"{PROYECTO}.sepa.productos"
+# Crudo hermano de SEPA mayoristas (openspec sumar-mayoristas): mismo detalle,
+# misma particion y la misma retencion que el crudo minorista.
+TABLA_CRUDA_MAYORISTAS = f"{PROYECTO}.sepa.productos_mayoristas"
 TABLAS_HISTORICO = [
     f"{PROYECTO}.dbt_precios.historico_quien_gana",
     f"{PROYECTO}.dbt_precios.historico_precios_cadena_categoria",
@@ -236,6 +240,33 @@ def dias_de_retencion(en_riesgo, hoy):
     return edad + MARGEN_DBT_DIAS
 
 
+def tablas_con_retencion():
+    """
+    (nombre, tabla) de todo lo que retiene la misma ventana que el crudo: el
+    crudo minorista, el de mayoristas y sus copias en dbt (ver TABLAS_DERIVADAS).
+
+    El de mayoristas sigue al minorista porque dbt los transforma juntos: una
+    fecha recuperada tiene que estar en los dos hasta que llegue a la historia.
+    """
+    return [("crudo", TABLA_CRUDA), ("crudo mayoristas", TABLA_CRUDA_MAYORISTAS)] + [
+        (t.rsplit(".", 1)[1], t) for t in TABLAS_DERIVADAS
+    ]
+
+
+def fechas_mayoristas_faltantes(en_crudo, en_crudo_mayoristas, ya_procesadas=frozenset()):
+    """
+    Fechas que estan en el crudo minorista y faltan en el de mayoristas.
+
+    Pasa cuando el recurso de mayoristas fallo o todavia no estaba el dia que se
+    cargo minoristas. Se recuperan solo esas: una fecha que ya no esta en el
+    crudo minorista no se puede transformar con los dos juntos, y cargarla
+    sola solo agregaria una particion que vence sin llegar a ningun lado.
+    'ya_procesadas' son las que esta corrida acaba de bajar con minoristas.
+    Ordenadas de la mas vieja a la mas nueva.
+    """
+    return sorted(set(en_crudo) - set(en_crudo_mayoristas) - set(ya_procesadas))
+
+
 def ajustar_retencion(cliente, en_riesgo, hoy):
     """
     Deja la retencion del crudo en el minimo que no pierda datos en vuelo.
@@ -256,8 +287,8 @@ def ajustar_retencion(cliente, en_riesgo, hoy):
     motivo = (f"la mas vieja sin capturar es {min(en_riesgo)}" if en_riesgo
               else "no queda nada sin capturar")
 
-    # El crudo y sus copias en dbt (ver TABLAS_DERIVADAS) con la misma ventana.
-    for nombre, tabla_id in [("crudo", TABLA_CRUDA)] + [(t.rsplit(".", 1)[1], t) for t in TABLAS_DERIVADAS]:
+    # El crudo, el de mayoristas y sus copias en dbt con la misma ventana.
+    for nombre, tabla_id in tablas_con_retencion():
         try:
             tabla = cliente.get_table(tabla_id)
         except NotFound:
@@ -275,7 +306,7 @@ def ajustar_retencion(cliente, en_riesgo, hoy):
         print(f"  Retencion de {nombre}: {actual} -> {objetivo} dias ({motivo})")
 
 
-def verificar_cargadas(cliente, fechas):
+def verificar_cargadas(cliente, fechas, tabla=TABLA_CRUDA):
     """
     Confirma que las fechas recien cargadas siguen en el crudo. Devuelve las que
     no estan.
@@ -285,41 +316,111 @@ def verificar_cargadas(cliente, fechas):
     este chequeo el script canta exito sobre datos que ya no existen, que es
     exactamente como se perdio el 2026-09-17.
     """
-    presentes = fechas_en_tabla(cliente, TABLA_CRUDA, min(fechas))
+    presentes = fechas_en_tabla(cliente, tabla, min(fechas))
     return sorted(f for f in fechas if f not in presentes)
 
 
-def hay_datos_descargados():
-    """True si quedo al menos una carpeta sepaN/ con datos para cargar."""
+def hay_datos_descargados(prefijo="sepa"):
+    """True si quedo al menos una carpeta prefijoN/ con datos para cargar
+    (sepaN/ de minoristas o mayoristaN/ de mayoristas)."""
     return any(
-        os.path.isdir(c) for c in glob.glob(os.path.join(CARPETA, "sepa*"))
+        os.path.isdir(c) for c in glob.glob(os.path.join(CARPETA, prefijo + "[0-9]*"))
     )
 
 
-def correr(script, *extra):
-    """Ejecuta un script hermano con el mismo interprete. Devuelve True si salio bien."""
+def borrar_carpetas(prefijo):
+    """Borra las carpetas prefijoN/ que hayan quedado de otra corrida."""
+    for carpeta in glob.glob(os.path.join(CARPETA, prefijo + "[0-9]*")):
+        if os.path.isdir(carpeta):
+            shutil.rmtree(carpeta)
+
+
+def correr_codigo(script, *extra):
+    """Ejecuta un script hermano con el mismo interprete. Devuelve el codigo de salida."""
     comando = [sys.executable, os.path.join(CARPETA, script), *extra]
-    resultado = subprocess.run(comando, cwd=CARPETA)
-    return resultado.returncode == 0
+    return subprocess.run(comando, cwd=CARPETA).returncode
+
+
+def correr(script, *extra):
+    """Como correr_codigo, pero devuelve True si salio bien."""
+    return correr_codigo(script, *extra) == 0
+
+
+# Lo que devuelve cargar_datos.py cuando minoristas se cargo y mayoristas fallo
+# (cargar_datos.SALIDA_FALLO_MAYORISTAS; no se importa para no cargar el
+# cliente de BigQuery dos veces).
+SALIDA_FALLO_MAYORISTAS = 3
+
+
+def resultado_de_la_carga(codigo, hay_mayoristas):
+    """
+    Traduce el codigo de salida de cargar_datos.py a (minoristas, mayoristas),
+    cada uno 'ok', 'sin_datos' o 'error'. Pura, para probarla sin subprocesos.
+    """
+    if codigo == 0:
+        return "ok", ("ok" if hay_mayoristas else "sin_datos")
+    if codigo == SALIDA_FALLO_MAYORISTAS:
+        return "ok", "error"
+    return "error", "error" if hay_mayoristas else "sin_datos"
 
 
 def procesar_fecha(fecha):
-    """Descarga y carga una fecha. Devuelve 'ok', 'sin_datos' o 'error'."""
+    """
+    Descarga y carga una fecha, minoristas y mayoristas juntos.
+    Devuelve (minoristas, mayoristas), cada uno 'ok', 'sin_datos' o 'error'.
+
+    Mayoristas no frena a minoristas: si su descarga falla, se carga minoristas
+    solo y la fecha de mayoristas se recupera en la corrida siguiente (ver
+    fechas_mayoristas_faltantes).
+    """
     print(f"\n--- {fecha} ---")
 
     if not correr("descargar_sepa.py", "--fecha", fecha.isoformat()):
         print(f"  ERROR en la descarga de {fecha}")
-        return "error"
+        return "error", "sin_datos"
 
     if not hay_datos_descargados():
         print(f"  SEPA no tiene datos publicados para {fecha}; se omite")
-        return "sin_datos"
+        return "sin_datos", "sin_datos"
 
-    if not correr("cargar_datos.py", "--fecha", fecha.isoformat()):
+    descarga_mayoristas = correr("descargar_sepa.py", "--dataset", "mayoristas", "--fecha", fecha.isoformat())
+    if not descarga_mayoristas:
+        print(f"  ERROR en la descarga de mayoristas de {fecha}: se carga minoristas solo")
+        # Si la descarga murio antes de limpiar, quedarian las carpetas de otra
+        # fecha y cargar_datos.py las subiria con esta (la leccion del 08-09).
+        borrar_carpetas("mayorista")
+    hay_mayoristas = descarga_mayoristas and hay_datos_descargados("mayorista")
+    if descarga_mayoristas and not hay_mayoristas:
+        print(f"  (SEPA mayoristas todavia no publico {fecha}; queda para la corrida siguiente)")
+
+    minoristas, mayoristas = resultado_de_la_carga(
+        correr_codigo("cargar_datos.py", "--fecha", fecha.isoformat()), hay_mayoristas
+    )
+    if not descarga_mayoristas:
+        mayoristas = "error"
+    if minoristas == "error":
         print(f"  ERROR en la carga de {fecha}")
-        return "error"
+    else:
+        print(f"  OK: {fecha} cargada (mayoristas: {mayoristas})")
+    return minoristas, mayoristas
 
-    print(f"  OK: {fecha} cargada")
+
+def procesar_fecha_mayoristas(fecha):
+    """Recupera solo los mayoristas de una fecha cuyo minorista ya esta cargado.
+    Devuelve 'ok', 'sin_datos' o 'error'."""
+    print(f"\n--- {fecha} (solo mayoristas) ---")
+    if not correr("descargar_sepa.py", "--dataset", "mayoristas", "--fecha", fecha.isoformat()):
+        print(f"  ERROR en la descarga de mayoristas de {fecha}")
+        return "error"
+    if not hay_datos_descargados("mayorista"):
+        print(f"  SEPA mayoristas no tiene datos publicados para {fecha}; se omite")
+        return "sin_datos"
+    # --solo-mayoristas no toca sucursales ni comercio: volver a cargarlas
+    # pisaria la foto anterior que usa la deteccion de cambios.
+    if not correr("cargar_datos.py", "--fecha", fecha.isoformat(), "--solo-mayoristas"):
+        print(f"  ERROR en la carga de mayoristas de {fecha}")
+        return "error"
+    print(f"  OK: mayoristas de {fecha} cargados")
     return "ok"
 
 
@@ -330,19 +431,29 @@ def main():
     hoy = date.today()
     print(f"=== Ingesta SEPA con backfill (ventana: {args.dias} dias) ===\n")
     faltantes, en_crudo, en_historico = calcular_faltantes(cliente, args.dias, hoy)
+    # Que fechas tiene el crudo de mayoristas (metadata, gratis). Mirar mas
+    # atras que el crudo minorista no cambia nada: solo se recuperan fechas que
+    # estan en los dos (ver fechas_mayoristas_faltantes).
+    en_crudo_mayoristas = fechas_con_particion(cliente, TABLA_CRUDA_MAYORISTAS, min(en_crudo, default=hoy))
 
-    if not faltantes:
-        print("\nNo falta ninguna fecha. Nada que hacer.")
-        # Se ajusta igual: si un backfill anterior dejo la ventana abierta y dbt
-        # ya capturo esas fechas, este es el momento en que se cierra sola.
-        if not args.simular:
-            ajustar_retencion(cliente, fechas_en_riesgo(en_crudo, en_historico), hoy)
-        return 0
-
-    print(f"\nFechas faltantes: {', '.join(f.isoformat() for f in faltantes)}")
+    if faltantes:
+        print(f"\nFechas faltantes: {', '.join(f.isoformat() for f in faltantes)}")
+    else:
+        print("\nNo falta ninguna fecha de minoristas.")
+    pendientes_mayoristas = fechas_mayoristas_faltantes(en_crudo, en_crudo_mayoristas, faltantes)
+    if pendientes_mayoristas:
+        print(f"Mayoristas faltantes (minorista ya cargado): "
+              f"{', '.join(f.isoformat() for f in pendientes_mayoristas)}")
 
     if args.simular:
         print("(modo simulacion: no se descarga ni carga nada)")
+        return 0
+
+    if not faltantes and not pendientes_mayoristas:
+        print("Nada que hacer.")
+        # Se ajusta igual: si un backfill anterior dejo la ventana abierta y dbt
+        # ya capturo esas fechas, este es el momento en que se cierra sola.
+        ajustar_retencion(cliente, fechas_en_riesgo(en_crudo, en_historico), hoy)
         return 0
 
     # La ventana se abre ANTES de cargar y contando las fechas que estan por
@@ -351,10 +462,15 @@ def main():
     ajustar_retencion(cliente, fechas_en_riesgo(en_crudo, en_historico, faltantes), hoy)
 
     resultados = {f: procesar_fecha(f) for f in faltantes}
+    resultados_mayoristas = {f: procesar_fecha_mayoristas(f) for f in pendientes_mayoristas}
 
-    ok = [f for f, r in resultados.items() if r == "ok"]
-    sin_datos = [f for f, r in resultados.items() if r == "sin_datos"]
-    errores = [f for f, r in resultados.items() if r == "error"]
+    ok = [f for f, (r, _) in resultados.items() if r == "ok"]
+    sin_datos = [f for f, (r, _) in resultados.items() if r == "sin_datos"]
+    errores = [f for f, (r, _) in resultados.items() if r == "error"]
+    mayoristas = {f: m for f, (_, m) in resultados.items()}
+    mayoristas.update(resultados_mayoristas)
+    ok_mayoristas = sorted(f for f, m in mayoristas.items() if m == "ok")
+    errores_mayoristas = sorted(f for f, m in mayoristas.items() if m == "error")
 
     # Recien aca se sabe si "cargada" quiere decir algo. Antes de este chequeo el
     # resumen era una promesa: decia OK aunque BigQuery ya hubiera expirado la
@@ -362,6 +478,11 @@ def main():
     desaparecidas = verificar_cargadas(cliente, ok) if ok else []
     if desaparecidas:
         ok = [f for f in ok if f not in desaparecidas]
+    desaparecidas_mayoristas = (
+        verificar_cargadas(cliente, ok_mayoristas, TABLA_CRUDA_MAYORISTAS) if ok_mayoristas else []
+    )
+    if desaparecidas_mayoristas:
+        ok_mayoristas = [f for f in ok_mayoristas if f not in desaparecidas_mayoristas]
 
     # La ventana se abrio contando TODAS las faltantes, porque antes de bajarlas
     # no se sabe cuales existen. Ahora si: se recalcula con las que entraron de
@@ -371,25 +492,31 @@ def main():
     # contra los 10 GiB de almacenamiento gratuito.
     ajustar_retencion(cliente, fechas_en_riesgo(en_crudo, en_historico, ok), hoy)
 
-    print("\n=== Resumen ===")
-    print(f"  Cargadas:      {[str(f) for f in ok] or 'ninguna'}")
-    print(f"  Sin datos:     {[str(f) for f in sin_datos] or 'ninguna'}")
-    print(f"  Con error:     {[str(f) for f in errores] or 'ninguna'}")
+    def listar(fechas):
+        return [str(f) for f in fechas] or "ninguna"
 
-    if desaparecidas:
-        print(f"  DESAPARECIDAS: {[str(f) for f in desaparecidas]}")
+    print("\n=== Resumen ===")
+    print(f"  Cargadas:      {listar(ok)}")
+    print(f"  Sin datos:     {listar(sin_datos)}")
+    print(f"  Con error:     {listar(errores)}")
+    print(f"  Mayoristas cargadas:  {listar(ok_mayoristas)}")
+    print(f"  Mayoristas con error: {listar(errores_mayoristas)}")
+
+    if desaparecidas or desaparecidas_mayoristas:
+        print(f"  DESAPARECIDAS: {listar(desaparecidas)}; mayoristas: {listar(desaparecidas_mayoristas)}")
         print("    Se cargaron y BigQuery las expiro antes de que dbt las capturara.")
         print("    Revisa la retencion del crudo: ajustar_retencion deberia haberla")
         print("    abierto lo suficiente. Mientras SEPA las siga publicando se pueden")
         print("    reintentar; despues de eso, no.")
 
-    if ok:
+    if ok or ok_mayoristas:
         # Aunque otras fechas hayan fallado: las que entraron conviene
         # transformarlas ya, antes de que la retencion corta las alcance.
         print("\nDisparando la transformacion para que estas fechas lleguen a los historicos...")
         disparar_pipeline.disparar_si_hay_token()
 
-    return 1 if (errores or desaparecidas) else 0
+    falla = errores or desaparecidas or errores_mayoristas or desaparecidas_mayoristas
+    return 1 if falla else 0
 
 
 if __name__ == "__main__":

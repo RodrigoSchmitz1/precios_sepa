@@ -2,6 +2,7 @@ import type { PromoCerca } from "../types";
 import { EVIDENCIA } from "../utils/evidencia";
 import { formatearPesos } from "../utils/formato";
 import { direccionPromo, textoOtrasSucursales, textoVigencia } from "../utils/promosCerca";
+import { etiquetaMayorista } from "../utils/mayoristas";
 
 /*
   Una promo de un producto de tu lista o del detalle, en una sucursal cerca de
@@ -15,7 +16,8 @@ function PromoCercana({ promo }: { promo: PromoCerca }) {
     <div className="text-sm leading-snug">
       <p className="text-tinta">
         <span className="font-semibold text-ahorro numero">−{Math.round(promo.descuento_pct)}%</span> en{" "}
-        <strong className="font-semibold">{promo.cadena}</strong>:{" "}
+        <strong className="font-semibold">{promo.cadena}</strong>
+        {etiquetaMayorista(promo) && <span className="text-tinta-media"> ({etiquetaMayorista(promo)})</span>}:{" "}
         <strong className="font-semibold numero">{formatearPesos(promo.precio_promo)}</strong>{" "}
         <span className="text-tinta-suave line-through numero">{formatearPesos(promo.precio_lista)}</span>
         {promo.requiere_compra_multiple && <span className="text-tinta-media"> · llevando más de una</span>}

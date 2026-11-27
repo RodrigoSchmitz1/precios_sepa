@@ -111,6 +111,13 @@ vars:
   # bandera adelante (macro id_sucursal_unica). Comodin (6): Comodin y Maxi Comodin.
   comercios_sucursal_por_bandera: ["6"]
 
+  # SEPA mayoristas (openspec sumar-mayoristas). La ingesta carga
+  # sepa.productos_mayoristas desde el primer dia; mientras esto sea false,
+  # ningun modelo lee ese crudo y las sucursales y comercios mayoristas quedan
+  # afuera de staging (macros crudo_productos y comercios_mayoristas), asi que
+  # el sitio sigue igual. Se prende cuando la API y el frontend saben mostrarlos.
+  mayoristas_activos: false
+
   # Señales anonimas (openspec senales-anonimas). Los marts mart_senales_* estan
   # deshabilitados hasta el lanzamiento: se prende junto con SENALES_ACTIVAS=1 en
   # el servicio. Un grupo (semana x provincia x categoria o producto) se muestra

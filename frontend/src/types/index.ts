@@ -28,6 +28,9 @@ export type SucursalMapa = {
   provincia: string;
   latitud: number;
   longitud: number;
+  /** Solo en un mayorista (openspec sumar-mayoristas): precios y promos por
+   *  unidad comprando el bulto. */
+  mayorista?: boolean;
 };
 
 /** Un producto basico del armado rapido de Tu lista (openspec lista-en-el-centro). */
@@ -95,6 +98,10 @@ export type PromoMapa = {
    *  una estan en la tabla "sucursales" de la respuesta. */
   sucursales: number[];
   total_sucursales: number;
+  /** Solo en un mayorista (openspec sumar-mayoristas). */
+  mayorista?: boolean;
+  /** Mayoristas: la promo es por unidad comprando el bulto de estas unidades. */
+  unidades_bulto?: number;
 };
 
 export type QuienGana = {
@@ -317,6 +324,24 @@ export type PrecioEnCadena = {
   farmacia?: boolean;
 };
 
+/** El precio de un producto en un mayorista (openspec sumar-mayoristas): por
+ *  unidad comprando el bulto. Va aparte de los precios de los super: no cuenta
+ *  para la mas barata, la brecha ni Tu lista. */
+export type PrecioMayorista = {
+  cadena: string;
+  /** Por unidad comprando el bulto, con IVA: la mediana entre sus sucursales. */
+  precio_mediano: number;
+  precio_minimo: number;
+  precio_maximo: number;
+  sucursales: number;
+  /** false si contradice a la referencia de los super (precio mal cargado). */
+  precio_creible: boolean;
+  fecha_precio?: string;
+  /** Unidades por bulto (1 si vende por unidad). */
+  unidades_bulto: number | null;
+  precio_bulto: number | null;
+};
+
 export type ProductoDetalle = ProductoComparado & {
   fecha_datos: string;
   /** Mediana entre empresas contra la que se juzga cada precio. Null con menos
@@ -324,6 +349,9 @@ export type ProductoDetalle = ProductoComparado & {
   precio_referencia?: number | null;
   /** De menor a mayor precio. */
   precios: PrecioEnCadena[];
+  /** Mayoristas que lo venden, de menor a mayor precio por unidad. Opcional:
+   *  una API anterior no lo manda. */
+  mayoristas?: PrecioMayorista[];
 };
 
 /*
@@ -451,12 +479,18 @@ export type ResultadoLista = {
     no_en_zona: string[];
     mas_barato: Record<string, { cadena: string; precio: number; cambio?: CambioDePrecio | null }>;
   };
+  /** Solo si se cotizo con mayoristas cerca (openspec sumar-mayoristas): por
+   *  cada uno, cuantos productos tiene y cuanto suman por unidad comprando el
+   *  bulto. No entran en ningun total. */
+  mayoristas?: { cadena: string; productos_con_precio: number; productos: number; total: number }[];
 };
 
 /** Una promo vigente de un producto en una sucursal cerca de la zona
  *  (GET /promos/productos, openspec promos-de-tu-lista). Los datos de la
  *  sucursal son los de la mas cercana al centro de la zona. */
 export type PromoCerca = SucursalMapa & {
+  /** Mayoristas (openspec sumar-mayoristas): la promo es por unidad comprando el bulto. */
+  unidades_bulto?: number;
   id_producto: string;
   descripcion: string;
   distancia_km: number;
@@ -574,7 +608,8 @@ export type Vidriera = {
   total: number;
   fuertes: PromoVidriera[];
   categorias: { rubro: string; slug: string; cantidad: number; promos: PromoVidriera[] }[];
-  cadenas: { cadena: string; cantidad: number; promos: PromoVidriera[] }[];
+  /** mayorista: la fila es de un mayorista (va despues de las de super). */
+  cadenas: { cadena: string; cantidad: number; promos: PromoVidriera[]; mayorista?: boolean }[];
   poco_informan: string[];
   sucursales: Record<string, SucursalMapa>;
 };

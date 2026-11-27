@@ -38,3 +38,29 @@ unit_tests:
         - {id_producto: "vea_coco", cantidad_normalizada: 150, unidad_normalizada: g}
         # La fuente manda cuando informa masa o volumen, aunque el texto diga otra cosa.
         - {id_producto: "dia", cantidad_normalizada: 500, unidad_normalizada: g}
+
+  - name: stg_productos_suma_los_mayoristas_con_el_interruptor_prendido
+    description: >
+      openspec sumar-mayoristas. Con mayoristas_activos, stg_productos lee
+      tambien sepa.productos_mayoristas: una fila por producto y sucursal, el
+      precio por unidad comprando el bulto, las unidades y el precio del bulto,
+      y el tamaño leido de la descripcion (el crudo lo carga como "1 UNI").
+    model: stg_productos
+    overrides:
+      macros:
+        is_incremental: false
+      vars:
+        mayoristas_activos: true
+    given:
+      - input: source('sepa', 'productos')
+        rows:
+          - {id_comercio: "15", id_bandera: "1", id_sucursal: "1", id_producto: "aceite", productos_descripcion: "ACEITE GIRASOL COCINERO 1.5 L", productos_cantidad_presentacion: "1500", productos_unidad_medida_presentacion: CC, productos_precio_lista: "6500.00", fecha_datos: "2026-11-25"}
+      - input: source('sepa', 'productos_mayoristas')
+        rows:
+          - {id_comercio: "70", id_bandera: "1", id_sucursal: "1", id_producto: "aceite", productos_descripcion: "ACEITE DE GIRASOL COCINERO 1.5 LT", productos_cantidad_presentacion: "1", productos_unidad_medida_presentacion: UNI, productos_precio_lista: "5700.00", unidades_bulto: "1", precio_bulto: "5700.00", fecha_datos: "2026-11-25"}
+          - {id_comercio: "63", id_bandera: "1", id_sucursal: "1", id_producto: "deo", productos_descripcion: "ANT.FEM NIVEA ROL.PRO.CAR 50 ml", productos_cantidad_presentacion: "1", productos_unidad_medida_presentacion: UNI, productos_precio_lista: "1979.87", unidades_bulto: "12", precio_bulto: "23758.44", fecha_datos: "2026-11-25"}
+    expect:
+      rows:
+        - {id_comercio: "15", id_producto: "aceite", precio: 6500, cantidad_normalizada: 1500, unidad_normalizada: cc, unidades_bulto: null, precio_bulto: null, es_mayorista: false}
+        - {id_comercio: "70", id_producto: "aceite", precio: 5700, cantidad_normalizada: 1500, unidad_normalizada: cc, unidades_bulto: 1, precio_bulto: 5700, es_mayorista: true}
+        - {id_comercio: "63", id_producto: "deo", precio: 1979.87, cantidad_normalizada: 50, unidad_normalizada: cc, unidades_bulto: 12, precio_bulto: 23758.44, es_mayorista: true}

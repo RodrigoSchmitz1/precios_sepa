@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import MayoristasDeTuLista from "./MayoristasDeTuLista";
 import { cotizarLista, obtenerPromosDeLista, obtenerPromosDeProductos } from "../api/client";
 import { useZona } from "../contexto/zona";
 import { fechaEnPalabras, formatearPesos } from "../utils/formato";
@@ -61,7 +62,9 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
   // La zona tambien: cambiarla o borrarla vuelve a cotizar.
   const { zona } = useZona();
   const clave =
-    lista.length > 0 ? JSON.stringify([lista.map((i) => [i.id_producto, i.cantidad]), zona?.cadenas ?? []]) : "";
+    lista.length > 0
+      ? JSON.stringify([lista.map((i) => [i.id_producto, i.cantidad]), zona?.cadenas ?? [], zona?.mayoristas ?? []])
+      : "";
   const [estado, setEstado] = useState<Estado | null>(null);
   const [verTodas, setVerTodas] = useState(false);
   // Las promos dependen de que productos hay y de donde, no de las cantidades.
@@ -96,10 +99,12 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
     // Se espera un momento: apretar "+" varias veces seguidas no tiene que
     // disparar una cotizacion por click.
     const espera = setTimeout(() => {
-      const [pares, cadenas] = JSON.parse(clave) as [[string, number][], string[]];
+      const [pares, cadenas, mayoristas] = JSON.parse(clave) as [[string, number][], string[], string[]];
       cotizarLista(
         pares.map(([id_producto, cantidad]) => ({ id_producto, cantidad })),
         cadenas,
+        // Los mayoristas cerca (openspec sumar-mayoristas): van aparte, al final.
+        mayoristas,
       )
         .then((resultado) => {
           if (!cancelado) setEstado({ clave, resultado });
@@ -406,6 +411,9 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
           {incompletas.length <= INCOMPLETAS_VISIBLES && <div className="mb-3" />}
         </>
       )}
+
+      {/* Mayoristas cerca, aparte de los totales (openspec sumar-mayoristas). */}
+      {zona && r?.mayoristas && <MayoristasDeTuLista filas={r.mayoristas} />}
 
       {enZona && vista && vista.otras.length > 0 && r && (
         <details className="mb-5 group">

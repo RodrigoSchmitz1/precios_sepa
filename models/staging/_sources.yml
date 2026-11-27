@@ -6,6 +6,9 @@ sources:
     schema: sepa
     tables:
       - name: productos
+      # Crudo hermano de SEPA mayoristas (openspec sumar-mayoristas). Lo leen
+      # los modelos solo con var('mayoristas_activos'); ver macro crudo_productos.
+      - name: productos_mayoristas
       - name: sucursales
       - name: comercio
       - name: producto_categoria

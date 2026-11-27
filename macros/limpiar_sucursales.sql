@@ -11,24 +11,45 @@
   una sucursal, y una coordenada que no es un numero es NULL (esas sucursales
   ya se descartan aguas abajo por no tener coordenadas).
 #}
+{#
+  COORDENADAS QUE FALTAN (2026-11-26, openspec sumar-mayoristas). Makro publica
+  sus 24 sucursales con latitud y sin longitud. seeds/coordenadas_sucursales.csv
+  trae su ubicacion, sacada una vez de OpenStreetMap y revisada a mano. Se usa
+  SOLO cuando SEPA no trae las dos coordenadas: una correccion nunca pisa un
+  punto completo que publica la cadena, y se toma el punto entero del seed (no
+  la latitud de SEPA con la longitud del seed) para que sea un lugar coherente.
+
+  MAYORISTAS CON EL INTERRUPTOR APAGADO. Con var('mayoristas_activos') en false
+  las sucursales de comercios mayoristas no salen de aca (ver
+  sin_mayoristas_si_apagado).
+#}
 {% macro limpiar_sucursales(relacion) %}
 SELECT
-    id_comercio,
-    id_bandera,
-    {{ id_sucursal_unica('id_comercio', 'id_bandera', 'id_sucursal') }} AS id_sucursal,
-    sucursales_nombre AS nombre_sucursal,
-    sucursales_tipo AS tipo_sucursal,
-    sucursales_calle AS calle,
-    sucursales_numero AS numero,
-    sucursales_barrio AS barrio,
-    sucursales_localidad AS localidad,
-    sucursales_provincia AS provincia,
-    sucursales_codigo_postal AS codigo_postal,
+    s.id_comercio,
+    s.id_bandera,
+    {{ id_sucursal_unica('s.id_comercio', 's.id_bandera', 's.id_sucursal') }} AS id_sucursal,
+    s.sucursales_nombre AS nombre_sucursal,
+    s.sucursales_tipo AS tipo_sucursal,
+    s.sucursales_calle AS calle,
+    s.sucursales_numero AS numero,
+    s.sucursales_barrio AS barrio,
+    s.sucursales_localidad AS localidad,
+    s.sucursales_provincia AS provincia,
+    s.sucursales_codigo_postal AS codigo_postal,
     -- TRIM: Comodin manda las coordenadas con un espacio al final.
-    SAFE_CAST(TRIM(sucursales_latitud) AS FLOAT64) AS latitud,
-    SAFE_CAST(TRIM(sucursales_longitud) AS FLOAT64) AS longitud
-FROM {{ relacion }}
-WHERE id_sucursal IS NOT NULL
-    AND REGEXP_CONTAINS(id_comercio, r"^[0-9]+$")
-    AND NULLIF(TRIM(sucursales_provincia), "") IS NOT NULL
+    IF(SAFE_CAST(TRIM(s.sucursales_latitud) AS FLOAT64) IS NULL OR SAFE_CAST(TRIM(s.sucursales_longitud) AS FLOAT64) IS NULL,
+       COALESCE(c.latitud, SAFE_CAST(TRIM(s.sucursales_latitud) AS FLOAT64)),
+       SAFE_CAST(TRIM(s.sucursales_latitud) AS FLOAT64)) AS latitud,
+    IF(SAFE_CAST(TRIM(s.sucursales_latitud) AS FLOAT64) IS NULL OR SAFE_CAST(TRIM(s.sucursales_longitud) AS FLOAT64) IS NULL,
+       COALESCE(c.longitud, SAFE_CAST(TRIM(s.sucursales_longitud) AS FLOAT64)),
+       SAFE_CAST(TRIM(s.sucursales_longitud) AS FLOAT64)) AS longitud
+FROM {{ relacion }} AS s
+LEFT JOIN {{ ref("coordenadas_sucursales") }} AS c
+    ON s.id_comercio = CAST(c.id_comercio AS STRING)
+    AND s.id_bandera = CAST(c.id_bandera AS STRING)
+    AND s.id_sucursal = CAST(c.id_sucursal AS STRING)
+WHERE s.id_sucursal IS NOT NULL
+    AND REGEXP_CONTAINS(s.id_comercio, r"^[0-9]+$")
+    AND NULLIF(TRIM(s.sucursales_provincia), "") IS NOT NULL
+    {{ sin_mayoristas_si_apagado("s.id_comercio") }}
 {% endmacro %}

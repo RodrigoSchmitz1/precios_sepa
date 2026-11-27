@@ -11,6 +11,7 @@ import { textoPocoInforman } from "../utils/promosDeLista";
 import { senal } from "../utils/senales";
 import { AvisoDatosAnonimos } from "./DatosAnonimos";
 import { rotuloZona } from "../utils/zona";
+import { tituloFilaCadena } from "../utils/mayoristas";
 
 /** Cuantas categorias se ven de entrada; el resto, detras de "Ver todas las categorias". */
 const CATEGORIAS_A_LA_VISTA = 6;
@@ -147,7 +148,7 @@ export function FilasDeVidriera({ vidriera }: EstadoVidriera) {
             {vidriera.cadenas.map((c) => (
               <Fila
                 key={c.cadena}
-                titulo={`Lo mejor de ${c.cadena} hoy`}
+                titulo={tituloFilaCadena(c)}
                 cantidad={c.cantidad}
                 promos={c.promos}
                 enlace={{ a: "?mapa=1", texto: "Ver en el mapa" }}

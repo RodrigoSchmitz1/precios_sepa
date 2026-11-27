@@ -1,4 +1,4 @@
-{% macro fechas_a_calcular(fuente, nombre_historico, incluir_anterior=false, dataset_historico=none, con_pares=false) %}
+{% macro fechas_a_calcular(fuente, nombre_historico, incluir_anterior=false, dataset_historico=none, con_pares=false, fuente_extra=none) %}
     {#
       Devuelve, como lista de literales DATE, las fechas que un mart tiene que
       calcular hoy: las que estan en el crudo pero todavia NO llegaron al
@@ -49,6 +49,16 @@
       dependencia del mart hacia su propio historico, que ya depende del mart:
       un ciclo, y la corrida no compilaria. Aca solo se leen sus particiones, que
       no es una dependencia de datos real.
+
+      fuente_extra (2026-11-26, openspec sumar-mayoristas): otra tabla cuyas
+      particiones, si se escribieron DESPUES que la del destino, obligan a
+      recalcular esa fecha. Es el caso de SEPA mayoristas: si su recurso falla un
+      dia, la ingesta lo recupera al siguiente con la fecha de minoristas ya
+      transformada, y sin esto stg_productos nunca la volveria a leer. Solo
+      cuentan las fechas que ya estan en la fuente principal: una fecha de
+      mayoristas que llega antes que la de minoristas no arma un dia con
+      mayoristas solos (el sitio se veria casi vacio). Se compara
+      last_modified_time de INFORMATION_SCHEMA.PARTITIONS, la misma metadata.
     #}
     {%- if not execute -%}
         {%- if con_pares -%}
@@ -61,27 +71,44 @@
     {%- set consulta_particiones -%}
         SELECT
             'fuente' AS origen,
-            PARSE_DATE('%Y%m%d', partition_id) AS fecha
+            PARSE_DATE('%Y%m%d', partition_id) AS fecha,
+            last_modified_time AS modificada
         FROM `{{ fuente.database }}.{{ fuente.schema }}`.INFORMATION_SCHEMA.PARTITIONS
         WHERE table_name = '{{ fuente.identifier }}'
           AND partition_id NOT IN ('__NULL__', '__UNPARTITIONED__')
         UNION ALL
         SELECT
             'historico' AS origen,
-            PARSE_DATE('%Y%m%d', partition_id) AS fecha
+            PARSE_DATE('%Y%m%d', partition_id) AS fecha,
+            last_modified_time AS modificada
         FROM `{{ fuente.database }}.{{ esquema_historico }}`.INFORMATION_SCHEMA.PARTITIONS
         WHERE table_name = '{{ nombre_historico }}'
           AND partition_id NOT IN ('__NULL__', '__UNPARTITIONED__')
+        {%- if fuente_extra is not none %}
+        UNION ALL
+        SELECT
+            'extra' AS origen,
+            PARSE_DATE('%Y%m%d', partition_id) AS fecha,
+            last_modified_time AS modificada
+        FROM `{{ fuente_extra.database }}.{{ fuente_extra.schema }}`.INFORMATION_SCHEMA.PARTITIONS
+        WHERE table_name = '{{ fuente_extra.identifier }}'
+          AND partition_id NOT IN ('__NULL__', '__UNPARTITIONED__')
+        {%- endif %}
     {%- endset -%}
 
     {%- set filas = run_query(consulta_particiones) -%}
     {%- set en_crudo = [] -%}
     {%- set en_historico = [] -%}
+    {%- set modificada_historico = {} -%}
+    {%- set modificada_extra = {} -%}
     {%- for fila in filas.rows -%}
         {%- if fila[0] == 'fuente' -%}
             {%- do en_crudo.append(fila[1]) -%}
+        {%- elif fila[0] == 'extra' -%}
+            {%- do modificada_extra.update({fila[1]: fila[2]}) -%}
         {%- else -%}
             {%- do en_historico.append(fila[1]) -%}
+            {%- do modificada_historico.update({fila[1]: fila[2]}) -%}
         {%- endif -%}
     {%- endfor -%}
 
@@ -129,6 +156,16 @@
             {%- do pendientes.append(ultima) -%}
         {%- endif -%}
     {%- endif -%}
+
+    {#- Fechas cuya fuente_extra se escribio despues que el destino (ver
+        fuente_extra arriba). Solo las que estan en la fuente principal. -#}
+    {%- for fecha in ordenadas -%}
+        {%- if fecha in modificada_extra and fecha in modificada_historico
+              and modificada_extra[fecha] > modificada_historico[fecha]
+              and fecha not in pendientes -%}
+            {%- do pendientes.append(fecha) -%}
+        {%- endif -%}
+    {%- endfor -%}
 
     {#- Fechas forzadas para recalcular (ver OJO AL CAMBIAR UNA METODOLOGIA).
         Solo entran las que existen en la fuente. -#}

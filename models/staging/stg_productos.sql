@@ -7,9 +7,19 @@
       "data_type": "date",
       "copy_partitions": true
     },
-    partition_expiration_days=3
+    partition_expiration_days=3,
+    on_schema_change="append_new_columns"
   )
 }}
+
+-- MAYORISTAS (2026-11-26, openspec sumar-mayoristas). Con var('mayoristas_activos')
+-- lee tambien sepa.productos_mayoristas (macro crudo_productos): una fila por
+-- producto y sucursal, igual que minoristas, con el precio por unidad comprando
+-- el bulto como precio. Suma unidades_bulto, precio_bulto y es_mayorista (NULL y
+-- false en minoristas). El tamaño de un mayorista sale de la descripcion: el
+-- crudo lo carga como "1 UNI", que es justo el caso de la regla de Carrefour.
+-- on_schema_change="append_new_columns" para que las columnas nuevas lleguen a
+-- la tabla ya existente (el default "ignore" las descarta en silencio).
 
 -- INCREMENTAL DESDE EL 2026-09-10. Antes se reconstruia entera todos los dias:
 -- leer las tres fechas del crudo costaba 2,14 GiB, cuando dos de ellas ya
@@ -99,12 +109,18 @@ WITH base AS (
         -- Solo para leer el tamaño cuando la fuente dice "1 unidad"; no sale
         -- del modelo (ver el encabezado: la descripcion pesaba 2,19 GB).
         UPPER(productos_descripcion) AS descripcion,
+        SAFE_CAST(unidades_bulto AS INT64) AS unidades_bulto,
+        SAFE_CAST(precio_bulto AS FLOAT64) AS precio_bulto,
+        es_mayorista,
         fecha_datos
-    FROM {{ source("sepa", "productos") }}
+    FROM {{ crudo_productos() }}
     WHERE productos_precio_lista IS NOT NULL
         AND CAST(productos_precio_lista AS FLOAT64) > 1
         {% if is_incremental() %}
-        AND fecha_datos IN ({{ fechas_a_calcular(source("sepa", "productos"), this.identifier, dataset_historico=this.schema) }})
+        AND fecha_datos IN ({{ fechas_a_calcular(
+            source("sepa", "productos"), this.identifier, dataset_historico=this.schema,
+            fuente_extra=(source("sepa", "productos_mayoristas") if var("mayoristas_activos") else none)
+        ) }})
         {% endif %}
 ),
 
@@ -197,5 +213,9 @@ SELECT
     precio,
     fecha_datos,
     IF(usa_descripcion, tamano_cantidad, cantidad_fuente) AS cantidad_normalizada,
-    IF(usa_descripcion, tamano_unidad_normalizada, unidad_fuente) AS unidad_normalizada
+    IF(usa_descripcion, tamano_unidad_normalizada, unidad_fuente) AS unidad_normalizada,
+    -- Al final, para no mover columnas (openspec sumar-mayoristas).
+    unidades_bulto,
+    precio_bulto,
+    es_mayorista
 FROM con_descripcion

@@ -38,6 +38,8 @@ class IndiceMapa:
     __slots__ = (
         "sucursales",
         "es_farmacia",
+        "es_mayorista",
+        "unidades_bulto",
         *CAMPOS_TEXTO,
         *CAMPOS_NUMERO,
         "texto",
@@ -56,15 +58,24 @@ def armar_indice(sucursales, promos) -> IndiceMapa:
     indice = IndiceMapa()
     indice.sucursales = []
     indice.es_farmacia = bytearray()
+    indice.es_mayorista = bytearray()
     posicion = {}
     for fila in sucursales:
         posicion[fila["sucursal"]] = len(indice.sucursales)
-        indice.sucursales.append({campo: fila[campo] for campo in CAMPOS_SUCURSAL})
+        sucursal = {campo: fila[campo] for campo in CAMPOS_SUCURSAL}
+        # Un mayorista tampoco arma zonas ni cuenta como cadena cerca: va en
+        # "mayoristas" (openspec sumar-mayoristas). A diferencia de la farmacia,
+        # la marca viaja en la sucursal, porque la pagina la necesita en cada
+        # promo y en el mapa; son ~90 sucursales, no agranda las respuestas.
+        if fila.get("formato") == "mayorista":
+            sucursal["mayorista"] = True
+        indice.sucursales.append(sucursal)
         # Una farmacia no arma zonas ni cuenta como cadena cerca: va en
         # "farmacias" (openspec comercios-regionales-y-farmacity). Aparte y no
         # en la sucursal, que se copia entera en cada fila de promo. .get: el
         # mart trae formato desde la corrida siguiente al deploy.
         indice.es_farmacia.append(1 if fila.get("formato") == "farmacia" else 0)
+        indice.es_mayorista.append(1 if fila.get("formato") == "mayorista" else 0)
 
     # La misma leyenda o descripcion llega como un string nuevo en cada fila.
     unicos: dict = {}
@@ -72,6 +83,7 @@ def armar_indice(sucursales, promos) -> IndiceMapa:
     numeros = {campo: array("d") for campo in CAMPOS_NUMERO}
     inicio, miembros = array("I", [0]), array("I")
     multiple = bytearray()
+    bultos = array("I")
     for fila in promos:
         claves = sorted(posicion[c] for c in fila["sucursales"] if c in posicion)
         if not claves:
@@ -82,6 +94,8 @@ def armar_indice(sucursales, promos) -> IndiceMapa:
         for campo, valores in numeros.items():
             valores.append(fila[campo])
         multiple.append(1 if fila.get("requiere_compra_multiple") else 0)
+        # Mayoristas: la promo es por unidad comprando el bulto (0 = no aplica).
+        bultos.append(int(fila.get("unidades_bulto") or 0))
         miembros.extend(claves)
         inicio.append(len(miembros))
 
@@ -98,6 +112,7 @@ def armar_indice(sucursales, promos) -> IndiceMapa:
         indice.inicio.append(len(indice.miembros))
 
     indice.multiple = bytearray(multiple[i] for i in orden)
+    indice.unidades_bulto = array("I", (bultos[i] for i in orden))
     hasta = {l: vigencia_de(l) for l in set(indice.leyenda) if l is not None}
     indice.vigente_hasta = [hasta.get(l) for l in indice.leyenda]
     indice.por_producto = {}
@@ -161,6 +176,8 @@ def _fila(indice: IndiceMapa, pos: int, sucs: list[int]) -> dict:
         "nivel_evidencia": indice.nivel_evidencia[pos],
         "sucursales": sucs,
         "total_sucursales": len(sucs),
+        # Mayoristas (la sucursal ya trae "mayorista": True): el bulto de la promo.
+        **({"unidades_bulto": indice.unidades_bulto[pos]} if indice.unidades_bulto[pos] else {}),
     }
 
 
@@ -441,6 +458,10 @@ def vidriera(
 
     # (pos, sucursales) de las vigentes, de mayor a menor descuento.
     vigentes = [(pos, sucursales_de(pos)) for pos in posiciones if _vigente(indice, pos, hoy)]
+    # Las promos de mayoristas (openspec sumar-mayoristas) no compiten en las
+    # promos fuertes ni en las filas por rubro: son por unidad comprando el
+    # bulto. Tienen su fila por cadena, despues de las de super.
+    de_super = [(pos, sucs) for pos, sucs in vigentes if not indice.es_mayorista[sucs[0]]]
 
     def fila(pos: int, sucs: list[int]) -> dict:
         f = _fila(indice, pos, sucs)
@@ -456,7 +477,7 @@ def vidriera(
     # alcanzan, completan las de una. Sin zona, "varias" es en todo el pais.
     candidatas = [
         (pos, sucs)
-        for pos, sucs in vigentes
+        for pos, sucs in de_super
         if not indice.multiple[pos] and indice.nivel_evidencia[pos] in EVIDENCIA_FUERTE
     ]
     fuertes: list[dict] = []
@@ -484,7 +505,7 @@ def vidriera(
         return [fila(pos, sucs) for pos, sucs in grupo[:PROMOS_POR_FILA]]
 
     rubros: dict[str, list] = {}
-    for pos, sucs in vigentes:
+    for pos, sucs in de_super:
         rubros.setdefault(indice.rubro[pos] or SIN_RUBRO, []).append((pos, sucs))
     categorias = [
         {"rubro": r, "slug": slug_rubro(r), "cantidad": len(g), "promos": mejores(g)}
@@ -494,20 +515,28 @@ def vidriera(
     # Una fila por cadena cerca con promos; las farmacias no tienen fila y las
     # que casi no informan se nombran aparte (mismo umbral que Tu lista).
     cerca = distancia if con_zona else range(len(indice.sucursales))
-    cadenas_cerca = {indice.sucursales[s]["cadena"] for s in cerca if not indice.es_farmacia[s]}
+    cadenas_cerca = {indice.sucursales[s]["cadena"] for s in cerca
+                     if not indice.es_farmacia[s] and not indice.es_mayorista[s]}
     flojas = poco_informan(indice, cadenas_cerca)
     por_cadena_fila: dict[str, list] = {}
+    por_mayorista: dict[str, list] = {}
     for pos, sucs in vigentes:
         propias = [s for s in sucs if not indice.es_farmacia[s]]
         if not propias:
             continue
         cadena = cadena_de(propias)
+        if indice.es_mayorista[propias[0]]:
+            por_mayorista.setdefault(cadena, []).append((pos, propias))
+            continue
         if cadena in flojas:
             continue
         por_cadena_fila.setdefault(cadena, []).append((pos, propias))
     cadenas = [
         {"cadena": c, "cantidad": len(g), "promos": mejores(g)}
         for c, g in sorted(por_cadena_fila.items(), key=lambda kv: (-len(kv[1]), kv[0]))
+    ] + [
+        {"cadena": c, "cantidad": len(g), "promos": mejores(g), "mayorista": True}
+        for c, g in sorted(por_mayorista.items(), key=lambda kv: (-len(kv[1]), kv[0]))
     ]
 
     todas = fuertes + [p for c in categorias for p in c["promos"]] + [p for c in cadenas for p in c["promos"]]
@@ -684,18 +713,23 @@ def _sumar_cadenas_cerca(indice: IndiceMapa, lugares_: list) -> None:
     sucursal mas cercana de otra cadena, para decir cuanto hay que viajar.
     Se compara solo contra las sucursales de una franja de latitud: 559 lugares
     por 2.500 sucursales en cada armado sobraba."""
-    def ordenados(farmacia: bool):
+    def tipo(i: int) -> str:
+        return "farmacia" if indice.es_farmacia[i] else "mayorista" if indice.es_mayorista[i] else "super"
+
+    def ordenados(cual: str):
         return sorted(
             (s["latitud"], s["longitud"], s["cadena"]) for i, s in enumerate(indice.sucursales)
-            if s.get("cadena") and bool(indice.es_farmacia[i]) == farmacia
+            if s.get("cadena") and tipo(i) == cual
             and s.get("latitud") is not None and s.get("longitud") is not None
         )
 
-    # Las farmacias van aparte (openspec comercios-regionales-y-farmacity): no
-    # cuentan como cadena cerca, ni sacan a una zona de "una sola cadena".
-    puntos, farmacias = ordenados(False), ordenados(True)
+    # Las farmacias van aparte (openspec comercios-regionales-y-farmacity), y los
+    # mayoristas tambien (openspec sumar-mayoristas): no cuentan como cadena
+    # cerca, ni sacan a una zona de "una sola cadena".
+    puntos, farmacias, mayoristas = ordenados("super"), ordenados("farmacia"), ordenados("mayorista")
     latitudes = [p[0] for p in puntos]
     latitudes_farmacias = [p[0] for p in farmacias]
+    latitudes_mayoristas = [p[0] for p in mayoristas]
     for lugar in lugares_:
         lat, lng = lugar["latitud"], lugar["longitud"]
         desde, hasta = bisect_left(latitudes, lat - _FRANJA_GRADOS), bisect_right(latitudes, lat + _FRANJA_GRADOS)
@@ -707,6 +741,10 @@ def _sumar_cadenas_cerca(indice: IndiceMapa, lugares_: list) -> None:
         farmacias_cerca = {c for la, ln, c in farmacias[desde:hasta] if _km(lat, lng, la, ln) <= RADIO_CERCA_KM}
         if farmacias_cerca:
             lugar["farmacias"] = sorted(farmacias_cerca)
+        desde, hasta = bisect_left(latitudes_mayoristas, lat - _FRANJA_GRADOS), bisect_right(latitudes_mayoristas, lat + _FRANJA_GRADOS)
+        mayoristas_cerca = {c for la, ln, c in mayoristas[desde:hasta] if _km(lat, lng, la, ln) <= RADIO_CERCA_KM}
+        if mayoristas_cerca:
+            lugar["mayoristas"] = sorted(mayoristas_cerca)
         if len(cerca) == 1:
             otra = min(((_km(lat, lng, la, ln), c) for la, ln, c in puntos if c not in cerca), default=None)
             if otra:
@@ -741,8 +779,8 @@ def lugares(indice: IndiceMapa, con_cadenas: bool = False) -> list[dict]:
     grupos: dict = {}
     for i, s in enumerate(indice.sucursales):
         # Una zona es un lugar con supermercados: un pueblo con solo un
-        # Farmacity no es una zona donde comparar la compra.
-        if indice.es_farmacia[i]:
+        # Farmacity, o solo un mayorista, no es una zona donde comparar la compra.
+        if indice.es_farmacia[i] or indice.es_mayorista[i]:
             continue
         for campo in ("barrio", "localidad"):
             nombre = (s.get(campo) or "").strip()

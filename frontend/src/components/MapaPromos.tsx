@@ -1,3 +1,4 @@
+import L from "leaflet";
 import { MapContainer, Marker, Popup, useMap, useMapEvents } from "react-leaflet";
 import MarkerClusterGroup from "react-leaflet-cluster";
 import { memo, useEffect, useMemo, useRef } from "react";
@@ -21,6 +22,11 @@ export type BoundingBox = {
 };
 
 type GrupoSucursal = SucursalMapa & { id: number; promos: PromoMapa[] };
+
+/* El marcador de un mayorista (openspec sumar-mayoristas): el mismo icono,
+   tenido con .marcador-mayorista (index.css), para distinguirlo de un super
+   sin abrir el popup. */
+const ICONO_MAYORISTA = new L.Icon.Default({ className: "marcador-mayorista" });
 
 /*
   Un marcador por sucursal, con las promos que rigen en ella.
@@ -57,7 +63,10 @@ function agruparPorSucursal(promos: PromoMapa[], sucursales: Record<string, Sucu
 function ContenidoPopup({ grupo }: { grupo: GrupoSucursal }) {
   return (
     <div>
-      <p className="font-display text-lg leading-tight text-tinta">{grupo.cadena}</p>
+      <p className="font-display text-lg leading-tight text-tinta">
+        {grupo.cadena}
+        {grupo.mayorista && <span className="font-sans text-xs text-tinta-suave"> · mayorista</span>}
+      </p>
       <p className="text-xs text-tinta-suave mt-0.5">
         {[grupo.calle, grupo.numero].filter(Boolean).join(" ") || grupo.nombre_sucursal}
         {grupo.localidad && ` · ${grupo.localidad}`}, {nombreProvincia(grupo.provincia)}
@@ -168,7 +177,11 @@ function MapaPromos({ promos, sucursales, onMoverMapa, destino }: Props) {
       <MapaBase />
       <MarkerClusterGroup chunkedLoading>
         {grupos.map((grupo) => (
-          <Marker key={grupo.id} position={[grupo.latitud, grupo.longitud]}>
+          <Marker
+            key={grupo.id}
+            position={[grupo.latitud, grupo.longitud]}
+            {...(grupo.mayorista ? { icon: ICONO_MAYORISTA } : {})}
+          >
             {/*
               El contenido va en su propio componente para que se arme recien
               al abrir el popup: react-leaflet solo monta los hijos del Popup

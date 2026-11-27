@@ -16,8 +16,14 @@ from datetime import date
 from ingesta_backfill import (
     MARGEN_DBT_DIAS,
     RETENCION_BASE_DIAS,
+    SALIDA_FALLO_MAYORISTAS,
+    TABLA_CRUDA,
+    TABLA_CRUDA_MAYORISTAS,
     dias_de_retencion,
     fechas_en_riesgo,
+    fechas_mayoristas_faltantes,
+    resultado_de_la_carga,
+    tablas_con_retencion,
 )
 
 
@@ -102,6 +108,49 @@ class TestDiasDeRetencion(unittest.TestCase):
         vieja = date(2026, 9, 15)
         vence = vieja.toordinal() + dias_de_retencion({vieja}, hoy)
         self.assertGreaterEqual(vence, hoy.toordinal() + 3)
+
+
+class TestMayoristas(unittest.TestCase):
+    """openspec sumar-mayoristas: mayoristas va con minoristas y no lo frena."""
+
+    def test_portal_de_mayoristas_caido_el_24(self):
+        # Minoristas del 24 se cargo y mayoristas no: se recupera solo mayoristas.
+        en_crudo = {date(2026, 11, 23), date(2026, 11, 24), date(2026, 11, 25)}
+        en_crudo_mayoristas = {date(2026, 11, 23), date(2026, 11, 25)}
+        self.assertEqual(fechas_mayoristas_faltantes(en_crudo, en_crudo_mayoristas), [date(2026, 11, 24)])
+
+    def test_nada_faltante(self):
+        fechas = {date(2026, 11, 24), date(2026, 11, 25)}
+        self.assertEqual(fechas_mayoristas_faltantes(fechas, fechas), [])
+
+    def test_no_reintenta_en_la_misma_corrida_lo_que_acaba_de_bajar(self):
+        # Una fecha que esta corrida bajo con minoristas no se vuelve a intentar sola.
+        en_crudo = {date(2026, 11, 25), date(2026, 11, 26)}
+        faltantes = [date(2026, 11, 26)]
+        self.assertEqual(fechas_mayoristas_faltantes(en_crudo, set(), faltantes), [date(2026, 11, 25)])
+
+    def test_una_fecha_que_no_esta_en_el_crudo_minorista_no_se_recupera(self):
+        # Cargarla sola agregaria una particion que vence sin llegar a ningun lado.
+        self.assertEqual(fechas_mayoristas_faltantes({date(2026, 11, 25)}, set()), [date(2026, 11, 25)])
+        self.assertEqual(fechas_mayoristas_faltantes(set(), set()), [])
+
+    def test_ordenadas_de_la_mas_vieja_a_la_mas_nueva(self):
+        en_crudo = {date(2026, 11, 26), date(2026, 11, 24), date(2026, 11, 25)}
+        self.assertEqual(fechas_mayoristas_faltantes(en_crudo, set()),
+                         [date(2026, 11, 24), date(2026, 11, 25), date(2026, 11, 26)])
+
+    def test_resultado_de_la_carga(self):
+        self.assertEqual(resultado_de_la_carga(0, True), ("ok", "ok"))
+        self.assertEqual(resultado_de_la_carga(0, False), ("ok", "sin_datos"))
+        # Minoristas cargado y mayoristas fallo: no se vuelve a cargar minoristas.
+        self.assertEqual(resultado_de_la_carga(SALIDA_FALLO_MAYORISTAS, True), ("ok", "error"))
+        self.assertEqual(resultado_de_la_carga(1, True), ("error", "error"))
+        self.assertEqual(resultado_de_la_carga(1, False), ("error", "sin_datos"))
+
+    def test_el_crudo_de_mayoristas_retiene_lo_mismo_que_el_minorista(self):
+        tablas = [t for _, t in tablas_con_retencion()]
+        self.assertIn(TABLA_CRUDA, tablas)
+        self.assertIn(TABLA_CRUDA_MAYORISTAS, tablas)
 
 
 if __name__ == "__main__":

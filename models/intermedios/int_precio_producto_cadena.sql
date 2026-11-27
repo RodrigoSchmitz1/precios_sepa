@@ -67,12 +67,20 @@ SELECT
     -- un producto x cadena la tienen nula, devuelve un array vacio y OFFSET(1)
     -- cortaria la corrida entera por un producto sin gramaje.
     APPROX_QUANTILES(p.cantidad_normalizada, 2)[SAFE_OFFSET(1)] AS cantidad_normalizada,
-    MIN(p.unidad_normalizada) AS unidad_normalizada
+    MIN(p.unidad_normalizada) AS unidad_normalizada,
+    -- Mayoristas (openspec sumar-mayoristas): las unidades del bulto mas
+    -- frecuentes entre las sucursales y la mediana del precio del bulto. NULL
+    -- en minoristas. Al final, para no mover columnas.
+    APPROX_TOP_COUNT(p.unidades_bulto, 1)[SAFE_OFFSET(0)].value AS unidades_bulto,
+    APPROX_QUANTILES(p.precio_bulto, 2)[SAFE_OFFSET(1)] AS precio_bulto
 FROM {{ ref("stg_productos") }} AS p
 JOIN {{ ref("stg_comercio") }} AS c
     ON p.id_comercio = c.id_comercio
     AND p.id_bandera = c.id_bandera
 {% if is_incremental() %}
-WHERE p.fecha_datos IN ({{ fechas_a_calcular(ref("stg_productos"), this.identifier) }})
+WHERE p.fecha_datos IN ({{ fechas_a_calcular(
+    ref("stg_productos"), this.identifier,
+    fuente_extra=(ref("stg_productos") if var("mayoristas_activos") else none)
+) }})
 {% endif %}
 GROUP BY p.fecha_datos, p.id_producto, c.nombre_comercial

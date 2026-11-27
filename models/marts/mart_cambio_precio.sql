@@ -27,6 +27,9 @@ actual AS (
     SELECT fecha_datos, id_producto, cadena, precio_mediano
     FROM {{ ref("mart_mismo_producto") }}
     WHERE precio_creible
+        -- "Lo que mas subio" de la portada es entre supermercados
+        -- (openspec sumar-mayoristas): sin mayoristas.
+        AND COALESCE(formato, 'supermercado') != 'mayorista'
 )
 
 SELECT

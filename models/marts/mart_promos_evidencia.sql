@@ -35,6 +35,13 @@
 -- La decision de mostrar o no esta en promos_validas, con los umbrales fijos de
 -- dbt_project.yml.
 
+--
+-- MAYORISTAS (2026-11-26, openspec sumar-mayoristas). Con var('mayoristas_activos')
+-- entran tambien las promos de los mayoristas (macro crudo_productos), con las
+-- unidades del bulto. La referencia de mercado sale SOLO de lo que no es
+-- mayorista: con ellos, la lista mas barata de otra empresa bajaria y cambiaria
+-- que promos de super pasan la validacion.
+
 {% set fecha = ultima_fecha(source("sepa", "productos")) %}
 
 WITH base AS (
@@ -50,8 +57,10 @@ WITH base AS (
         id_comercio,
         id_bandera,
         {{ id_sucursal_unica('id_comercio', 'id_bandera', 'id_sucursal') }} AS id_sucursal,
-        fecha_datos
-    FROM {{ source("sepa", "productos") }}
+        fecha_datos,
+        SAFE_CAST(unidades_bulto AS INT64) AS unidades_bulto,
+        es_mayorista
+    FROM {{ crudo_productos() }}
     -- Fecha literal, no subconsulta: con "= (SELECT MAX(...))" BigQuery no poda
     -- particiones y escanea los tres dias.
     WHERE fecha_datos = DATE('{{ fecha }}')
@@ -69,6 +78,7 @@ lista_por_empresa AS (
         id_comercio,
         MIN(precio_lista) AS lista_minima
     FROM base
+    WHERE NOT es_mayorista
     GROUP BY id_producto, id_comercio
 ),
 
@@ -88,7 +98,7 @@ promos AS (
         precio_promo1 AS precio_promo,
         leyenda_promo1 AS leyenda,
         "promo1" AS tipo_promo,
-        id_comercio, id_bandera, id_sucursal, fecha_datos
+        id_comercio, id_bandera, id_sucursal, fecha_datos, unidades_bulto
     FROM base
     WHERE precio_promo1 > 0 AND precio_promo1 < precio_lista
 
@@ -99,7 +109,7 @@ promos AS (
         precio_promo2 AS precio_promo,
         leyenda_promo2 AS leyenda,
         "promo2" AS tipo_promo,
-        id_comercio, id_bandera, id_sucursal, fecha_datos
+        id_comercio, id_bandera, id_sucursal, fecha_datos, unidades_bulto
     FROM base
     WHERE precio_promo2 > 0 AND precio_promo2 < precio_lista
 ),

@@ -273,11 +273,19 @@ export async function obtenerProductosDestacados(): Promise<ProductoComparado[]>
 export async function cotizarLista(
   items: { id_producto: string; cantidad: number }[],
   cadenas?: string[],
+  mayoristas?: string[],
 ): Promise<ResultadoLista> {
+  // mayoristas: los de Zona.mayoristas (openspec sumar-mayoristas); la
+  // respuesta suma "mayoristas", aparte de los totales.
+  const cuerpo = {
+    items,
+    ...(cadenas && cadenas.length > 0 ? { cadenas } : {}),
+    ...(mayoristas && mayoristas.length > 0 ? { mayoristas } : {}),
+  };
   const respuesta = await fetch(`${API_BASE}/mismo-producto/lista`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(cadenas && cadenas.length > 0 ? { items, cadenas } : { items }),
+    body: JSON.stringify(cuerpo),
   });
   if (!respuesta.ok) await fallar(respuesta, "Error al cotizar tu lista");
   return leerJson(respuesta);

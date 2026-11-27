@@ -27,3 +27,9 @@ id_comercio,id_bandera,nombre_comercial,formato,informe_diario
 24,1,Simplicity,farmacia,false
 24,2,Farmacity,farmacia,false
 47,1,Unicoop,supermercado,true
+61,1,Makro,mayorista,true
+62,1,Basualdo,mayorista,true
+63,1,Maxiconsumo,mayorista,true
+64,1,Yaguar,mayorista,true
+66,1,Nini,mayorista,true
+70,1,La Agricola Regional (mayorista),mayorista,false

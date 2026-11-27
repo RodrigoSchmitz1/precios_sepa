@@ -10,4 +10,7 @@ WHERE id_comercio IS NOT NULL
     AND TRIM(id_comercio) != ''
     AND id_bandera IS NOT NULL
     AND TRIM(id_bandera) != ''
+    -- Con var('mayoristas_activos') apagada, sin comercios mayoristas
+    -- (openspec sumar-mayoristas; ver sin_mayoristas_si_apagado).
+    {{ sin_mayoristas_si_apagado("id_comercio") }}
 {% endmacro %}

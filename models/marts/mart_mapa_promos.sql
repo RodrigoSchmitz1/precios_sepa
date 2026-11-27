@@ -41,7 +41,10 @@ SELECT
     d.fecha_datos,
     -- Al final, para no mover las columnas que ya consume la API.
     d.nivel_evidencia,
-    d.requiere_compra_multiple
+    d.requiere_compra_multiple,
+    -- Mayoristas: el bulto de la promo (NULL en las demas cadenas). El formato
+    -- de cada sucursal lo trae mart_mapa_sucursales.
+    d.unidades_bulto
 FROM {{ ref("promos_validas") }} AS d
 -- JOIN y no LEFT JOIN: una promo en una sucursal sin coordenadas no va al mapa.
 JOIN {{ ref("mart_mapa_sucursales") }} AS s
@@ -54,4 +57,4 @@ LEFT JOIN {{ ref("stg_categorias") }} AS cat
 GROUP BY
     d.id_comercio, d.id_producto, d.descripcion, d.marca, cat.categoria, cat.rubro,
     d.precio_lista, d.precio_promo, d.descuento_pct, d.leyenda, d.tipo_promo,
-    d.fecha_datos, d.nivel_evidencia, d.requiere_compra_multiple
+    d.fecha_datos, d.nivel_evidencia, d.requiere_compra_multiple, d.unidades_bulto

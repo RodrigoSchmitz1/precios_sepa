@@ -31,6 +31,10 @@ export type Zona = {
    *  para comparar la compra, solo en el detalle de un producto (openspec
    *  comercios-regionales-y-farmacity). Solo si hay alguna. */
   farmacias?: string[];
+  /** Mayoristas a menos de 3 km (openspec sumar-mayoristas). No son cadenas
+   *  cerca: se muestran aparte, en el detalle de un producto y en Tu lista.
+   *  Solo si hay alguno. */
+  mayoristas?: string[];
 };
 
 /** "Cerca": el mismo radio que las cadenas de la zona y las promos

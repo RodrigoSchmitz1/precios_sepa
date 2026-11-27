@@ -56,7 +56,20 @@
 -- El filtro va entre literales, asi que BigQuery poda particiones: lee hasta
 -- 1 + dias_maximos_arrastre dias de la tabla intermedia, decenas de MB.
 
+--
+-- MAYORISTAS (2026-11-26, openspec sumar-mayoristas). Sus filas estan en el mart,
+-- con unidades_bulto y precio_bulto, para que el detalle los muestre aparte
+-- ("comprando el bulto de 12"). Pero la referencia del mercado, la confirmacion
+-- entre cadenas, el tamaño votado, la mas barata, la mas cara y la brecha se
+-- calculan SIN ellos: el precio por unidad comprando el bulto no es la compra
+-- de una persona, y Nini (-25% contra la mediana de los super) seria siempre el
+-- mas barato. Un precio de mayorista es creible si cae en el rango contra la
+-- referencia de los super; asi los precios absurdos de Basualdo ($6 en
+-- productos de miles) quedan marcados. Los nombres siguen saliendo solo del
+-- crudo minorista.
+
 {% set fecha = ultima_fecha(ref("int_precio_producto_cadena")) %}
+{% set no_mayorista = "COALESCE(formato, 'supermercado') != 'mayorista'" %}
 
 WITH recientes AS (
     SELECT
@@ -70,7 +83,9 @@ WITH recientes AS (
         precio_maximo,
         sucursales,
         cantidad_normalizada,
-        unidad_normalizada
+        unidad_normalizada,
+        unidades_bulto,
+        precio_bulto
     FROM {{ ref("int_precio_producto_cadena") }}
     WHERE fecha_datos BETWEEN DATE_SUB(DATE('{{ fecha }}'), INTERVAL {{ var("dias_maximos_arrastre") }} DAY)
         AND DATE('{{ fecha }}')
@@ -106,6 +121,7 @@ precios_por_empresa AS (
         empresa,
         ARRAY_AGG(precio_mediano IGNORE NULLS ORDER BY precio_mediano) AS precios
     FROM precios
+    WHERE {{ no_mayorista }}
     GROUP BY id_producto, empresa
 ),
 
@@ -174,7 +190,10 @@ coincidencias AS (
         ON o.id_producto = a.id_producto
         AND o.cadena != a.cadena
         AND ABS(o.precio_mediano - a.precio_mediano) <= a.precio_mediano * {{ var("mismo_producto_tolerancia_coincidencia") }}
+        -- Un mayorista no confirma a un super ni al reves: solo entre super.
+        AND COALESCE(o.formato, 'supermercado') != 'mayorista'
     WHERE NOT a.precio_en_rango
+        AND COALESCE(a.formato, 'supermercado') != 'mayorista'
     GROUP BY a.id_producto, a.cadena
 ),
 
@@ -208,6 +227,7 @@ tamanos AS (
         SUM(sucursales) AS sucursales_que_lo_dicen
     FROM precios
     WHERE cantidad_normalizada IS NOT NULL AND unidad_normalizada IS NOT NULL
+        AND {{ no_mayorista }}
     GROUP BY id_producto, cantidad_normalizada, unidad_normalizada
 ),
 
@@ -238,6 +258,7 @@ por_producto AS (
         COUNT(DISTINCT IF(precio_creible, empresa, NULL)) AS empresas,
         COUNTIF(NOT precio_creible) AS cadenas_descartadas
     FROM evaluados
+    WHERE {{ no_mayorista }}
     GROUP BY id_producto
     -- Con una sola cadena creible no hay contra que comparar, igual que antes
     -- pero contando las que sirven.
@@ -340,7 +361,11 @@ SELECT
     pp.precio_mas_alto,
     -- stg_productos descarta precios <= 1, asi que no hay division por cero.
     ROUND((pp.precio_mas_alto - pp.precio_mas_bajo) / pp.precio_mas_bajo * 100, 1) AS diferencia_pct,
-    ev.precio_creible AND ev.precio_mediano = pp.precio_mas_bajo AS es_el_mas_barato
+    ev.precio_creible AND ev.precio_mediano = pp.precio_mas_bajo
+        AND COALESCE(ev.formato, 'supermercado') != 'mayorista' AS es_el_mas_barato,
+    -- Mayoristas: unidades del bulto y su precio (NULL en las demas cadenas).
+    ev.unidades_bulto,
+    ev.precio_bulto
 FROM evaluados AS ev
 JOIN por_producto AS pp
     ON ev.id_producto = pp.id_producto

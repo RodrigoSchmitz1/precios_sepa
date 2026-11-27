@@ -192,3 +192,63 @@ unit_tests:
         - {cadena: Carrefour, fecha_datos: "2026-11-11", fecha_precio: "2026-11-11", precio_mediano: 1010, precio_mas_alto: 1100}
         - {cadena: Coto, fecha_datos: "2026-11-11", fecha_precio: "2026-11-11", precio_mediano: 1000, precio_mas_alto: 1100}
         - {cadena: Jumbo, fecha_datos: "2026-11-11", fecha_precio: "2026-11-10", precio_mediano: 1100, precio_mas_alto: 1100}
+
+  # openspec sumar-mayoristas: los mayoristas estan en el mart, pero la
+  # referencia, la mas barata, la mas cara y la brecha son entre super.
+  - name: mismo_producto_un_mayorista_mas_barato_no_gana_ni_mueve_la_brecha
+    description: >
+      Nini vende a $1.500 por unidad comprando el bulto de 12; los super, entre
+      $2.000 y $2.400. El mas barato es el super de $2.000, la diferencia es
+      entre $2.000 y $2.400 (20%) y la referencia no baja por Nini. La fila de
+      Nini sigue en el mart, creible, con su bulto.
+    model: mart_mismo_producto
+    overrides:
+      macros:
+        ultima_fecha: "2026-11-26"
+    given:
+      - input: ref('int_precio_producto_cadena')
+        rows:
+          - {fecha_datos: "2026-11-26", id_producto: "7", cadena: Nini, empresa: "66", formato: mayorista, precio_mediano: 1500, precio_minimo: 1500, precio_maximo: 1500, sucursales: 2, cantidad_normalizada: 500, unidad_normalizada: g, unidades_bulto: 12, precio_bulto: 18000}
+          - {fecha_datos: "2026-11-26", id_producto: "7", cadena: Dia, empresa: "15", formato: supermercado, precio_mediano: 2000, precio_minimo: 2000, precio_maximo: 2000, sucursales: 900, cantidad_normalizada: 500, unidad_normalizada: g}
+          - {fecha_datos: "2026-11-26", id_producto: "7", cadena: Coto, empresa: "12", formato: supermercado, precio_mediano: 2200, precio_minimo: 2200, precio_maximo: 2200, sucursales: 100, cantidad_normalizada: 500, unidad_normalizada: g}
+          - {fecha_datos: "2026-11-26", id_producto: "7", cadena: Jumbo, empresa: "9", formato: supermercado, precio_mediano: 2400, precio_minimo: 2400, precio_maximo: 2400, sucursales: 50, cantidad_normalizada: 500, unidad_normalizada: g}
+      - input: ref('stg_categorias')
+        rows:
+          - {id_producto: "7", descripcion: YERBA 500G, marca: YERBA, categoria: Yerba, rubro: Almacen}
+      - input: source('sepa', 'productos')
+        rows: []
+    expect:
+      rows:
+        - {cadena: Nini, formato: mayorista, precio_creible: true, es_el_mas_barato: false, precio_mas_bajo: 2000, precio_mas_alto: 2400, precio_referencia: 2200, cadenas: 3, unidades_bulto: 12, precio_bulto: 18000}
+        - {cadena: Dia, formato: supermercado, precio_creible: true, es_el_mas_barato: true, precio_mas_bajo: 2000, precio_mas_alto: 2400, precio_referencia: 2200, cadenas: 3, unidades_bulto: null, precio_bulto: null}
+        - {cadena: Coto, formato: supermercado, precio_creible: true, es_el_mas_barato: false, precio_mas_bajo: 2000, precio_mas_alto: 2400, precio_referencia: 2200, cadenas: 3, unidades_bulto: null, precio_bulto: null}
+        - {cadena: Jumbo, formato: supermercado, precio_creible: true, es_el_mas_barato: false, precio_mas_bajo: 2000, precio_mas_alto: 2400, precio_referencia: 2200, cadenas: 3, unidades_bulto: null, precio_bulto: null}
+
+  - name: mismo_producto_un_precio_absurdo_de_mayorista_no_es_creible
+    description: >
+      Basualdo publica $13 por un limpiador que los super venden a $2.200
+      (pasa con ~10% de sus precios). Queda marcado como no creible contra la
+      referencia de los super, y como un mayorista no confirma ni es confirmado,
+      ningun precio cercano lo rescata.
+    model: mart_mismo_producto
+    overrides:
+      macros:
+        ultima_fecha: "2026-11-26"
+    given:
+      - input: ref('int_precio_producto_cadena')
+        rows:
+          - {fecha_datos: "2026-11-26", id_producto: "8", cadena: Basualdo, empresa: "62", formato: mayorista, precio_mediano: 13, precio_minimo: 13, precio_maximo: 13, sucursales: 1, cantidad_normalizada: 900, unidad_normalizada: cc, unidades_bulto: 1, precio_bulto: 13}
+          - {fecha_datos: "2026-11-26", id_producto: "8", cadena: Dia, empresa: "15", formato: supermercado, precio_mediano: 2100, precio_minimo: 2100, precio_maximo: 2100, sucursales: 900, cantidad_normalizada: 900, unidad_normalizada: cc}
+          - {fecha_datos: "2026-11-26", id_producto: "8", cadena: Coto, empresa: "12", formato: supermercado, precio_mediano: 2200, precio_minimo: 2200, precio_maximo: 2200, sucursales: 100, cantidad_normalizada: 900, unidad_normalizada: cc}
+          - {fecha_datos: "2026-11-26", id_producto: "8", cadena: Jumbo, empresa: "9", formato: supermercado, precio_mediano: 2300, precio_minimo: 2300, precio_maximo: 2300, sucursales: 50, cantidad_normalizada: 900, unidad_normalizada: cc}
+      - input: ref('stg_categorias')
+        rows:
+          - {id_producto: "8", descripcion: LIMPIADOR 900ML, marca: GIGANTE, categoria: Limpieza, rubro: Limpieza}
+      - input: source('sepa', 'productos')
+        rows: []
+    expect:
+      rows:
+        - {cadena: Basualdo, precio_en_rango: false, precio_creible: false, es_el_mas_barato: false}
+        - {cadena: Dia, precio_en_rango: true, precio_creible: true, es_el_mas_barato: true}
+        - {cadena: Coto, precio_en_rango: true, precio_creible: true, es_el_mas_barato: false}
+        - {cadena: Jumbo, precio_en_rango: true, precio_creible: true, es_el_mas_barato: false}

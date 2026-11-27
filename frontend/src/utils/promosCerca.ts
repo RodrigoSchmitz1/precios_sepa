@@ -75,7 +75,8 @@ export function resumenPromosDeLista(productosEnPromo: number): string {
  * Las de compra multiple no cuentan: el titular habla de una unidad.
  */
 export function avisoPromoEnTitular(promos: PromoCerca[] | null | undefined, precioZona: number | null | undefined): string {
-  const [mejor] = promosQueConvienen((promos ?? []).filter((p) => !p.requiere_compra_multiple), precioZona);
+  // Sin promos de mayoristas: el titular es entre super (openspec sumar-mayoristas).
+  const [mejor] = promosQueConvienen((promos ?? []).filter((p) => !p.requiere_compra_multiple && !p.mayorista), precioZona);
   if (!mejor || precioZona == null) return "";
   const vigencia = textoVigencia(mejor);
   return `Con promo: ${formatearPesos(mejor.precio_promo)} en ${mejor.cadena} (${direccionPromo(mejor)})${vigencia ? `, ${vigencia}` : ""}`;

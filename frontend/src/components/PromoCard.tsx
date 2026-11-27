@@ -5,6 +5,7 @@ import { nombreLegible } from "../utils/texto";
 import type { SucursalMapa } from "../types";
 import { EVIDENCIA } from "../utils/evidencia";
 import { nombreCategoria } from "../utils/nombres";
+import { etiquetaMayorista } from "../utils/mayoristas";
 
 /*
   Una promo del listado.
@@ -41,6 +42,9 @@ type PromoMostrable = {
   /** Solo en el listado agrupado (/promos), no en el del mapa. */
   provincias?: number;
   nivel_evidencia?: "leyenda" | "mercado" | "sin_verificar";
+  /** Mayoristas (openspec sumar-mayoristas). */
+  mayorista?: boolean;
+  unidades_bulto?: number;
 };
 
 function direccionDe(promo: PromoMostrable): string | null {
@@ -93,7 +97,10 @@ function PromoCard({
           se corresponde con la importancia de cada dato.
         */}
         <h3 className="text-base font-bold text-tinta leading-snug">{nombreLegible(promo.descripcion, promo.marca)}</h3>
-        <p className="text-sm text-tinta-suave truncate">{donde}</p>
+        <p className="text-sm text-tinta-suave truncate">
+          {etiquetaMayorista(promo) && <span className="font-semibold text-tinta-media">{etiquetaMayorista(promo)} · </span>}
+          {donde}
+        </p>
         {/* min-w-0 en el flex: sin eso la leyenda larga no puede encogerse por
             mas truncate que tenga, y empuja la fila hasta meter scroll
             horizontal en toda la pagina. */}
