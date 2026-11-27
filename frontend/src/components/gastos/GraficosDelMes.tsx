@@ -7,23 +7,51 @@ import { formatearPesos, porcentajeEntero } from "../../utils/formato";
   propios: una dona por categoria, barras por semana y el gasto por super.
 */
 
-const COLORES_DONA = ["var(--color-marca)", "var(--color-celeste)", "var(--color-dato-verde)", "var(--color-dato-ocre)", "var(--color-dato-ciruela)"];
+const COLORES_DONA = [
+  "var(--color-marca)",
+  "var(--color-celeste)",
+  "var(--color-dato-verde)",
+  "var(--color-dato-ocre)",
+  "var(--color-dato-ciruela)",
+  "var(--color-alerta)",
+  "var(--color-dato-azul)",
+];
 const COLOR_OTRAS = "var(--color-linea-fuerte)";
-const PORCIONES = 5;
+/** Con mas filas que esto (categorias de SEPA, sin rubros) se juntan en "Otras". */
+const PORCIONES_MAXIMAS = 9;
+const PORCIONES_SIN_RUBROS = 5;
+const SIN_COLOR = new Set(["Otros", "Otras", "Sin detalle"]);
 
-export function DonaCategorias({ filas, total }: { filas: FilaResumen[]; total: number }) {
+/**
+ * La dona del mes. Con rubros (app-para-el-usuario) llegan ya agrupados, hasta 7
+ * mas "Otros" y "Sin detalle", y cada fila se puede tocar para ver sus
+ * productos. Sin rubros, las categorias: las 5 primeras y el resto en "Otras".
+ */
+export function DonaCategorias({
+  filas,
+  total,
+  elegido = null,
+  onElegir,
+}: {
+  filas: FilaResumen[];
+  total: number;
+  elegido?: string | null;
+  onElegir?: (nombre: string) => void;
+}) {
   if (total <= 0 || filas.length === 0) return null;
-  const primeras = filas.slice(0, PORCIONES);
-  const resto = filas.slice(PORCIONES).reduce((s, f) => s + f.total, 0);
+  const cuantas = filas.length <= PORCIONES_MAXIMAS ? filas.length : PORCIONES_SIN_RUBROS;
+  const primeras = filas.slice(0, cuantas);
+  const resto = filas.slice(cuantas).reduce((s, f) => s + f.total, 0);
+  let color = 0;
   const porciones = [
-    ...primeras.map((f, i) => ({ ...f, color: COLORES_DONA[i] })),
+    ...primeras.map((f) => ({ ...f, color: SIN_COLOR.has(f.nombre) ? COLOR_OTRAS : COLORES_DONA[color++ % COLORES_DONA.length] })),
     ...(resto > 0 ? [{ nombre: "Otras", total: resto, color: COLOR_OTRAS }] : []),
   ];
   // Circunferencia 100: cada porcion ocupa su porcentaje del trazo.
   let acumulado = 0;
   return (
     <div className="flex items-center gap-4">
-      <svg viewBox="0 0 42 42" className="w-28 h-28 shrink-0 -rotate-90" role="img" aria-label="Gasto por categoría">
+      <svg viewBox="0 0 42 42" className="w-28 h-28 shrink-0 -rotate-90" role="img" aria-label="Gasto por rubro">
         <circle cx="21" cy="21" r="15.9155" fill="none" stroke="var(--color-papel-hundido)" strokeWidth="7" />
         {porciones.map((p) => {
           const largo = (p.total / total) * 100;
@@ -35,7 +63,8 @@ export function DonaCategorias({ filas, total }: { filas: FilaResumen[]; total: 
               r="15.9155"
               fill="none"
               stroke={p.color}
-              strokeWidth="7"
+              strokeWidth={elegido === p.nombre ? 9 : 7}
+              opacity={elegido && elegido !== p.nombre ? 0.35 : 1}
               strokeDasharray={`${largo} ${100 - largo}`}
               strokeDashoffset={-acumulado}
             />
@@ -44,14 +73,33 @@ export function DonaCategorias({ filas, total }: { filas: FilaResumen[]; total: 
           return circulo;
         })}
       </svg>
-      <ul className="flex-1 min-w-0 grid gap-1.5 text-sm">
-        {porciones.map((p) => (
-          <li key={p.nombre} className="flex items-center gap-2">
-            <span aria-hidden="true" className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: p.color }} />
-            <span className="flex-1 min-w-0 truncate text-tinta-media">{p.nombre}</span>
-            <span className="font-bold text-tinta numero">{porcentajeEntero(p.total / total)}</span>
-          </li>
-        ))}
+      <ul className="flex-1 min-w-0 grid gap-0.5 text-sm">
+        {porciones.map((p) => {
+          const contenido = (
+            <>
+              <span aria-hidden="true" className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: p.color }} />
+              <span className="flex-1 min-w-0 truncate text-left text-tinta-media">{p.nombre}</span>
+              <span className="font-bold text-tinta numero">{porcentajeEntero(p.total / total)}</span>
+            </>
+          );
+          const tocable = onElegir && p.nombre !== "Sin detalle";
+          return (
+            <li key={p.nombre}>
+              {tocable ? (
+                <button
+                  type="button"
+                  aria-pressed={elegido === p.nombre}
+                  onClick={() => onElegir(p.nombre)}
+                  className={`w-full flex items-center gap-2 min-h-8 rounded-lg px-1.5 -mx-1.5 ${elegido === p.nombre ? "bg-marca-tenue" : ""}`}
+                >
+                  {contenido}
+                </button>
+              ) : (
+                <span className="flex items-center gap-2 min-h-8">{contenido}</span>
+              )}
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

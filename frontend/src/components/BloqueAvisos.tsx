@@ -5,6 +5,9 @@ import { obtenerPromosDeProductos } from "../api/client";
 import type { PromoCerca } from "../types";
 import type { Zona } from "../utils/zona";
 import { sacarAviso, useAvisos } from "../utils/avisos";
+import { compraHabitual } from "../utils/compraHabitual";
+import { hoyEnArgentina, leerGastos } from "../utils/gastos";
+import { leerSilenciados, silenciar, vigilados } from "../utils/vigilados";
 import { nombreLegible } from "../utils/texto";
 
 /*
@@ -12,9 +15,15 @@ import { nombreLegible } from "../utils/texto";
   promos-navegables-y-mes-en-gastos). Las promos salen de /promos/productos,
   la misma busqueda que el detalle de cada producto: lo que dice este bloque y
   lo que dice el detalle no pueden diferir.
+
+  Desde app-para-el-usuario, lo que compras seguido (la compra habitual de
+  Mis gastos) entra solo, marcado como tal y con "Silenciar".
 */
 function BloqueAvisos({ zona }: { zona: Zona | null }) {
-  const avisos = useAvisos();
+  const pedidos = useAvisos();
+  const [habitual] = useState(() => compraHabitual(leerGastos(), hoyEnArgentina()));
+  const [silenciados, setSilenciados] = useState(leerSilenciados);
+  const avisos = vigilados(pedidos, habitual, silenciados);
   const [promos, setPromos] = useState<Record<string, PromoCerca[]> | null>(null);
   const [abierta, setAbierta] = useState(false);
   const ids = avisos.map((a) => a.id_producto).join(",");
@@ -46,6 +55,7 @@ function BloqueAvisos({ zona }: { zona: Zona | null }) {
 
   const enOferta = promos ? avisos.filter((a) => (promos[a.id_producto] ?? []).length > 0) : [];
   const cantidad = avisos.length === 1 ? "1 aviso" : `${avisos.length} avisos`;
+  const quitar = (a: (typeof avisos)[number]) => (a.seguido ? setSilenciados(silenciar(a.id_producto)) : sacarAviso(a.id_producto));
 
   const lista = abierta && (
     <ul className="mt-3 divide-y divide-linea border-t border-linea">
@@ -56,11 +66,11 @@ function BloqueAvisos({ zona }: { zona: Zona | null }) {
           </Link>
           <button
             type="button"
-            onClick={() => sacarAviso(a.id_producto)}
+            onClick={() => quitar(a)}
             className="shrink-0 text-xs text-tinta-suave hover:text-alerta px-2 py-1"
-            aria-label={`Dejar de avisar ${a.descripcion}`}
+            aria-label={`${a.seguido ? "Silenciar" : "Dejar de avisar"} ${a.descripcion}`}
           >
-            Sacar
+            {a.seguido ? "Silenciar" : "Sacar"}
           </button>
         </li>
       ))}
@@ -103,9 +113,19 @@ function BloqueAvisos({ zona }: { zona: Zona | null }) {
       <ul className="mt-3 space-y-3">
         {enOferta.map((a) => (
           <li key={a.id_producto}>
-            <Link to={`/mismo-producto?p=${encodeURIComponent(a.id_producto)}`} className="text-sm font-semibold text-tinta hover:text-marca">
-              {nombreLegible(a.descripcion, null)}
-            </Link>
+            <p className="flex flex-wrap items-baseline gap-x-2">
+              <Link to={`/mismo-producto?p=${encodeURIComponent(a.id_producto)}`} className="text-sm font-semibold text-tinta hover:text-marca">
+                {nombreLegible(a.descripcion, null)}
+              </Link>
+              {a.seguido && (
+                <>
+                  <span className="text-xs font-semibold text-marca">lo comprás seguido</span>
+                  <button type="button" onClick={() => quitar(a)} className="text-xs text-tinta-suave underline min-h-8" aria-label={`Silenciar ${a.descripcion}`}>
+                    Silenciar
+                  </button>
+                </>
+              )}
+            </p>
             <PromoCercana promo={promos[a.id_producto][0]} />
           </li>
         ))}

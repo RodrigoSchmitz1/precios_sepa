@@ -672,7 +672,10 @@ def cotizar_lista(indice: dict, items: list[dict], cadenas: list[str] | None = N
     combinada = round(sum(p["mas_barato"]["precio"] * p["cantidad"] for p in productos), 2)
     zona = _lista_en_zona(productos, set(cadenas)) if cadenas else None
     for p in productos:
-        del p["_precios"], p["_cambios"]
+        # El precio de cada cadena viaja con el producto (app-para-el-usuario):
+        # Mi compra muestra cuanto sale cada uno en la cadena que conviene.
+        p["precios"] = p.pop("_precios")
+        del p["_cambios"]
     return {
         "productos": productos,
         "no_encontrados": no_encontrados,
@@ -1081,4 +1084,28 @@ def donde_comprar_lista(indice: dict, sucursales: list, es_farmacia, items: list
             {"id_producto": c, "descripcion": indice[c]["descripcion"]} for c in crudo["items_sin_precio"]
         ],
         "opciones": opciones,
+    }
+
+
+# ---------------------------------------------------------------------------
+# Rubros de Mis gastos (openspec app-para-el-usuario, 2026-11-27)
+#
+# Mis gastos agrupa lo gastado por rubro (Almacen, Lacteos...) en vez de por las
+# categorias de SEPA, que son muy finas ("Otras" se llevaba el 50%). La
+# taxonomia categoria -> rubro tiene un solo duenio, categorizar.py; llega a la
+# API con cada producto del indice, asi que el mapa se arma de ahi, en memoria.
+# ---------------------------------------------------------------------------
+def rubros_por_categoria(indice: dict, nombrar) -> dict[str, str]:
+    """{categoria: nombre del rubro para mostrar}. Si una categoria aparece con
+    mas de un rubro, gana el mas comun."""
+    conteo: dict[str, dict[str, int]] = {}
+    for producto in indice.values():
+        categoria, rubro = producto.get("categoria"), producto.get("rubro")
+        if not categoria or not rubro:
+            continue
+        conteo.setdefault(categoria, {}).setdefault(rubro, 0)
+        conteo[categoria][rubro] += 1
+    return {
+        categoria: nombrar(max(rubros, key=lambda r: (rubros[r], r)))
+        for categoria, rubros in sorted(conteo.items())
     }

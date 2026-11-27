@@ -210,3 +210,94 @@ export function porDia(gastos: Gasto[]): { fecha: string; gastos: Gasto[] }[] {
   }
   return grupos;
 }
+
+/* ---------------------------------------------------------------------------
+   Rubros y productos del mes (openspec app-para-el-usuario). Las categorias de
+   SEPA son muy finas (Yerba mate, Galletitas dulces...) y "Otras" se llevaba el
+   50% de la dona. El mapa categoria -> rubro lo manda la API (/gastos/estado),
+   armado con la misma taxonomia que el resto del sitio.
+--------------------------------------------------------------------------- */
+
+/** Cuantos rubros se ven; el resto va a "Otros". */
+export const RUBROS_VISIBLES = 7;
+export const RUBRO_OTROS = "Otros";
+
+export type MapaRubros = Record<string, string>;
+
+/** El rubro de una categoria; sin dato, "Otros". "Sin detalle" queda aparte. */
+export function rubroDe(categoria: string, rubros: MapaRubros): string {
+  if (categoria === CATEGORIA_SIN_DETALLE) return CATEGORIA_SIN_DETALLE;
+  return rubros[categoria] ?? RUBRO_OTROS;
+}
+
+/**
+ * Lo gastado por rubro: los RUBROS_VISIBLES con mas gasto y el resto en "Otros",
+ * con "Sin detalle" (gastos a mano) al final. Sin mapa de rubros, las categorias
+ * como hasta ahora.
+ */
+export function porRubro(porCategoria: FilaResumen[], rubros: MapaRubros | null): FilaResumen[] {
+  if (!rubros || Object.keys(rubros).length === 0) return porCategoria;
+  const suma = new Map<string, number>();
+  let sinDetalle = 0;
+  for (const f of porCategoria) {
+    const rubro = rubroDe(f.nombre, rubros);
+    if (rubro === CATEGORIA_SIN_DETALLE) sinDetalle += f.total;
+    else suma.set(rubro, (suma.get(rubro) ?? 0) + f.total);
+  }
+  const otrosAparte = suma.get(RUBRO_OTROS) ?? 0;
+  suma.delete(RUBRO_OTROS);
+  const orden = [...suma.entries()].sort((a, b) => b[1] - a[1]);
+  const visibles = orden.slice(0, RUBROS_VISIBLES).map(([nombre, total]) => ({ nombre, total }));
+  const otros = otrosAparte + orden.slice(RUBROS_VISIBLES).reduce((s, [, t]) => s + t, 0);
+  return [
+    ...visibles,
+    ...(otros > 0.5 ? [{ nombre: RUBRO_OTROS, total: otros }] : []),
+    ...(sinDetalle > 0.5 ? [{ nombre: CATEGORIA_SIN_DETALLE, total: sinDetalle }] : []),
+  ];
+}
+
+export type ProductoDelMes = {
+  clave: string;
+  nombre: string;
+  cantidad: number;
+  total: number;
+  cadenas: string[];
+  rubro: string;
+};
+
+/**
+ * Los productos del mes, de mayor a menor gasto. Las lineas con el mismo
+ * producto de SEPA se suman como uno; las no vinculadas, por su descripcion. El
+ * importe de cada linea se reparte los descuentos del ticket, igual que la dona.
+ */
+export function productosDelMes(gastos: Gasto[], rubros: MapaRubros): ProductoDelMes[] {
+  const porClave = new Map<string, ProductoDelMes>();
+  for (const g of gastos) {
+    const bruto = g.lineas.reduce((s, l) => s + l.importe, 0);
+    if (g.origen === "mano" || bruto <= 0) continue;
+    const descuentos = g.descuentos.reduce((s, d) => s + d.importe, 0);
+    const factor = Math.min(Math.max(bruto - descuentos, 0), g.total) / bruto;
+    for (const l of g.lineas) {
+      const clave = l.id_producto ?? `d:${l.descripcion.trim().toLowerCase()}`;
+      const p = porClave.get(clave) ?? {
+        clave,
+        nombre: l.nombre ?? l.descripcion,
+        cantidad: 0,
+        total: 0,
+        cadenas: [],
+        rubro: rubroDe(l.categoria, rubros),
+      };
+      p.cantidad += l.cantidad;
+      p.total += l.importe * factor;
+      if (!p.cadenas.includes(g.cadena)) p.cadenas.push(g.cadena);
+      porClave.set(clave, p);
+    }
+  }
+  return [...porClave.values()].sort((a, b) => b.total - a.total);
+}
+
+/** Los productos de un rubro de la dona ("Otros" junta los rubros que no se ven). */
+export function productosDeRubro(productos: ProductoDelMes[], rubro: string, visibles: string[]): ProductoDelMes[] {
+  if (rubro === RUBRO_OTROS) return productos.filter((p) => !visibles.includes(p.rubro) || p.rubro === RUBRO_OTROS);
+  return productos.filter((p) => p.rubro === rubro);
+}

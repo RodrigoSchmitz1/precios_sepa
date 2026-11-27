@@ -89,6 +89,10 @@ export function conNombresDeCadena<T>(datos: T): T {
     for (const clave of Object.keys(objeto)) {
       const valor = objeto[clave];
       if (clave === "cadena" && typeof valor === "string") objeto[clave] = nombreCadena(valor);
+      // El precio de cada cadena de un producto de Tu lista viene como {cadena: precio}
+      // (app-para-el-usuario): las claves se nombran igual que el campo "cadena".
+      else if (clave === "precios" && valor !== null && typeof valor === "object" && !Array.isArray(valor))
+        objeto[clave] = Object.fromEntries(Object.entries(valor).map(([cadena, precio]) => [nombreCadena(cadena), precio]));
       else if (valor !== null && typeof valor === "object") conNombresDeCadena(valor);
     }
   }

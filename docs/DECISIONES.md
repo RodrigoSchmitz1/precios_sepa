@@ -1621,6 +1621,62 @@ inflación), `mart_gama_productos` (más un `NTILE` sin desempate: un producto e
 el borde puede cambiar de gama), los marts por categoría y la calibración de
 promos.
 
+## Changuito para el usuario: una cifra, rubros y lo que gana quien carga tickets
+
+Openspec `app-para-el-usuario` (2026-11-27). Changuito dejó de ser un proyecto de
+datos y pasó a ser un emprendimiento: el objetivo es que la persona tenga un buen
+recorrido y quiera cargar sus tickets. Un recorrido en producción, como usuario
+nuevo y en el celular, encontró cinco totales distintos en Mi compra, una portada
+que se contradecía (la compra salía más barata en Día y "Tu súper más barato
+cerca" decía Market), la lista repetida debajo de cada búsqueda y un "Otras" del
+50 % en la dona de Mis gastos.
+
+**La siguiente opción, no la más cara.** La cifra de tu compra compara la cadena
+más barata con todos los productos contra la segunda, no contra la última. Medir
+contra la más cara inflaba el ahorro con cadenas que nadie elegiría. La regla
+vive en `cifraDeLista` (`utils/listaEnZona.ts`) y la leen la portada, Mi compra y
+Buscar. Con la nueva referencia muchas diferencias quedan debajo del 5 % y se
+dicen como "casi lo mismo", con el umbral de siempre: es lo honesto. Para eso
+`/api/mismo-producto/lista` suma el precio de cada producto en cada cadena
+(sale del índice en memoria, sin consultas).
+
+**Una sola cifra en la portada.** Salieron las tarjetas del líder, "Lo que más
+subió" y el ahorro de la canasta básica. Quedan solo para una zona con una sola
+cadena, donde dicen lo que cuesta no tener opciones. La portada dejó de pedir
+`/inflacion/resumen` y `/quien-gana` en cada visita.
+
+**El ejemplo se pide.** Como en Convi, la compra de ejemplo aparece al tocar "Ver
+un ejemplo" y no se carga sola. Si se está viendo el ejemplo, el primer producto
+propio lo reemplaza (antes se mezclaba con 12 productos que nadie eligió), con 6
+segundos de "Deshacer".
+
+**Más barato e Inflación quedan en Más, pero no pesan.** En el servidor casi no
+gastan: Más barato sale del índice en memoria e Inflación hace consultas chicas,
+guardadas 6 horas. Lo que sí pesaba era el celular: todo el sitio bajaba en un
+archivo de 670 KB (198 KB comprimido). Con esas páginas y el mapa de Mi compra
+(Leaflet) descargados recién al abrirlos, el archivo principal quedó en 493 KB
+(145 KB comprimido). El escáner de códigos de barras y su lector para Safari
+(zxing-wasm, 947 KB) se descargan solo al tocar "Escanear", y el `.wasm` se sirve
+desde el propio sitio, no desde un CDN.
+
+**Rubros desde la API.** La dona de Mis gastos agrupa por rubro (7 y "Otros") con
+el mapa categoría → rubro que manda `/api/gastos/estado`, armado del índice en
+memoria. La taxonomía sigue teniendo un solo dueño (`categorizar.py`). En el mes
+de ejemplo de Palermo, "Otros" quedó en 7 %.
+
+**Tu inflación, contra la góndola.** Se calcula en el teléfono con los productos
+comprados los dos meses (mínimo 3), ponderada por lo gastado. Se compara con la
+variación de góndola de las mismas categorías y no con el INDEC, que el sitio no
+tiene. El mes en curso se pide sin parámetro: es el mismo pedido, y la misma
+caché, que la página de Inflación.
+
+**Sin sorteos ni pago por ticket.** Los bancos y los súper ya dan promos fuertes:
+lo que gana quien carga tickets es software. La comparación de cada ticket con
+la cadena más barata (con una sola cotización para todo el mes), su inflación,
+los productos que compra seguido vigilados solos en sus avisos y Mi compra
+armada con lo que compra. Las promos bancarias y "con qué tarjeta pagar" quedan
+para otro change, cuando se defina la fuente.
+
 ## Tests
 
 Además de los genéricos, hay tests singulares de dbt para lo que sólo se

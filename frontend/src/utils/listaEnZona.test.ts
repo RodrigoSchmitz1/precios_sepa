@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { ResultadoLista, TotalCadenaLista } from "../types";
-import { comparacionDeLista, productosComparados, vistaDeLista } from "./listaEnZona";
+import { cifraDeLista, comparacionDeLista, productosComparados, vistaDeLista } from "./listaEnZona";
 
 function fila(cadena: string, total: number, completa: boolean, faltan: string[] = []): TotalCadenaLista {
   return { cadena, total, productos_con_precio: completa ? 3 : 3 - faltan.length, completa, faltan };
@@ -87,5 +87,32 @@ describe("comparacionDeLista", () => {
     expect(comparacionDeLista(una, una)).toBe("sin_comparacion");
     expect(comparacionDeLista(una, fila("Coto", 14750, true))).toBe("sin_comparacion");
     expect(comparacionDeLista(undefined, undefined)).toBe("sin_comparacion");
+  });
+});
+
+describe("cifraDeLista (app-para-el-usuario)", () => {
+  it("compara la más barata con la siguiente, no con la más cara", () => {
+    const c = cifraDeLista([fila("Express", 58030, true), fila("Día", 54619, true), fila("Market", 56767, true)])!;
+    expect(c.barata.cadena).toBe("Día");
+    expect(c.siguiente?.cadena).toBe("Market");
+    expect(c.diferencia).toBe(2148);
+    expect(c.comparacion).toBe("casi_igual");
+  });
+
+  it("del 5% para arriba contra la siguiente es ahorro", () => {
+    const c = cifraDeLista([fila("Día", 10000, true), fila("Coto", 10600, true), fila("Jumbo", 14000, true)])!;
+    expect(c.comparacion).toBe("ahorro");
+    expect(c.diferencia).toBe(600);
+  });
+
+  it("con una sola cadena completa no compara", () => {
+    const c = cifraDeLista([fila("La Anónima", 14750, true)])!;
+    expect(c.siguiente).toBeUndefined();
+    expect(c.diferencia).toBe(0);
+    expect(c.comparacion).toBe("sin_comparacion");
+  });
+
+  it("sin cadenas completas no hay cifra", () => {
+    expect(cifraDeLista([])).toBeNull();
   });
 });

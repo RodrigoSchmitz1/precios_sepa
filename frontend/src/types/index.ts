@@ -437,7 +437,12 @@ export type TotalCadenaLista = {
 };
 
 export type ResultadoLista = {
-  productos: (ProductoComparado & { cantidad: number; mas_barato: { cadena: string; precio: number; cambio?: CambioDePrecio | null } })[];
+  productos: (ProductoComparado & {
+    cantidad: number;
+    mas_barato: { cadena: string; precio: number; cambio?: CambioDePrecio | null };
+    /** El precio en cada cadena que lo tiene (app-para-el-usuario): Mi compra muestra el de la cadena de la cifra. */
+    precios?: Record<string, number>;
+  })[];
   no_encontrados: string[];
   cadenas: TotalCadenaLista[];
   /** Cada producto en la cadena donde esta mas barato: el piso, yendo a varias. */

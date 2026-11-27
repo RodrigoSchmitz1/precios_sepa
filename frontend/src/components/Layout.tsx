@@ -1,3 +1,4 @@
+import { Suspense } from "react";
 import { Outlet, NavLink } from "react-router";
 import AvisoZona from "./AvisoZona";
 import ProveedorZona from "./ProveedorZona";
@@ -5,13 +6,15 @@ import ProveedorLista from "./ProveedorLista";
 import AccesoLista from "./AccesoLista";
 import SelectorZona from "./SelectorZona";
 import BarraCelular from "./BarraCelular";
+import BotonMas from "./MenuMas";
+import AvisoDeshacer from "./AvisoDeshacer";
 import { HojaDatosAnonimos, LinkDatosAnonimos } from "./DatosAnonimos";
 import { SECCIONES } from "../utils/secciones";
 
 function Layout() {
   return (
     <ProveedorZona>
-    <ProveedorLista conEjemplo>
+    <ProveedorLista>
     <div className="min-h-screen bg-lienzo">
       <header className="sticky top-0 z-20 bg-papel shadow-[0_1px_0_var(--color-linea)]">
         {/*
@@ -73,18 +76,28 @@ function Layout() {
               </NavLink>
             ))}
           </nav>
-          {/* Tu lista, en todas las paginas (lista-a-mano, 2026-11). */}
+          {/* Tu lista, en la computadora; en el celular esta en la barra (app-para-el-usuario). */}
           <AccesoLista />
+          <BotonMas />
           </div>
         </div>
       </header>
 
       <main className="py-10 px-5">
         <AvisoZona />
-        <Outlet />
+        <Suspense
+          fallback={
+            <p role="status" className="max-w-4xl mx-auto text-sm text-tinta-suave py-10 text-center">
+              Cargando…
+            </p>
+          }
+        >
+          <Outlet />
+        </Suspense>
       </main>
 
       <BarraCelular />
+      <AvisoDeshacer />
       <HojaDatosAnonimos />
 
       <footer className="mt-16 bg-papel pb-20 sm:pb-0">

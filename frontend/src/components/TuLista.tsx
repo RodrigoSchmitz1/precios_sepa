@@ -4,7 +4,7 @@ import { useZona } from "../contexto/zona";
 import { fechaEnPalabras, formatearPesos } from "../utils/formato";
 import { listaALink, MAXIMO_UNIDADES } from "../utils/lista";
 import { textoDeLista } from "../utils/compartir";
-import { comparacionDeLista, productosComparados, vistaDeLista } from "../utils/listaEnZona";
+import { cifraDeLista, productosComparados, vistaDeLista } from "../utils/listaEnZona";
 import { claseCambio, textoCambioLista } from "../utils/cambioPrecio";
 import { promosQueConvienen, resumenPromosDeLista } from "../utils/promosCerca";
 import { lineaPromosDeLista } from "../utils/promosDeLista";
@@ -33,6 +33,12 @@ import PromoCercana from "./PromoCercana";
   sin ahorro: con Lomas de Zamora elegida, el titular decia "ahorras 11%"
   contra la Cooperativa Obrera, que ahi no existe.
 
+  Desde app-para-el-usuario (2026-11-27): una sola cifra arriba -la mas barata
+  contra la SIGUIENTE, la misma cuenta que la portada (cifraDeLista)-, el precio
+  de cada producto en esa cadena y, plegado, todo lo demas: las otras cadenas,
+  cada producto donde esta mas barato y el total con promos. Antes habia cinco
+  totales a la vista y no se sabia cual mirar.
+
   Con zona (2026-11, openspec promos-de-tu-lista), debajo de cada producto va
   la mejor promo de una sucursal cercana, si lo deja mas barato que la cadena
   mas barata de la zona. Los totales no las incluyen: las informan sobre todo
@@ -59,9 +65,12 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
   // La lista serializada: es la dependencia del efecto (un arreglo nuevo en cada
   // render dispararia una cotizacion por render) y lleva todo lo que se cotiza.
   // La zona tambien: cambiarla o borrarla vuelve a cotizar.
-  const { zona } = useZona();
+  // Hasta saber si hay zona guardada no se cotiza ni se pide elegirla: si no,
+  // con zona guardada aparecia un instante "Elegi tu zona" y la cuenta del pais
+  // (app-para-el-usuario).
+  const { zona, lista: zonaLista } = useZona();
   const clave =
-    lista.length > 0 ? JSON.stringify([lista.map((i) => [i.id_producto, i.cantidad]), zona?.cadenas ?? []]) : "";
+    lista.length > 0 && zonaLista ? JSON.stringify([lista.map((i) => [i.id_producto, i.cantidad]), zona?.cadenas ?? []]) : "";
   const [estado, setEstado] = useState<Estado | null>(null);
   const [verTodas, setVerTodas] = useState(false);
   // Las promos dependen de que productos hay y de donde, no de las cantidades.
@@ -156,11 +165,15 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
     };
   }, [claveConPromos]);
   const nombrar = (ids: string[]) => listarConY(ids.map((id) => nombres.get(id) ?? id));
-  // El titular es la mas barata de todas, Maxi incluido (ver CanastaPorCadena).
-  const barata = completas[0];
-  const cara = completas[completas.length - 1];
-  const ahorro = barata && cara && completas.length > 1 ? cara.total - barata.total : 0;
-  const comparacion = comparacionDeLista(barata, completas.length > 1 ? cara : undefined);
+  // La cifra: la mas barata contra la siguiente (app-para-el-usuario).
+  const cifra = cifraDeLista(completas);
+  const barata = cifra?.barata;
+  const siguiente = cifra?.siguiente;
+  const diferencia = cifra?.diferencia ?? 0;
+  const comparacion = cifra?.comparacion ?? "sin_comparacion";
+  // El precio de cada producto en la cadena de la cifra, y si otra de la zona lo tiene mas barato.
+  const productoDe = new Map((r?.productos ?? []).map((p) => [p.id_producto, p]));
+  const masBaratoDe = (id: string) => (enZona ? r?.zona?.mas_barato[id] : productoDe.get(id)?.mas_barato);
   // Una zona donde una sola cadena vende la lista: se dice, sin ahorro.
   const unicaDeLaZona = enZona && completas.length === 1 && incompletas.length === 0;
   const maximo = Math.max(...completas.map((c) => c.total), 1);
@@ -244,43 +257,19 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
       )}
 
       {barata && (
-        <div className="mb-5">
-          <p className="text-lg sm:text-xl text-tinta leading-snug">
-            {unicaDeLaZona ? "La única cadena de tu zona con tus productos es " : "En "}
-            <strong className="font-semibold">{barata.cadena}</strong>
-            {unicaDeLaZona ? ": te sale " : " te sale "}
-            <strong className="font-semibold numero">{formatearPesos(barata.total)}</strong>
-            {comparacion === "ahorro" && (
-              <>
-                {" "}
-                y en {cara.cadena} {formatearPesos(cara.total)}:{" "}
-                <span className="text-ahorro font-semibold numero">
-                  ahorrás {formatearPesos(ahorro)} ({Math.round((ahorro / cara.total) * 100)}%)
-                </span>
-              </>
-            )}
-            {/* Menos del 5%: casi lo mismo, como en el detalle del producto. */}
-            {comparacion === "casi_igual" && (
-              <>
-                {" "}
-                y en {cara.cadena} {formatearPesos(cara.total)}: cuesta casi lo mismo,{" "}
-                <span className="numero">{formatearPesos(ahorro)}</span> de diferencia
-              </>
-            )}
+        <div className="mb-5 rounded-2xl fondo-marca text-white p-4 sm:p-5 shadow-flotante" aria-label="Dónde te conviene">
+          <p className="text-sm font-semibold text-white/85">
+            {unicaDeLaZona ? "La única cadena de tu zona con tus productos" : `Tu compra · ${comparados} ${comparados === 1 ? "producto" : "productos"}`}
           </p>
-          {vista && vista.combinando < barata.total - 0.5 && (
-            <p className="text-sm text-tinta-media mt-1">
-              Comprando cada producto donde está más barato{enZona && " en tu zona"}, {formatearPesos(vista.combinando)},
-              aunque eso es ir a varias cadenas.
+          <p className="mt-1 text-3xl sm:text-4xl font-extrabold numero tracking-tight">
+            {formatearPesos(barata.total)} <span className="text-xl sm:text-2xl font-bold">en {barata.cadena}</span>
+          </p>
+          {siguiente && comparacion !== "sin_comparacion" && (
+            <p className="mt-2 inline-block rounded-full bg-white/20 px-3 py-1 text-xs sm:text-sm font-bold">
+              {comparacion === "ahorro"
+                ? `${formatearPesos(diferencia)} menos que en ${siguiente.cadena}`
+                : `Casi lo mismo que en ${siguiente.cadena}: ${formatearPesos(diferencia)} de diferencia`}
             </p>
-          )}
-          {/* Debajo y aparte del total de siempre, que sigue a precio de lista
-              (total-con-promos-cerca). */}
-          {lineaPromos && (
-            <div className="mt-3 pl-3 border-l-2 border-ahorro text-sm">
-              <p className={lineaPromos.cambia ? "text-tinta font-semibold" : "text-tinta"}>{lineaPromos.texto}</p>
-              {lineaPromos.aviso && <p className="text-xs text-tinta-suave mt-0.5">{lineaPromos.aviso}</p>}
-            </div>
           )}
         </div>
       )}
@@ -291,7 +280,7 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
         </p>
       )}
       {estado?.error && <p className="text-sm text-alerta mb-4">{estado.error}</p>}
-      {!zona && r && (
+      {!zona && zonaLista && r && (
         <p className="text-sm text-tinta-media mb-4">
           Elegí tu zona arriba y te mostramos qué productos de tu lista están en promo cerca tuyo.
         </p>
@@ -300,13 +289,23 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
       <ul className="divide-y divide-linea border-y border-linea mb-5">
         {lista.map((item) => (
           <li key={item.id_producto} className="py-2">
-            <div className="flex items-center gap-3">
+            {/* El nombre entero arriba y, debajo, la cantidad y el precio (app-para-el-usuario): al lado de los botones quedaba cortado. */}
+            <div className="flex items-start gap-2">
               <button
                 onClick={() => onVer(item.id_producto)}
-                className="flex-1 min-w-0 text-left text-sm text-tinta truncate hover:text-marca"
+                className="flex-1 min-w-0 text-left text-sm text-tinta line-clamp-2 hover:text-marca"
               >
                 {item.nombre}
               </button>
+              <button
+                onClick={() => onQuitar(item.id_producto)}
+                className="w-7 h-7 -mt-1 shrink-0 text-tinta-suave hover:text-alerta"
+                aria-label={`Quitar ${item.nombre}`}
+              >
+                ×
+              </button>
+            </div>
+            <div className="mt-1 flex items-center justify-between gap-3">
               <span className="flex items-center gap-1 shrink-0" role="group" aria-label={`Cantidad de ${item.nombre}`}>
                 <button
                   onClick={() => onCambiarCantidad(item.id_producto, item.cantidad - 1)}
@@ -326,14 +325,21 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
                   +
                 </button>
               </span>
-              <button
-                onClick={() => onQuitar(item.id_producto)}
-                className="w-7 h-7 shrink-0 text-tinta-suave hover:text-alerta"
-                aria-label={`Quitar ${item.nombre}`}
-              >
-                ×
-              </button>
+              <span className="text-right text-sm font-bold text-tinta numero">
+                {barata && productoDe.get(item.id_producto)?.precios?.[barata.cadena] !== undefined
+                  ? formatearPesos(productoDe.get(item.id_producto)!.precios![barata.cadena] * item.cantidad)
+                  : ""}
+              </span>
             </div>
+            {(() => {
+              const otro = masBaratoDe(item.id_producto);
+              const enBarata = barata ? productoDe.get(item.id_producto)?.precios?.[barata.cadena] : undefined;
+              return barata && otro && otro.cadena !== barata.cadena && enBarata !== undefined && otro.precio < enBarata - 0.5 ? (
+                <p className="text-xs text-tinta-media mt-0.5">
+                  Más barato en {otro.cadena}: <span className="numero">{formatearPesos(otro.precio)}</span>
+                </p>
+              ) : null;
+            })()}
             {cambioDeZona.has(item.id_producto) && (
               <p className={`text-xs mt-0.5 ${claseDeCambio.get(item.id_producto)}`}>{cambioDeZona.get(item.id_producto)}</p>
             )}
@@ -346,6 +352,35 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
         ))}
       </ul>
 
+      {barata && vista && (vista.combinando < barata.total - 0.5 || lineaPromos) && (
+        <details className="mb-3 border-b border-linea pb-3 group">
+          <summary className="cursor-pointer list-none flex items-center justify-between min-h-11 text-base font-bold text-tinta">
+            Más formas de ahorrar
+            <span aria-hidden="true" className="text-marca group-open:rotate-45 transition-transform">＋</span>
+          </summary>
+          {vista.combinando < barata.total - 0.5 && (
+            <p className="text-sm text-tinta-media mt-1">
+              Comprando cada producto donde está más barato{enZona && " en tu zona"}, {formatearPesos(vista.combinando)},
+              aunque eso es ir a varias cadenas.
+            </p>
+          )}
+          {/* Aparte del total de siempre, que sigue a precio de lista (total-con-promos-cerca). */}
+          {lineaPromos && (
+            <div className="mt-3 pl-3 border-l-2 border-ahorro text-sm">
+              <p className={lineaPromos.cambia ? "text-tinta font-semibold" : "text-tinta"}>{lineaPromos.texto}</p>
+              {lineaPromos.aviso && <p className="text-xs text-tinta-suave mt-0.5">{lineaPromos.aviso}</p>}
+            </div>
+          )}
+        </details>
+      )}
+
+      {(completas.length > 0 || incompletas.length > 0) && (
+        <details className="mb-5 border-b border-linea pb-3 group" open={!barata}>
+          <summary className="cursor-pointer list-none flex items-center justify-between min-h-11 text-base font-bold text-tinta">
+            {enZona ? "Otras cadenas cerca" : "Otras cadenas"}
+            <span aria-hidden="true" className="text-marca group-open:rotate-45 transition-transform">＋</span>
+          </summary>
+          <div className="mt-2">
       {completas.length > 0 && (
         <>
           <h3 className="text-base font-bold text-tinta mb-2">
@@ -431,6 +466,10 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
               </li>
             ))}
           </ul>
+        </details>
+      )}
+
+          </div>
         </details>
       )}
 

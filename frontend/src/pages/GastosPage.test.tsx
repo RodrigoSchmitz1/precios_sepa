@@ -20,6 +20,7 @@ vi.mock("../api/client", () => ({
   obtenerEstadoGastos: vi.fn(() => Promise.resolve({ fotos: true })),
   obtenerPromosDeProductos: vi.fn(() => Promise.resolve({})),
   obtenerBasicos: vi.fn(() => Promise.resolve([])),
+  obtenerInflacionResumen: vi.fn(() => Promise.resolve([{ categoria: "Yerba", variacion_pct: 2 }])),
 }));
 vi.mock("../utils/fotos", () => ({ achicarFoto: vi.fn() }));
 
@@ -209,7 +210,8 @@ describe("Mis gastos", () => {
     await mostrar();
     expect(texto(contenedor)).toContain("En noviembre gastaste $ 180.000");
     expect(texto(contenedor)).toContain("20% más que el mes anterior");
-    expect(texto(contenedor)).toContain("Por súper");
+    await tocar("Súper");
+    expect(texto(contenedor)).toContain("Coto1 compra");
   });
 
   it("al abrir un ticket compara con la cadena más barata de la zona", async () => {
@@ -400,7 +402,7 @@ describe("Mis gastos", () => {
       await mostrar();
       expect(texto(contenedor)).toContain("Son datos de ejemplo: 7 tickets por $");
       expect(texto(contenedor)).toContain("Cuando cargues tus tickets, esta página va a mostrar tus compras.");
-      expect(texto(contenedor)).toContain("Por súper");
+      expect(texto(contenedor)).toContain("En qué gastaste");
       expect(texto(contenedor)).toContain("Ahorraste");
       expect(texto(contenedor)).toContain("Coto");
       expect(boton("Bajar a Excel")).toBeUndefined();
@@ -447,15 +449,17 @@ describe("Mis gastos", () => {
       lineas: [], descuentos: [], creado: Number(id),
     });
 
-    it("tarjeta principal, por súper con compras y movimientos agrupados por día", async () => {
+    it("tarjeta principal, por súper (en el selector) y movimientos agrupados por día", async () => {
       guardarGastos([g("1", "Coto", "2026-10-03", 30000), g("2", "Coto", "2026-10-20", 30000), g("3", "Dia", "2026-10-20", 30000)]);
       await mostrar();
       const t = texto(contenedor);
       expect(t).toContain("En octubre gastaste $ 90.000");
       expect(t).toContain("3compras");
       expect(t).toContain("$ 30.000por compra");
-      expect(t).toContain("$ 2.903por día");
-      expect(t).toContain("Coto2 compras");
+      expect(t).toContain("$ 2.903 por día");
+      expect(t).toContain("$ 0en promos");
+      await tocar("Súper");
+      expect(texto(contenedor)).toContain("Coto2 compras");
       const encabezados = [...contenedor.querySelectorAll('[aria-labelledby="titulo-movimientos"] h3')].map((h) => h.textContent);
       expect(encabezados).toEqual(["Martes 20 oct", "Sábado 3 oct"]);
     });
@@ -465,6 +469,71 @@ describe("Mis gastos", () => {
       await mostrar();
       await tocar("septiembre");
       expect(texto(contenedor)).toContain("En septiembre gastaste $ 12.000");
+    });
+  });
+
+  describe("rubros, productos y tu inflación (app-para-el-usuario)", () => {
+    const RUBROS = { Yerba: "Infusiones y azúcares", Leche: "Lácteos", Cafe: "Infusiones y azúcares", Fideos: "Almacén" };
+    const lin = (id: string, nombre: string, categoria: string, cantidad: number, importe: number): LineaGasto => ({
+      descripcion: nombre, cantidad, precio_unitario: importe / cantidad, importe, codigo: id, id_producto: id, nombre, categoria, vinculo: "codigo",
+    });
+    const foto = (id: string, fecha: string, lineas: LineaGasto[]): Gasto => ({
+      id, origen: "foto", cadena: "Coto", cadenas_sepa: ["Coto"], sucursal: null, fecha, comprobante: null,
+      total: lineas.reduce((s, l) => s + l.importe, 0), lineas, descuentos: [], creado: Number(id),
+    });
+
+    beforeEach(() => {
+      vi.mocked(obtenerEstadoGastos).mockResolvedValue({ fotos: true, rubros: RUBROS });
+    });
+
+    it("la dona va por rubro y tocar un rubro muestra sus productos", async () => {
+      guardarGastos([
+        foto("1", "2026-11-03", [lin("y", "Yerba Playadito 1 kg", "Yerba", 1, 5208), lin("l", "Leche 1 l", "Leche", 3, 4500)]),
+        foto("2", "2026-11-10", [lin("y", "Yerba Playadito 1 kg", "Yerba", 2, 10416), lin("c", "Café", "Cafe", 1, 4390)]),
+      ]);
+      await mostrar();
+      expect(texto(contenedor)).toContain("Infusiones y azúcares");
+      expect(texto(contenedor)).not.toContain("Yerba Playadito 1 kg×");
+      await tocar("Infusiones y azúcares");
+      const t = texto(contenedor);
+      expect(t).toMatch(/Yerba playadito 1 kg ×3/i);
+      expect(t).toContain("$ 15.624");
+    });
+
+    it("la vista Productos suma la misma yerba de dos tickets", async () => {
+      guardarGastos([
+        foto("1", "2026-11-03", [lin("y", "Yerba Playadito 1 kg", "Yerba", 1, 5208)]),
+        foto("2", "2026-11-10", [lin("y", "Yerba Playadito 1 kg", "Yerba", 2, 10416)]),
+      ]);
+      await mostrar();
+      await tocar("Productos");
+      expect(texto(contenedor)).toMatch(/Yerba playadito 1 kg ×3 · Coto/i);
+    });
+
+    it("con tres productos en los dos meses muestra tu inflación", async () => {
+      guardarGastos([
+        foto("1", "2026-10-10", [lin("y", "Yerba", "Yerba", 1, 5000), lin("l", "Leche", "Leche", 1, 1500), lin("c", "Café", "Cafe", 1, 4000)]),
+        foto("2", "2026-11-10", [lin("y", "Yerba", "Yerba", 1, 5300), lin("l", "Leche", "Leche", 1, 1455), lin("c", "Café", "Cafe", 1, 4000)]),
+      ]);
+      await mostrar();
+      const t = texto(contenedor);
+      expect(t).toContain("Tu inflación");
+      expect(t).toContain("Sobre 3 productos que compraste los dos meses");
+      expect(t).toContain("Lo que más te subió: Yerba");
+    });
+
+    it("el botón Ticket de la barra abre la carga a mano si las fotos están apagadas", async () => {
+      vi.mocked(obtenerEstadoGastos).mockResolvedValue({ fotos: false, rubros: RUBROS });
+      await act(async () => {
+        raiz.render(
+          <MemoryRouter initialEntries={["/gastos?cargar=1"]}>
+            <ContextoZona.Provider value={estadoZona(ZONA)}>
+              <GastosPage />
+            </ContextoZona.Provider>
+          </MemoryRouter>,
+        );
+      });
+      expect(texto(contenedor)).toContain("Anotar un gasto");
     });
   });
 });

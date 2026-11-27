@@ -1410,9 +1410,31 @@ def fotos_de_tickets_activas() -> bool:
     return os.getenv("FOTOS_DE_TICKETS") == "1"
 
 
+# El mapa categoria -> rubro de Mis gastos se arma una vez por indice (app-para-el-usuario).
+_rubros_armados: dict = {}
+
+
+def _rubros_de_gastos() -> dict[str, str]:
+    indice = _indice_mismo_producto()
+    if _rubros_armados.get("indice") is not indice:
+        _rubros_armados.update(
+            indice=indice,
+            rubros=mismo_producto.rubros_por_categoria(
+                indice, lambda r: compartir.nombre_de_rubro(mapa_promos.slug_rubro(r))
+            ),
+        )
+    return _rubros_armados["rubros"]
+
+
 @api.get("/gastos/estado")
 def estado_gastos():
-    return {"fotos": fotos_de_tickets_activas()}
+    """Si se leen fotos y como agrupar por rubro. Sale de memoria: no consulta BigQuery.
+    Si el indice no esta, Mis gastos agrupa por categoria (rubros vacio)."""
+    try:
+        rubros = _rubros_de_gastos()
+    except Exception:
+        rubros = {}
+    return {"fotos": fotos_de_tickets_activas(), "rubros": rubros}
 
 
 @api.post("/gastos/leer-ticket")

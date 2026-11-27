@@ -62,6 +62,11 @@ describe("nombres de cadenas", () => {
     });
   });
 
+  it("las claves del precio por cadena de Tu lista también se nombran (app-para-el-usuario)", () => {
+    const datos = { productos: [{ precios: { Dia: 2026, Coto: 1894 } }], cadenas: [{ cadena: "Dia" }] };
+    expect(conNombresDeCadena(datos)).toEqual({ productos: [{ precios: { Día: 2026, Coto: 1894 } }], cadenas: [{ cadena: "Día" }] });
+  });
+
   it("la categoria se traduce solo para mostrar", () => {
     expect(nombreCategoria("Panales")).toBe("Pañales");
     expect(nombreCategoria("Categoria nueva")).toBe("Categoria nueva");

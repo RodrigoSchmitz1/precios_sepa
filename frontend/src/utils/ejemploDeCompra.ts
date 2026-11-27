@@ -16,6 +16,9 @@ export const POR_GRUPO_DEL_EJEMPLO = 2;
 /** Con menos de estos, el ejemplo no muestra una compra creible y no se carga. */
 export const MINIMO_DEL_EJEMPLO = 8;
 
+/** Cuanto tiempo se ofrece "Deshacer" despues de que un producto propio reemplaza al ejemplo (app-para-el-usuario). */
+export const SEGUNDOS_PARA_DESHACER = 6;
+
 export type MarcaEjemplo = "activo" | "hecho" | null;
 
 export function leerMarcaEjemplo(): MarcaEjemplo {

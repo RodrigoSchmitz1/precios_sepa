@@ -8,7 +8,7 @@
   Tu lista). Comparar lo pagado con promos contra precios de lista haria
   parecer cara una compra hecha con descuento.
 */
-import type { Gasto, ResultadoLista } from "../types";
+import type { Gasto, ResultadoLista, TotalCadenaLista } from "../types";
 import { MAXIMO_PRODUCTOS } from "./lista";
 
 export type ItemsDelTicket = {
@@ -75,4 +75,39 @@ export function compararTicket(
     diferencia: Math.round((datos.pagado - masBarata.total) * 100) / 100,
     esLaMisma: gasto.cadenas_sepa.some((c) => normal(c) === normal(masBarata.cadena)) || normal(gasto.cadena) === normal(masBarata.cadena),
   };
+}
+
+/**
+ * La misma comparacion, para todos los tickets del mes con UNA sola cotizacion
+ * (openspec app-para-el-usuario): la lista de movimientos dice "en X: −$ Y"
+ * sin un pedido por ticket. `precios` es el precio de cada producto en cada
+ * cadena (lo que devuelve cotizarLista) y `cadenasZona`, los nombres de las
+ * cadenas de la zona como vienen en esa respuesta.
+ */
+export function compararConPrecios(
+  gasto: Gasto,
+  precios: Record<string, Record<string, number>>,
+  cadenasZona: Set<string>,
+  coberturaMinima: number,
+): Comparacion {
+  const datos = itemsDelTicket(gasto);
+  const totales = new Map<string, { total: number; productos: number }>();
+  for (const item of datos.items) {
+    for (const [cadena, precio] of Object.entries(precios[item.id_producto] ?? {})) {
+      if (!cadenasZona.has(cadena)) continue;
+      const t = totales.get(cadena) ?? { total: 0, productos: 0 };
+      t.total += precio * item.cantidad;
+      t.productos += 1;
+      totales.set(cadena, t);
+    }
+  }
+  const cadenas: TotalCadenaLista[] = [...totales.entries()].map(([cadena, t]) => ({
+    cadena,
+    total: Math.round(t.total * 100) / 100,
+    productos_con_precio: t.productos,
+    completa: t.productos === datos.items.length,
+    faltan: [],
+  }));
+  const cotizacion = { zona: { cadenas, combinando_cadenas: 0, no_en_zona: [], mas_barato: {} } } as unknown as ResultadoLista;
+  return compararTicket(gasto, datos, cotizacion, coberturaMinima);
 }

@@ -3,14 +3,12 @@ import AMiCompra from "./components/AMiCompra";
 import Layout from "./components/Layout";
 import PromosPage from "./pages/PromosPage";
 import PromosRubroPage from "./pages/PromosRubroPage";
-import QuienGanaPage from "./pages/QuienGanaPage";
-import InflacionPage from "./pages/InflacionPage";
 import MismoProductoPage from "./pages/MismoProductoPage";
 import ListaPage from "./pages/ListaPage";
 import GastosPage from "./pages/GastosPage";
-import ComoSeCalculaPage from "./pages/ComoSeCalculaPage";
-import PrivacidadPage from "./pages/PrivacidadPage";
 import NoEncontradaPage from "./pages/NoEncontradaPage";
+// Lo del menu Mas se descarga recien al abrirlo (pages/diferidas.tsx).
+import { ComoSeCalculaPage, InflacionPage, PrivacidadPage, QuienGanaPage } from "./pages/diferidas";
 
 const router = createBrowserRouter([
   {

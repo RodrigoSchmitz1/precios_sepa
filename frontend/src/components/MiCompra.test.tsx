@@ -197,3 +197,25 @@ describe("Tu canasta lleva a Mi compra", () => {
     expect(contenedor.querySelector("[data-testid=donde]")?.textContent).toBe("/lista?zona=AR-C:Palermo");
   });
 });
+
+describe("la zona guardada no parpadea (app-para-el-usuario)", () => {
+  it("mientras se sabe si hay zona, Dónde comprarla dice Cargando y no pide elegir zona", async () => {
+    window.localStorage.setItem(CLAVE_LISTA, JSON.stringify([{ id_producto: "1", nombre: "Yerba", cantidad: 1 }]));
+    const nada = () => {};
+    await act(async () => {
+      raiz.render(
+        <MemoryRouter initialEntries={["/lista"]}>
+          <ContextoZona.Provider
+            value={{ zona: null, zonas: [], lista: false, aviso: null, elegir: nada, usarUbicacion: nada, ubicando: false, errorUbicacion: null, cerrarAviso: nada }}
+          >
+            <ProveedorLista>
+              <DondeComprarLista lista={leerLista()} />
+            </ProveedorLista>
+          </ContextoZona.Provider>
+        </MemoryRouter>,
+      );
+    });
+    expect(texto(contenedor)).not.toContain("Elegí tu zona");
+    expect(texto(contenedor)).toContain("Cargando");
+  });
+});

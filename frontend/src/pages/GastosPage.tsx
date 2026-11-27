@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
-import { obtenerBasicos } from "../api/client";
+import { useSearchParams } from "react-router";
+import { cotizarLista, obtenerBasicos, obtenerEstadoGastos } from "../api/client";
 import { useZona } from "../contexto/zona";
 import Titular from "../components/Titular";
 import AnotarMonto from "../components/gastos/AnotarMonto";
@@ -8,6 +9,11 @@ import TicketGuardado from "../components/gastos/TicketGuardado";
 import ElMesEnTuZona from "../components/gastos/ElMesEnTuZona";
 import ParaTuProximaCompra from "../components/gastos/ParaTuProximaCompra";
 import PresupuestoDelMes from "../components/gastos/PresupuestoDelMes";
+import EnQueGastaste from "../components/gastos/EnQueGastaste";
+import TarjetaTuInflacion from "../components/gastos/TarjetaTuInflacion";
+import { compararConPrecios } from "../utils/comparacionTicket";
+import { MAXIMO_PRODUCTOS } from "../utils/lista";
+import { cadenasVisibles } from "../utils/zona";
 import BotonCompartir from "../components/BotonCompartir";
 import { compraHabitual } from "../utils/compraHabitual";
 import type { Basico, Gasto } from "../types";
@@ -15,9 +21,7 @@ import { descartarEjemplo, ejemploDescartado, gastosDeEjemplo } from "../utils/g
 import { bajarExcel } from "../utils/excelGastos";
 import { formatearPesos, mesEnPalabras, porcentajeEntero } from "../utils/formato";
 import { MAXIMO_GASTOS, agregarGasto, borrarTodos, guardarGastos, hoyEnArgentina, leerCoberturaMinima, leerGastos } from "../utils/gastos";
-import { nombreCategoria } from "../utils/nombres";
 import {
-  comprasPorSuper,
   encabezadoDeDia,
   gastoPorDia,
   mesDe,
@@ -27,8 +31,10 @@ import {
   resumirMes,
   semanasDelMes,
   textoInformeDelMes,
+  type MapaRubros,
 } from "../utils/resumenGastos";
-import { DonaCategorias, PorSuper, SemanaASemana } from "../components/gastos/GraficosDelMes";
+import { SemanaASemana } from "../components/gastos/GraficosDelMes";
+import { nombreCategoria } from "../utils/nombres";
 
 /*
   Mis gastos (openspec mis-gastos-y-barra-nueva): el registro de lo que se gasta
@@ -80,6 +86,67 @@ function GastosPage() {
   const habitual = useMemo(() => compraHabitual(gastos, hoy), [gastos, hoy]);
   const racha = useMemo(() => rachaDeSemanas(gastos, hoy), [gastos, hoy]);
   const semanas = useMemo(() => semanasDelMes(mostrados, mes), [mostrados, mes]);
+
+  // Los rubros (app-para-el-usuario) y el boton Ticket de la barra (/gastos?cargar=1):
+  // con la lectura de fotos apagada, abre directo la carga del monto a mano.
+  const [rubros, setRubros] = useState<MapaRubros | null>(null);
+  const [parametros, setParametros] = useSearchParams();
+  const pideCargar = parametros.get("cargar") === "1";
+  useEffect(() => {
+    let cancelado = false;
+    const abrirCarga = (fotos: boolean) => {
+      if (!pideCargar) return;
+      if (!fotos) setAnotando(true);
+      setParametros(
+        (previos) => {
+          const nuevos = new URLSearchParams(previos);
+          nuevos.delete("cargar");
+          return nuevos;
+        },
+        { replace: true }
+      );
+      document.getElementById("cargar-gasto")?.scrollIntoView?.({ block: "start" });
+    };
+    obtenerEstadoGastos()
+      .then((estado) => {
+        if (cancelado) return;
+        setRubros(estado.rubros ?? {});
+        abrirCarga(estado.fotos);
+      })
+      .catch(() => {
+        if (cancelado) return;
+        setRubros({});
+        abrirCarga(false);
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [pideCargar, setParametros]);
+
+  // Cuanto salia cada ticket en la cadena mas barata de la zona, con UNA sola
+  // cotizacion para todo el mes (app-para-el-usuario): no un pedido por ticket.
+  const idsDelMes = [
+    ...new Set(resumen.gastos.flatMap((g) => (g.origen === "foto" ? g.lineas.map((l) => l.id_producto).filter((id): id is string => !!id) : []))),
+  ].slice(0, MAXIMO_PRODUCTOS);
+  const claveCotizacion = zona && idsDelMes.length > 0 && coberturaMinima != null ? JSON.stringify([idsDelMes, zona.cadenas]) : "";
+  const [preciosMes, setPreciosMes] = useState<{ clave: string; precios: Record<string, Record<string, number>> } | null>(null);
+  useEffect(() => {
+    if (!claveCotizacion) return;
+    let cancelado = false;
+    const [ids, cadenas] = JSON.parse(claveCotizacion) as [string[], string[]];
+    // El then de afuera hace que un fallo al llamar (no solo al responder) caiga en el catch.
+    Promise.resolve()
+      .then(() => cotizarLista(ids.map((id_producto) => ({ id_producto, cantidad: 1 })), cadenas))
+      .then((r) => !cancelado && setPreciosMes({ clave: claveCotizacion, precios: Object.fromEntries(r.productos.map((p) => [p.id_producto, p.precios ?? {}])) }))
+      .catch(() => {
+        /* sin cotizacion, los movimientos van sin la comparacion */
+      });
+    return () => {
+      cancelado = true;
+    };
+  }, [claveCotizacion]);
+  const preciosVigentes = preciosMes?.clave === claveCotizacion ? preciosMes.precios : null;
+  const zonaVisible = zona ? cadenasVisibles(zona) : null;
 
   const actualizar = (nuevos: Gasto[]) => {
     setGastos(nuevos);
@@ -167,7 +234,7 @@ function GastosPage() {
                 {[
                   [String(resumen.gastos.length), resumen.gastos.length === 1 ? "compra" : "compras"],
                   [formatearPesos(Math.round(resumen.total / Math.max(1, resumen.gastos.length))), "por compra"],
-                  [formatearPesos(Math.round(gastoPorDia(resumen.total, mes, hoy))), "por día"],
+                  [formatearPesos(Math.round(resumen.ahorroPromos)), "en promos"],
                 ].map(([valor, etiqueta]) => (
                   <div key={etiqueta} className="rounded-2xl bg-white/15 border border-white/20 px-2.5 py-2 min-w-0">
                     <dd className="text-sm sm:text-base font-bold numero truncate">{valor}</dd>
@@ -202,14 +269,26 @@ function GastosPage() {
         </section>
       )}
 
-      {anotando ? (
-        <AnotarMonto onGuardar={guardar} onCancelar={() => setAnotando(false)} />
-      ) : (
-        <CargarTicket gastos={gastos} onGuardar={guardar} onAnotarAMano={() => setAnotando(true)} />
-      )}
+      <div id="cargar-gasto" className="scroll-mt-24">
+        {anotando ? (
+          <AnotarMonto onGuardar={guardar} onCancelar={() => setAnotando(false)} />
+        ) : (
+          <CargarTicket gastos={gastos} onGuardar={guardar} onAnotarAMano={() => setAnotando(true)} />
+        )}
+      </div>
 
       {mostrados.length > 0 && (
         <>
+          <EnQueGastaste
+            gastos={resumen.gastos}
+            porCategoria={resumen.porCategoria}
+            porSuper={resumen.porSuper}
+            total={resumen.total}
+            rubros={rubros}
+          />
+
+          <TarjetaTuInflacion gastos={mostrados} mes={mes} />
+
           <section className="tarjeta p-5 sm:p-6 mb-4" aria-labelledby="titulo-ahorro">
             <h2 id="titulo-ahorro" className="text-base font-bold text-tinta mb-3">Tu ahorro del mes</h2>
             <div className="rounded-2xl bg-ahorro-tenue p-3">
@@ -222,40 +301,6 @@ function GastosPage() {
             </div>
             <ElMesEnTuZona gastos={mostrados} mes={mes} coberturaMinima={coberturaMinima} />
           </section>
-
-          <div className="grid gap-4 sm:grid-cols-2 mb-4">
-            <section className="tarjeta p-5 sm:p-6" aria-labelledby="titulo-categorias">
-              <h2 id="titulo-categorias" className="text-base font-bold text-tinta mb-3">
-                En qué gastaste
-              </h2>
-              <DonaCategorias filas={resumen.porCategoria.map((f) => ({ ...f, nombre: nombreCategoria(f.nombre) }))} total={resumen.total} />
-            </section>
-            <section className="tarjeta p-5 sm:p-6" aria-labelledby="titulo-semanas">
-              <h2 id="titulo-semanas" className="text-base font-bold text-tinta mb-3 flex items-baseline justify-between gap-2">
-                Semana a semana
-                <span className="text-xs font-semibold text-tinta-suave numero">
-                  promedio {formatearPesos(Math.round(gastoPorDia(resumen.total, mes, hoy) * 7))}
-                </span>
-              </h2>
-              <SemanaASemana
-                tramos={semanas}
-                tramoDeHoy={mesDe(hoy) === mes ? Math.min(Math.floor((Number(hoy.slice(8, 10)) - 1) / 7), semanas.length - 1) : null}
-              />
-            </section>
-          </div>
-
-          <section className="tarjeta p-5 sm:p-6 mb-4" aria-labelledby="titulo-super">
-            <h2 id="titulo-super" className="text-base font-bold text-tinta mb-3">
-              Por súper
-            </h2>
-            <PorSuper filas={resumen.porSuper} total={resumen.total} compras={comprasPorSuper(resumen.gastos)} />
-          </section>
-
-          {!verEjemplo && (
-            <section className="tarjeta p-5 sm:p-6 mb-4" aria-label="Presupuesto">
-              <PresupuestoDelMes gastado={resumen.total} />
-            </section>
-          )}
 
           <ParaTuProximaCompra habitual={habitual} />
 
@@ -275,6 +320,11 @@ function GastosPage() {
                       <TicketGuardado
                         gasto={g}
                         coberturaMinima={coberturaMinima}
+                        comparacionDelMes={
+                          preciosVigentes && zonaVisible && coberturaMinima != null && g.origen === "foto"
+                            ? compararConPrecios(g, preciosVigentes, zonaVisible, coberturaMinima)
+                            : null
+                        }
                         onBorrar={verEjemplo ? undefined : () => actualizar(gastos.filter((x) => x.id !== g.id))}
                       />
                     </li>
@@ -284,8 +334,40 @@ function GastosPage() {
             ))}
           </section>
 
+          <details className="tarjeta p-5 sm:p-6 mb-3 group">
+            <summary className="cursor-pointer list-none flex items-center justify-between min-h-11 text-base font-bold text-tinta">
+              Semana a semana
+              <span aria-hidden="true" className="text-marca group-open:rotate-45 transition-transform">＋</span>
+            </summary>
+            <p className="text-xs font-semibold text-tinta-suave numero mt-1 mb-3">
+              {formatearPesos(Math.round(gastoPorDia(resumen.total, mes, hoy)))} por día · promedio semanal{" "}
+              {formatearPesos(Math.round(gastoPorDia(resumen.total, mes, hoy) * 7))}
+            </p>
+            <SemanaASemana
+              tramos={semanas}
+              tramoDeHoy={mesDe(hoy) === mes ? Math.min(Math.floor((Number(hoy.slice(8, 10)) - 1) / 7), semanas.length - 1) : null}
+            />
+          </details>
+
           {!verEjemplo && (
-            <div className="flex flex-wrap items-center gap-3 mb-6">
+            <details className="tarjeta p-5 sm:p-6 mb-3 group">
+              <summary className="cursor-pointer list-none flex items-center justify-between min-h-11 text-base font-bold text-tinta">
+                Presupuesto del mes
+                <span aria-hidden="true" className="text-marca group-open:rotate-45 transition-transform">＋</span>
+              </summary>
+              <div className="mt-3" aria-label="Presupuesto">
+                <PresupuestoDelMes gastado={resumen.total} />
+              </div>
+            </details>
+          )}
+
+          {!verEjemplo && (
+            <details className="tarjeta p-5 sm:p-6 mb-6 group">
+              <summary className="cursor-pointer list-none flex items-center justify-between min-h-11 text-base font-bold text-tinta">
+                Excel, compartir y borrar
+                <span aria-hidden="true" className="text-marca group-open:rotate-45 transition-transform">＋</span>
+              </summary>
+            <div className="mt-3 flex flex-wrap items-center gap-3">
               <button
                 type="button"
                 onClick={() => bajarExcel(gastos, hoyEnArgentina())}
@@ -329,6 +411,7 @@ function GastosPage() {
                 </button>
               )}
             </div>
+            </details>
           )}
           <p className="text-xs text-tinta-suave text-center mb-4">Tus gastos quedan solo en este teléfono.</p>
         </>

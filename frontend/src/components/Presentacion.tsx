@@ -5,10 +5,7 @@ import {
   buscarProductos,
   cotizarCanastaPorCadena,
   obtenerComposicionCanasta,
-  obtenerInflacionResumen,
   obtenerProducto,
-  obtenerQuienGana,
-  obtenerQuienGanaZona,
 } from "../api/client";
 import { fechaEnPalabras, formatearPesos, tamanoQueFalta } from "../utils/formato";
 import { cifrasDePortada } from "../utils/cifrasPortada";
@@ -18,7 +15,7 @@ import { cadenasVisibles, localidadDeZona, zonaAParametro, type Zona } from "../
 import { nombreLegible } from "../utils/texto";
 import AvisoCadenasDeOtroDia from "./AvisoCadenasDeOtroDia";
 import TarjetaTuLista from "./TarjetaTuLista";
-import type { CanastaPorCadena, InflacionResumen, ProductoDetalle, QuienGana } from "../types";
+import type { CanastaPorCadena, ProductoDetalle } from "../types";
 
 /*
   Portada del sitio.
@@ -68,8 +65,6 @@ import type { CanastaPorCadena, InflacionResumen, ProductoDetalle, QuienGana } f
 const EJEMPLO_PORTADA = "coca cola 2.25";
 
 type Datos = {
-  inflacion?: InflacionResumen[];
-  quienGana?: QuienGana[];
   ejemplo?: ProductoDetalle;
   canastaPorCadena?: CanastaPorCadena;
 };
@@ -79,7 +74,6 @@ type Datos = {
  *  anterior no se muestra. */
 type DatosZona = {
   clave: string;
-  quienGana?: QuienGana[];
   /** "zona": cotizada en las sucursales de la zona; "pais": la zona no tiene
    *  precios para la canasta y se usa la del pais. */
   canasta?: { alcance: "zona" | "pais"; datos?: CanastaPorCadena };
@@ -152,16 +146,6 @@ function Presentacion({ enMedio, despues }: { enMedio?: ReactNode; despues?: Rea
     let cancelado = false;
     // La portada no muestra los errores: las secciones los explican cuando se
     // entra a ellas, y un cartel rojo arriba de todo asusta mas de lo que informa.
-    obtenerInflacionResumen()
-      .then((inflacion) => {
-        if (!cancelado) setDatos((previo) => ({ ...previo, inflacion }));
-      })
-      .catch(() => {});
-    obtenerQuienGana("")
-      .then((quienGana) => {
-        if (!cancelado) setDatos((previo) => ({ ...previo, quienGana }));
-      })
-      .catch(() => {});
     // La canasta basica del INDEC (un adulto, gama economica) en cada cadena.
     // La composicion es una seed que se lee con list_rows y la cotizacion sale
     // del indice en memoria de Tu canasta: ninguna de las dos consume cuota.
@@ -191,9 +175,6 @@ function Presentacion({ enMedio, despues }: { enMedio?: ReactNode; despues?: Rea
     const guardar = (parte: Partial<DatosZona>) => {
       if (!cancelado) setDatosZona((previo) => ({ ...(previo?.clave === claveZona ? previo : { clave: claveZona }), ...parte }));
     };
-    obtenerQuienGanaZona(zona.cadenas)
-      .then((quienGana) => guardar({ quienGana }))
-      .catch(() => guardar({ quienGana: [] }));
     Promise.all([buscarLocalidades(zona.nombre), itemsCanastaBasica()])
       .then(([opciones, items]) => {
         const localidad = localidadDeZona(opciones, zona);
@@ -210,8 +191,6 @@ function Presentacion({ enMedio, despues }: { enMedio?: ReactNode; despues?: Rea
     };
   }, [zona, claveZona]);
 
-  const inflacion = datos.inflacion ?? [];
-
   // Solo la fecha de los precios. Hasta el 2026-11-23 caia en la del indice de
   // inflacion mientras llegaba el ejemplo, y la portada decia "18 de noviembre"
   // un instante antes de pasar a "22 de noviembre": el indice cierra en su
@@ -225,8 +204,6 @@ function Presentacion({ enMedio, despues }: { enMedio?: ReactNode; despues?: Rea
   const canastaZona = zonaVigente?.canasta;
   const cifras = cifrasDePortada(
     {
-      inflacion,
-      quienGana: zona ? zonaVigente?.quienGana : datos.quienGana,
       canasta: !zona ? datos.canastaPorCadena : canastaZona ? (canastaZona.datos ?? datos.canastaPorCadena) : undefined,
       canastaDeZona: canastaZona?.alcance === "zona",
     },

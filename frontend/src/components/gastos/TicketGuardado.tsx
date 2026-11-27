@@ -16,12 +16,15 @@ export default function TicketGuardado({
   gasto,
   coberturaMinima,
   onBorrar,
+  comparacionDelMes = null,
 }: {
   gasto: Gasto;
   /** La regla que mando la API al leer un ticket; null: no se compara. */
   coberturaMinima: number | null;
   /** Sin onBorrar no se ofrece borrar: los tickets de ejemplo (ejemplo-para-empezar). */
   onBorrar?: () => void;
+  /** La comparacion con la cadena mas barata de la zona, sacada de la cotizacion del mes (app-para-el-usuario). */
+  comparacionDelMes?: Comparacion | null;
 }) {
   const { zona } = useZona();
   const [comparacion, setComparacion] = useState<Comparacion | "cargando" | "error" | null>(null);
@@ -64,6 +67,11 @@ export default function TicketGuardado({
         <span className="text-right shrink-0">
           <span className="block text-base font-bold text-tinta numero">{formatearPesos(gasto.total)}</span>
           {ahorro > 0 && <span className="block text-xs font-semibold text-ahorro numero">−{formatearPesos(ahorro)} en promos</span>}
+          {comparacionDelMes?.estado === "ok" && !comparacionDelMes.esLaMisma && comparacionDelMes.diferencia >= 1 && (
+            <span className="block text-xs font-semibold text-marca numero">
+              en {comparacionDelMes.cadena}: −{formatearPesos(comparacionDelMes.diferencia)}
+            </span>
+          )}
         </span>
       </summary>
 

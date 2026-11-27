@@ -17,12 +17,16 @@ export type EstadoLista = {
   /** La lista recibida pasa a ser la lista. */
   reemplazar: (items: ItemLista[]) => void;
   enLista: (idProducto: string) => boolean;
-  /** La lista es la compra de ejemplo de la primera visita (ejemplo-para-empezar). */
+  /** La lista es la compra de ejemplo, pedida con "Ver un ejemplo" (app-para-el-usuario). */
   esEjemplo: boolean;
   /** Vacia la lista; el ejemplo no vuelve. */
   borrarEjemplo: () => void;
   /** Saca un grupo entero de basicos sin que la lista deje de ser ejemplo. */
   quitarGrupo: (grupo: string) => void;
+  /** Carga la compra de ejemplo a pedido ("Ver un ejemplo"). Falso si no se pudo armar. */
+  verEjemplo: () => Promise<boolean>;
+  /** Mientras se puede: vuelve el ejemplo que un producto propio acaba de reemplazar. */
+  deshacer: (() => void) | null;
 };
 
 export const ContextoLista = createContext<EstadoLista | null>(null);

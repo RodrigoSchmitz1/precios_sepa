@@ -418,7 +418,7 @@ export function enviarSenales(cuerpo: unknown): void {
 }
 
 /** Si la API lee fotos de tickets: apagado hasta activar Gemini pago (2026-11-23). */
-export async function obtenerEstadoGastos(): Promise<{ fotos: boolean }> {
+export async function obtenerEstadoGastos(): Promise<{ fotos: boolean; rubros?: Record<string, string> }> {
   const respuesta = await fetch(`${API_BASE}/gastos/estado`);
   if (!respuesta.ok) await fallar(respuesta, "No se pudo saber si se leen fotos");
   return respuesta.json();

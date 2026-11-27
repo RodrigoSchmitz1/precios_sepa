@@ -4,8 +4,8 @@ import { buscarProductos, obtenerProducto, obtenerProductosDestacados } from "..
 import Titular, { Resaltado } from "../components/Titular";
 import FilaDeCifras from "../components/FilaDeCifras";
 import TiraDePuntos from "../components/TiraDePuntos";
-import TuLista from "../components/TuLista";
 import CuantoConvieneComparar from "../components/CuantoConvieneComparar";
+import BotonEscanear from "../components/BotonEscanear";
 import { fechaEnPalabras, formatearNumero, formatearPesos, tamanoQueFalta } from "../utils/formato";
 import { listarConY, nombreLegible } from "../utils/texto";
 import { useZona } from "../contexto/zona";
@@ -584,7 +584,7 @@ function MismoProductoPage() {
   const [destacados, setDestacados] = useState<Destacados | null>(null);
   const [ejemplos, setEjemplos] = useState<ProductoDetalle[]>([]);
   // La lista es la de todo el sitio (ProveedorLista, lista-a-mano).
-  const { lista, agregar: agregarItem, cambiarCantidad, quitar, vaciar, enLista } = useLista();
+  const { lista, agregar: agregarItem, enLista } = useLista();
   // Tu canasta, si ya la armo en este navegador: sus categorias son las filas
   // de "De tu canasta". Se lee una vez; la canasta se edita en su pagina.
 
@@ -679,7 +679,16 @@ function MismoProductoPage() {
     window.scrollTo({ top: 0 });
   };
 
-  const mayor = destacados?.productos?.[0];
+  // Con una busqueda, el titular sale de los resultados que se ven
+  // (app-para-el-usuario): decia "260%" de otro producto del dia mientras la
+  // yerba buscada iba de 28% a 94%.
+  const mayor =
+    consulta.length >= 2
+      ? (busquedaVigente?.productos ?? []).reduce<ProductoComparado | undefined>(
+          (m, p) => (p.diferencia_pct > 0 && (!m || p.diferencia_pct > m.diferencia_pct) ? p : m),
+          undefined
+        )
+      : destacados?.productos?.[0];
 
   return (
     <div className="max-w-4xl mx-auto">
@@ -694,7 +703,7 @@ function MismoProductoPage() {
         <>
         <Titular
           antetitulo="El mismo producto"
-          compacto={consulta.length >= 2 || lista.length > 0}
+          compacto={consulta.length >= 2}
           bajada="Mismo código de barras, misma presentación: la única diferencia es dónde lo comprás. Buscá un producto y mirá cuánto cuesta en cada cadena, o armá tu lista con lo que comprás siempre y fijate dónde te conviene la compra entera."
         >
           {mayor ? (
@@ -720,6 +729,11 @@ function MismoProductoPage() {
           autoComplete="off"
           className="w-full bg-papel rounded-2xl shadow-flotante px-5 py-4 text-base focus:outline-none focus:ring-2 focus:ring-marca/40"
         />
+        {!id && (
+          <div className="mt-3">
+            <BotonEscanear />
+          </div>
+        )}
 
         {consulta.length >= 2 && busquedaVigente === null && (
           <p className="mt-3 text-sm text-tinta-suave">Buscando…</p>
@@ -749,26 +763,20 @@ function MismoProductoPage() {
         )}
       </section>
 
+      {/* La lista ya no se repite debajo de los resultados (app-para-el-usuario): un acceso alcanza. */}
       {lista.length > 0 && (
-        <TuLista
-          lista={lista}
-          onCambiarCantidad={cambiarCantidad}
-          onQuitar={quitar}
-          onVaciar={vaciar}
-          onVer={elegir}
-        />
+        <Link
+          to="/lista"
+          className="mb-10 flex items-center justify-between gap-3 tarjeta px-4 py-3 text-base font-bold text-tinta hover:text-marca"
+        >
+          <span>
+            🛒 Ver mi compra ({lista.length})
+          </span>
+          <span aria-hidden="true" className="text-marca">→</span>
+        </Link>
       )}
 
       {!id && lista.length === 0 && <DosCaminos />}
-      {!id && lista.length > 0 && (
-        <p className="-mt-6 mb-10 text-sm text-tinta-media">
-          ¿Es la compra del mes?{" "}
-          <Link to="/lista" className="text-marca font-medium hover:text-marca-hover">
-            Armala en Mi compra
-          </Link>{" "}
-          contando quiénes viven en tu casa, y elegí la marca de cada cosa.
-        </p>
-      )}
 
       {!id && consulta.length < 2 && ejemplos.length > 0 && (
         <section aria-labelledby="titulo-ejemplos" className="mb-12">

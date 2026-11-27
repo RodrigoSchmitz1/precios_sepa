@@ -15,7 +15,7 @@ function AccesoLista() {
       aria-label={n === 0 ? "Tu lista, vacía" : `Tu lista, ${n} ${n === 1 ? "producto" : "productos"}`}
       className={({ isActive }) =>
         [
-          "relative shrink-0 flex items-center gap-1.5 h-10 rounded-full px-2.5 sm:px-3.5 text-sm font-semibold transition-colors",
+          "relative shrink-0 hidden sm:flex items-center gap-1.5 h-10 rounded-full px-2.5 sm:px-3.5 text-sm font-semibold transition-colors",
           isActive ? "bg-marca text-white" : "text-tinta-media hover:text-marca hover:bg-marca-tenue",
         ].join(" ")
       }

@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { dondeComprarLista } from "../api/client";
 import { useZona } from "../contexto/zona";
 import type { ItemLista, ResultadoDondeComprar } from "../types";
 import { formatearNumero, formatearPesos } from "../utils/formato";
 import { DIFERENCIA_CASI_IGUAL_PCT } from "../utils/titularProducto";
 import { RADIO_CERCA_KM } from "../utils/zona";
-import MapaZona from "./MapaZona";
+// El mapa (Leaflet) se descarga recien cuando hay que dibujarlo (app-para-el-usuario):
+// era lo que mas pesaba en la primera carga de toda la app.
+const MapaZona = lazy(() => import("./MapaZona"));
 
 /*
   Donde comprar Mi compra cerca (openspec mi-compra): la lista en 1, 2 o 3
@@ -20,8 +22,10 @@ const RADIOS_KM = [1, RADIO_CERCA_KM, 5];
 
 type Estado = { firma: string; resultado?: ResultadoDondeComprar; error?: string };
 
-export default function DondeComprarLista({ lista }: { lista: ItemLista[] }) {
-  const { zona } = useZona();
+/** plegado: Mi compra la muestra cerrada, debajo de la cifra (app-para-el-usuario). */
+export default function DondeComprarLista({ lista, plegado = false }: { lista: ItemLista[]; plegado?: boolean }) {
+  const [abierta, setAbierta] = useState(!plegado);
+  const { zona, lista: zonaLista } = useZona();
   const [radioKm, setRadioKm] = useState(RADIO_CERCA_KM);
   const [paradas, setParadas] = useState(1);
   const [estado, setEstado] = useState<Estado | null>(null);
@@ -29,7 +33,7 @@ export default function DondeComprarLista({ lista }: { lista: ItemLista[] }) {
   const firma = zona ? JSON.stringify([items, zona.latitud, zona.longitud, radioKm]) : "";
 
   useEffect(() => {
-    if (!zona || items.length === 0) return;
+    if (!zona || items.length === 0 || !abierta) return;
     let vigente = true;
     dondeComprarLista(items, zona.latitud, zona.longitud, radioKm)
       .then((resultado) => vigente && setEstado({ firma, resultado }))
@@ -39,14 +43,30 @@ export default function DondeComprarLista({ lista }: { lista: ItemLista[] }) {
     };
     // firma resume items, zona y radio.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [firma]);
+  }, [firma, abierta]);
 
   if (lista.length === 0) return null;
 
   return (
     <section className="tarjeta p-5 sm:p-6 mb-10" aria-labelledby="titulo-donde-comprar">
-      <h2 id="titulo-donde-comprar" className="text-lg font-bold text-tinta mb-1">Dónde comprarla cerca</h2>
-      {!zona ? (
+      <h2 id="titulo-donde-comprar" className="text-lg font-bold text-tinta mb-1">
+        {plegado ? (
+          <button
+            type="button"
+            aria-expanded={abierta}
+            onClick={() => setAbierta((a) => !a)}
+            className="w-full flex items-center justify-between gap-3 min-h-11 text-left"
+          >
+            Dónde comprarla cerca, en 1, 2 o 3 súper
+            <span aria-hidden="true" className={`text-marca transition-transform ${abierta ? "rotate-45" : ""}`}>＋</span>
+          </button>
+        ) : (
+          "Dónde comprarla cerca"
+        )}
+      </h2>
+      {!abierta ? null : !zona && !zonaLista ? (
+        <p role="status" className="text-sm text-tinta-suave">Cargando…</p>
+      ) : !zona ? (
         <p className="text-sm text-tinta-media">Elegí tu zona arriba y te decimos en qué súper cercanos conviene hacer la compra, en una, dos o tres paradas.</p>
       ) : (
         <Contenido
@@ -166,7 +186,9 @@ function Contenido({
             ))}
           </ul>
           <div className="rounded-2xl overflow-hidden">
-            <MapaZona punto={punto} radioKm={radioKm} onElegirPunto={() => {}} sucursales={opcion.sucursales} />
+            <Suspense fallback={<div className="h-full grid place-items-center text-sm text-tinta-suave">Cargando el mapa…</div>}>
+              <MapaZona punto={punto} radioKm={radioKm} onElegirPunto={() => {}} sucursales={opcion.sucursales} />
+            </Suspense>
           </div>
         </>
       )}

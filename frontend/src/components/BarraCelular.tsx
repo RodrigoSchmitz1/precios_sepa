@@ -1,10 +1,8 @@
-import { useEffect, useState } from "react";
-import { NavLink, useLocation } from "react-router";
+import { NavLink, Link } from "react-router";
 import { useLista } from "../contexto/lista";
-import { BARRA_CELULAR, MENU_MAS, rutaDeMas } from "../utils/secciones";
-import { InterruptorDatosAnonimos } from "./DatosAnonimos";
+import { BARRA_CELULAR, RUTA_CARGAR_TICKET } from "../utils/secciones";
 
-/** El numero de productos de la lista, sobre el icono de "Mi lista". */
+/** El numero de productos de la lista, sobre el icono de "Mi compra". */
 function ContadorLista() {
   const { lista } = useLista();
   if (lista.length === 0) return null;
@@ -32,109 +30,61 @@ function Icono({ icono, activo, children }: { icono: string; activo: boolean; ch
 
 const CLASE_BOTON = "flex flex-col items-center justify-center gap-0.5 min-h-[52px] w-full pt-2 pb-1.5 text-[11px] font-semibold transition-colors";
 
+function Seccion({ seccion }: { seccion: (typeof BARRA_CELULAR)[number] }) {
+  return (
+    <li>
+      <NavLink
+        to={seccion.ruta}
+        end={seccion.ruta === "/"}
+        className={({ isActive }) => `${CLASE_BOTON} ${isActive ? "text-marca" : "text-tinta-suave"}`}
+      >
+        {({ isActive }) => (
+          <>
+            <Icono icono={seccion.icono} activo={isActive}>
+              {seccion.ruta === "/lista" && <ContadorLista />}
+            </Icono>
+            {seccion.corto}
+          </>
+        )}
+      </NavLink>
+    </li>
+  );
+}
+
 /*
   En el celular, las secciones van en una barra fija abajo, como en una app
-  (2026-10-14). Cinco lugares: cuatro secciones y "Mas", que abre una hoja con
-  las demas (mis-gastos-y-barra-nueva). Por encima del mapa: los controles de
-  Leaflet llegan a z-index 1000.
+  (2026-10-14). Desde app-para-el-usuario: dos secciones, el boton de cargar un
+  ticket en el centro y dos secciones mas. "Mas" esta arriba a la derecha
+  (MenuMas). Por encima del mapa: los controles de Leaflet llegan a z-index 1000.
 */
 export default function BarraCelular() {
-  const { pathname } = useLocation();
-  // La hoja recuerda en que pagina se abrio: al navegar a otra queda cerrada sola.
-  const [abiertaEn, setAbiertaEn] = useState<string | null>(null);
-  const abierta = abiertaEn === pathname;
-  const setAbierta = (valor: boolean | ((previo: boolean) => boolean)) =>
-    setAbiertaEn((previo) => {
-      const siguiente = typeof valor === "function" ? valor(previo === pathname) : valor;
-      return siguiente ? pathname : null;
-    });
-  const enMas = rutaDeMas(pathname);
-
-  useEffect(() => {
-    if (!abierta) return;
-    const alTeclear = (e: KeyboardEvent) => e.key === "Escape" && setAbiertaEn(null);
-    window.addEventListener("keydown", alTeclear);
-    return () => window.removeEventListener("keydown", alTeclear);
-  }, [abierta]);
-
+  const izquierda = BARRA_CELULAR.slice(0, 2);
+  const derecha = BARRA_CELULAR.slice(2);
   return (
-    <>
-      {abierta && (
-        <div className="sm:hidden fixed inset-0 z-[1250]" role="presentation">
-          <button
-            type="button"
-            aria-label="Cerrar el menú"
-            className="absolute inset-0 w-full h-full bg-tinta/30"
-            onClick={() => setAbierta(false)}
-          />
-          <div
-            id="hoja-mas"
-            role="menu"
-            aria-label="Más secciones"
-            className="absolute inset-x-0 bottom-0 rounded-t-3xl bg-papel px-4 pt-4 pb-[calc(76px+env(safe-area-inset-bottom))] shadow-[0_-8px_30px_rgb(20_20_80/0.15)]"
-          >
-            <ul className="grid gap-1">
-              {MENU_MAS.map((s) => (
-                <li key={s.ruta}>
-                  <NavLink
-                    to={s.ruta}
-                    role="menuitem"
-                    onClick={() => setAbierta(false)}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 min-h-12 rounded-2xl px-3 text-base font-semibold ${isActive ? "bg-marca-tenue text-marca" : "text-tinta"}`
-                    }
-                  >
-                    <span aria-hidden="true" className="text-xl">{s.icono}</span>
-                    {s.nombre}
-                  </NavLink>
-                </li>
-              ))}
-            </ul>
-            {/* Las señales anonimas se apagan aca en un toque (openspec senales-anonimas). */}
-            <div className="mt-2 pt-2 border-t border-linea">
-              <InterruptorDatosAnonimos />
-            </div>
-          </div>
-        </div>
-      )}
-      <nav
-        aria-label="Secciones"
-        className="sm:hidden fixed bottom-0 inset-x-0 z-[1300] bg-papel shadow-[0_-4px_20px_rgb(20_20_80/0.08)] pb-[env(safe-area-inset-bottom)]"
-      >
-        <ul className="grid grid-cols-5">
-          {BARRA_CELULAR.map((seccion) => (
-            <li key={seccion.ruta}>
-              <NavLink
-                to={seccion.ruta}
-                end={seccion.ruta === "/"}
-                className={({ isActive }) => `${CLASE_BOTON} ${isActive && !abierta ? "text-marca" : "text-tinta-suave"}`}
-              >
-                {({ isActive }) => (
-                  <>
-                    <Icono icono={seccion.icono} activo={isActive && !abierta}>
-                      {seccion.ruta === "/lista" && <ContadorLista />}
-                    </Icono>
-                    {seccion.corto}
-                  </>
-                )}
-              </NavLink>
-            </li>
-          ))}
-          <li>
-            <button
-              type="button"
-              aria-expanded={abierta}
-              aria-controls="hoja-mas"
-              aria-current={enMas ? "page" : undefined}
-              onClick={() => setAbierta((a) => !a)}
-              className={`${CLASE_BOTON} ${enMas || abierta ? "text-marca" : "text-tinta-suave"}`}
+    <nav
+      aria-label="Secciones"
+      className="sm:hidden fixed bottom-0 inset-x-0 z-[1300] bg-papel shadow-[0_-4px_20px_rgb(20_20_80/0.08)] pb-[env(safe-area-inset-bottom)]"
+    >
+      <ul className="grid grid-cols-[1fr_1fr_76px_1fr_1fr] items-end">
+        {izquierda.map((s) => (
+          <Seccion key={s.ruta} seccion={s} />
+        ))}
+        <li>
+          {/* Cargar un ticket es el gesto que la app quiere instalar: va destacado en el centro. */}
+          <Link to={RUTA_CARGAR_TICKET} className={`${CLASE_BOTON} text-tinta`}>
+            <span
+              aria-hidden="true"
+              className="-mt-7 grid place-items-center w-14 h-14 rounded-2xl fondo-marca text-white text-2xl border-4 border-papel shadow-[0_10px_20px_-8px_rgb(74_47_224/0.7)]"
             >
-              <Icono icono="☰" activo={enMas || abierta} />
-              Más
-            </button>
-          </li>
-        </ul>
-      </nav>
-    </>
+              📷
+            </span>
+            Ticket
+          </Link>
+        </li>
+        {derecha.map((s) => (
+          <Seccion key={s.ruta} seccion={s} />
+        ))}
+      </ul>
+    </nav>
   );
 }

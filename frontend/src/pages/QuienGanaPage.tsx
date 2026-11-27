@@ -4,19 +4,18 @@ import { useZona } from "../contexto/zona";
 import { rotuloZona, zonaAParametro } from "../utils/zona";
 import Titular, { Resaltado } from "../components/Titular";
 import FilaDeCifras from "../components/FilaDeCifras";
-import MapaDelMercado from "../components/MapaDelMercado";
 import AvisoCadenasDeOtroDia from "../components/AvisoCadenasDeOtroDia";
 import { formatearNumero } from "../utils/formato";
-import { liderEn } from "../utils/liderazgo";
+import { liderEn, liderPorCategoria } from "../utils/liderazgo";
 import type { QuienGana } from "../types";
 import { nombreCadena, nombreCategoria } from "../utils/nombres";
 
 /*
   Supermercado mas barato.
 
-  La pagina abre con el mapa del mercado (categorias x cadenas) y el detalle de
-  una categoria queda abajo. Antes era al reves: una categoria por vez, elegida
-  en un selector de 58 opciones, sin forma de ver el conjunto.
+  La pagina abre con el ganador de cada categoria y el detalle de una categoria
+  queda abajo. El cuadro de categorias x cadenas se saco en app-para-el-usuario
+  (2026-11-27): era informacion para analistas, no para quien hace la compra.
 
   UNA SOLA CONSULTA. El mart entero del ultimo dia son unas 800 filas, asi que
   se trae completo y todo el resto (el mapa, el detalle de cada categoria, la
@@ -185,12 +184,33 @@ function QuienGanaPage() {
             />
           </div>
 
-          <div className="mb-8">
-            <MapaDelMercado filas={filas} categoriaElegida={categoriaElegida} onElegir={setCategoriaElegida} />
-          </div>
+          <section aria-labelledby="titulo-ganadores" className="mb-8">
+            <h2 id="titulo-ganadores" className="text-base font-bold text-tinta mb-2">
+              La más barata en cada categoría
+            </h2>
+            <ul className="grid sm:grid-cols-2 gap-x-6">
+              {liderPorCategoria(filas, resumen.categorias)
+                .sort((a, b) => nombreCategoria(a.categoria).localeCompare(nombreCategoria(b.categoria), "es"))
+                .map((g) => (
+                  <li key={g.categoria} className="border-b border-linea">
+                    <button
+                      type="button"
+                      onClick={() => setCategoriaElegida(g.categoria)}
+                      aria-pressed={categoriaElegida === g.categoria}
+                      className={`w-full flex items-baseline justify-between gap-3 min-h-11 py-2 text-left ${
+                        categoriaElegida === g.categoria ? "text-marca" : "text-tinta"
+                      }`}
+                    >
+                      <span className="text-sm">{nombreCategoria(g.categoria)}</span>
+                      <span className="text-sm font-semibold text-right">{g.cadenas.map(nombreCadena).join(" y ")}</span>
+                    </button>
+                  </li>
+                ))}
+            </ul>
+          </section>
 
           {detalle.length === 0 ? (
-            <p className="text-sm text-tinta-suave">Tocá una categoría del mapa para ver cadena por cadena.</p>
+            <p className="text-sm text-tinta-suave">Tocá una categoría para ver cadena por cadena.</p>
           ) : (
             <div ref={detalleRef} className="scroll-mt-24">
               <div className="flex items-baseline justify-between gap-3 pb-2 border-b border-linea-fuerte">

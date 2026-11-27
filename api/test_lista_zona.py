@@ -47,6 +47,11 @@ class TestListaEnZona(unittest.TestCase):
         self.assertEqual(r, cotizar_lista(self.indice, items("yerba", "aceite"), None))
         self.assertEqual(r, cotizar_lista(self.indice, items("yerba", "aceite"), []))
 
+    def test_cada_producto_trae_su_precio_en_cada_cadena(self):
+        # Mi compra muestra el precio de cada producto en la cadena que conviene (app-para-el-usuario).
+        r = cotizar_lista(self.indice, items("yerba"), LOMAS)
+        self.assertEqual(r["productos"][0]["precios"], {"Coto": 3000, "Dia": 3400, "Cooperativa Obrera": 5000})
+
     def test_una_cadena_de_afuera_no_entra_en_la_zona(self):
         r = cotizar_lista(self.indice, items("yerba", "aceite"), LOMAS)
         self.assertEqual([c["cadena"] for c in r["zona"]["cadenas"]], ["Coto", "Dia"])

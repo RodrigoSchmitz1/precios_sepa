@@ -7,7 +7,9 @@ import ListaRecibida from "../components/ListaRecibida";
 import PegarLista from "../components/PegarLista";
 import ArmarCompra from "../components/ArmarCompra";
 import DondeComprarLista from "../components/DondeComprarLista";
-import EjemploDeCompra from "../components/EjemploDeCompra";
+import EjemploDeCompra, { BotonVerEjemplo } from "../components/EjemploDeCompra";
+import ArmarConLoQueCompras from "../components/ArmarConLoQueCompras";
+import BotonEscanear from "../components/BotonEscanear";
 import { useLista } from "../contexto/lista";
 import { listaDelLink } from "../utils/lista";
 
@@ -63,6 +65,7 @@ function ListaPage() {
       </Titular>
 
       {recibidaAbierta && <ListaRecibida recibidos={recibidos} onListo={cerrarRecibida} />}
+      <ArmarConLoQueCompras />
 
       {/* Con la lista vacia al entrar, el armado rapido va primero y queda
           arriba toda la visita: si quedara abajo de la comparacion, cada
@@ -71,6 +74,13 @@ function ListaPage() {
         <section className="tarjeta p-5 sm:p-6 mb-10">
           {/* Lista vacia: lo primero es armarla con un toque (lista-en-el-centro). */}
           <h2 className="text-lg font-bold text-tinta mb-1">Empezá con lo de siempre</h2>
+          {/* Idea de Convi (app-para-el-usuario): el ejemplo se pide, no se carga solo. */}
+          {lista.length === 0 && (
+            <div className="rounded-2xl bg-marca-tenue/60 p-3 mb-4 flex flex-wrap items-center justify-between gap-3">
+              <p className="text-sm text-tinta min-w-0">¿Querés ver cómo funciona? Armamos una compra de 12 productos comunes.</p>
+              <BotonVerEjemplo />
+            </div>
+          )}
           <p className="text-sm text-tinta-media mb-4">Tocá los productos que comprás y se suman a tu lista.</p>
           <ArmadoRapido />
           <p className="text-base text-tinta leading-relaxed mt-6">
@@ -93,6 +103,9 @@ function ListaPage() {
               Buscar
             </button>
           </form>
+          <p className="mt-3 flex flex-wrap items-center gap-2 text-sm text-tinta-media">
+            ¿Lo tenés a mano? <BotonEscanear />
+          </p>
         </section>
       )}
       <EjemploDeCompra />
@@ -107,7 +120,15 @@ function ListaPage() {
           onVer={(id) => navegar(`/mismo-producto?p=${encodeURIComponent(id)}`)}
         />
       )}
-      <DondeComprarLista lista={lista} />
+      {lista.length > 0 && (
+        <div className="-mt-6 mb-6 flex flex-wrap items-center gap-2">
+          <Link to="/mismo-producto" className="inline-flex items-center gap-2 rounded-xl border border-linea-fuerte bg-papel px-4 py-2.5 min-h-11 text-sm font-bold text-tinta hover:border-marca">
+            <span aria-hidden="true">🔎</span> Buscar
+          </Link>
+          <BotonEscanear />
+        </div>
+      )}
+      <DondeComprarLista lista={lista} plegado />
       {lista.length > 0 && (
         <p className="-mt-6 mb-10 text-base text-tinta-media">
           ¿Y lo que ya gastaste este mes?{" "}

@@ -7,9 +7,10 @@ import { obtenerEstadoSenales } from "../api/client";
 import { reiniciarSenalesParaTests } from "../utils/senales";
 import ProveedorLista from "./ProveedorLista";
 import BarraCelular from "./BarraCelular";
+import BotonMas from "./MenuMas";
 import { CLAVE_LISTA } from "../utils/lista";
 
-/* La barra del celular (openspec mis-gastos-y-barra-nueva). */
+/* La barra del celular y el menu Mas (openspec app-para-el-usuario). */
 
 vi.mock("../api/client", () => ({
   obtenerEstadoSenales: vi.fn(() => Promise.resolve({ activas: false })),
@@ -43,6 +44,7 @@ function mostrar(ruta: string) {
     raiz.render(
       <MemoryRouter initialEntries={[ruta]}>
         <ProveedorLista>
+          <BotonMas />
           <BarraCelular />
           <Routes>
             <Route path="*" element={<Ruta />} />
@@ -57,9 +59,21 @@ const etiquetas = () =>
   [...contenedor.querySelectorAll('nav[aria-label="Secciones"] li')].map((li) => li.textContent?.replace(/\d+/g, "").trim());
 
 describe("BarraCelular", () => {
-  it("tiene Promos, Buscar, Mi compra, Mis gastos y Más, en ese orden", () => {
+  it("tiene Promos, Buscar, Ticket, Mi compra y Mis gastos, en ese orden", () => {
     mostrar("/");
-    expect(etiquetas()).toEqual(["🔥Promos", "🔎Buscar", "🛒Mi compra", "💸Mis gastos", "☰Más"]);
+    expect(etiquetas()).toEqual(["🔥Promos", "🔎Buscar", "📷Ticket", "🛒Mi compra", "💸Mis gastos"]);
+  });
+
+  it("el botón Ticket lleva a cargar un gasto en Mis gastos", () => {
+    mostrar("/");
+    const ticket = [...contenedor.querySelectorAll<HTMLAnchorElement>("nav a")].find((a) => a.textContent?.includes("Ticket"))!;
+    expect(ticket.getAttribute("href")).toBe("/gastos?cargar=1");
+  });
+
+  it("Más no está en la barra: está arriba, fuera de la barra", () => {
+    mostrar("/");
+    expect(contenedor.querySelector('nav[aria-label="Secciones"] [aria-controls="hoja-mas"]')).toBeNull();
+    expect(contenedor.querySelector('[aria-controls="hoja-mas"]')).not.toBeNull();
   });
 
   it("Mi compra sigue mostrando cuántos productos tiene", () => {

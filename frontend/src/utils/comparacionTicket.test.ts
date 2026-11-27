@@ -1,7 +1,7 @@
 import * as XLSX from "xlsx";
 import { describe, expect, it } from "vitest";
 import type { Gasto, LineaGasto, ResultadoLista } from "../types";
-import { compararTicket, itemsDelTicket } from "./comparacionTicket";
+import { compararConPrecios, compararTicket, itemsDelTicket } from "./comparacionTicket";
 import { armarLibro } from "./excelGastos";
 import { medidasAchicadas } from "./fotos";
 
@@ -69,6 +69,21 @@ describe("hubieras pagado", () => {
   it("suma cantidades del mismo producto en varias líneas", () => {
     const datos = itemsDelTicket(gasto([linea("a", 1000), linea("a", 1000), linea("b", 500, 2)]));
     expect(datos.items).toEqual([{ id_producto: "a", cantidad: 2 }, { id_producto: "b", cantidad: 2 }]);
+  });
+});
+
+describe("comparar todos los tickets con una sola cotización (app-para-el-usuario)", () => {
+  it("con los precios por cadena da lo mismo que cotizar el ticket", () => {
+    const ticket = gasto([linea("a", 20000), linea("b", 16000), linea(null, 4000)]);
+    const precios = { a: { Coto: 20000, Día: 17000, Vea: 15000 }, b: { Coto: 16000, Día: 14000 } };
+    const r = compararConPrecios(ticket, precios, new Set(["Coto", "Día", "Vea"]), 0.6);
+    expect(r).toEqual({ estado: "ok", pagado: 36000, cadena: "Día", total: 31000, diferencia: 5000, esLaMisma: false });
+  });
+
+  it("una cadena de afuera de la zona no cuenta", () => {
+    const ticket = gasto([linea("a", 20000)]);
+    const r = compararConPrecios(ticket, { a: { Maxi: 10000, Coto: 20000 } }, new Set(["Coto"]), 0.6);
+    expect(r).toMatchObject({ estado: "ok", cadena: "Coto", esLaMisma: true });
   });
 });
 

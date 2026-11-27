@@ -70,3 +70,30 @@ export function comparacionDeLista(
   if (!barata || !cara || barata === cara || cara.total <= barata.total) return "sin_comparacion";
   return ((cara.total - barata.total) / barata.total) * 100 < DIFERENCIA_CASI_IGUAL_PCT ? "casi_igual" : "ahorro";
 }
+
+export type CifraDeLista = {
+  barata: TotalCadenaLista;
+  /** La siguiente cadena con todos los productos, si hay. */
+  siguiente: TotalCadenaLista | undefined;
+  /** Cuanto mas sale en la siguiente (0 sin siguiente). */
+  diferencia: number;
+  comparacion: ReturnType<typeof comparacionDeLista>;
+};
+
+/**
+ * La cifra de tu compra (openspec app-para-el-usuario): la cadena mas barata con
+ * todos los productos contra la SIGUIENTE, no contra la mas cara. La portada,
+ * Mi compra y Buscar dicen lo mismo porque leen de aca. Medir contra la mas
+ * cara inflaba el ahorro con cadenas que nadie elegiria.
+ */
+export function cifraDeLista(completas: TotalCadenaLista[]): CifraDeLista | null {
+  const ordenadas = [...completas].sort((a, b) => a.total - b.total || a.cadena.localeCompare(b.cadena));
+  const [barata, siguiente] = ordenadas;
+  if (!barata) return null;
+  return {
+    barata,
+    siguiente,
+    diferencia: siguiente ? Math.max(0, siguiente.total - barata.total) : 0,
+    comparacion: comparacionDeLista(barata, siguiente),
+  };
+}

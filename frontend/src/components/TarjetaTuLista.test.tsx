@@ -10,9 +10,9 @@ import type { Zona } from "../utils/zona";
 import ProveedorLista from "./ProveedorLista";
 import TarjetaTuLista from "./TarjetaTuLista";
 
-/* La portada arranca por tu lista (openspec lista-en-el-centro). */
+/* La tarjeta de tu compra en la portada (openspec app-para-el-usuario; antes lista-en-el-centro). */
 
-vi.mock("../api/client", () => ({ cotizarLista: vi.fn() }));
+vi.mock("../api/client", () => ({ cotizarLista: vi.fn(), obtenerBasicos: vi.fn() }));
 
 (globalThis as { IS_REACT_ACT_ENVIRONMENT?: boolean }).IS_REACT_ACT_ENVIRONMENT = true;
 
@@ -71,7 +71,8 @@ describe("TarjetaTuLista", () => {
       { id_producto: "2", nombre: "Aceite", cantidad: 1 },
     ]));
     const texto = await mostrar(TRES_ARROYOS);
-    expect(texto).toContain("Tu lista · 2 productos: en Vea te sale $ 13.465");
+    expect(texto).toContain("Tus 2 productos salen $ 13.465 en Vea.");
+    expect(texto).toContain("En Día, la siguiente opción, pagás $ 535 más.");
     expect(contenedor.querySelector("a")?.getAttribute("href")).toBe("/lista");
     expect(cotizarLista).toHaveBeenCalledWith(
       [
@@ -82,12 +83,28 @@ describe("TarjetaTuLista", () => {
     );
   });
 
-  it("sin lista no muestra nada ni cotiza", async () => {
-    expect(await mostrar(TRES_ARROYOS)).toBe("");
+  it("sin lista invita con Ver un ejemplo y no cotiza", async () => {
+    const texto = await mostrar(TRES_ARROYOS);
+    expect(texto).toContain("¿Dónde te conviene tu compra?");
+    expect(texto).toContain("Ver un ejemplo");
     expect(cotizarLista).not.toHaveBeenCalled();
   });
 
-  it("con la compra de ejemplo: cuánto ahorrás entre la más cara y la más barata (ejemplo-para-empezar)", async () => {
+  it("la semana siguiente dice cuánto cambió, con la misma lista", async () => {
+    const lista = [
+      { id_producto: "1", nombre: "Yerba", cantidad: 1 },
+      { id_producto: "2", nombre: "Aceite", cantidad: 1 },
+    ];
+    window.localStorage.setItem("changuito.lista.v1", JSON.stringify(lista));
+    // La semana pasada salia $ 14.000 en Vea, con la misma lista y zona.
+    window.localStorage.setItem("changuito.lista.semana.v1", JSON.stringify({
+      semana: "2000-01-03", huella: "1x1,2x1|Dia,Vea", cadena: "Vea", total: 14000, anterior: null,
+    }));
+    const texto = await mostrar(TRES_ARROYOS);
+    expect(texto).toContain("Esta semana, $ 535 menos que la semana pasada.");
+  });
+
+  it("con la compra de ejemplo: cuánto más sale en la siguiente opción", async () => {
     window.localStorage.setItem("changuito.lista.v1", JSON.stringify([
       { id_producto: "1", nombre: "Yerba", cantidad: 1, grupo: "Almacén" },
       { id_producto: "2", nombre: "Aceite", cantidad: 1, grupo: "Almacén" },
@@ -95,7 +112,8 @@ describe("TarjetaTuLista", () => {
     window.localStorage.setItem("changuito.lista.ejemplo.v1", "activo");
     const texto = await mostrar(TRES_ARROYOS);
     expect(texto).toContain("Mirá cuánto ahorrás en tu compra");
-    expect(texto).toContain("Una compra de ejemplo de 2 productos sale $ 13.465 en Vea y $ 535 más en Día.");
+    expect(texto).toContain("Una compra de ejemplo de 2 productos sale $ 13.465 en Vea.");
+    expect(texto).toContain("En Día, la siguiente opción, pagás $ 535 más.");
     expect(contenedor.querySelector("a")?.getAttribute("href")).toBe("/lista");
   });
 });

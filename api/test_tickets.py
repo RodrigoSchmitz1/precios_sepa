@@ -264,11 +264,15 @@ class TestFotosApagadas(unittest.TestCase):
 
     def setUp(self):
         self.cliente = TestClient(main.app, raise_server_exceptions=False)
+        # El estado tambien trae los rubros (app-para-el-usuario): sin indice, vacios.
+        parche = mock.patch.object(main, "_rubros_de_gastos", return_value={})
+        parche.start()
+        self.addCleanup(parche.stop)
 
     def test_apagadas_por_defecto(self):
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop("FOTOS_DE_TICKETS", None)
-            self.assertEqual(self.cliente.get("/api/gastos/estado").json(), {"fotos": False})
+            self.assertIs(self.cliente.get("/api/gastos/estado").json()["fotos"], False)
             with mock.patch.object(tickets, "leer_con_gemini") as gemini:
                 r = self.cliente.post("/api/gastos/leer-ticket", json={"fotos": [FOTO]})
                 gemini.assert_not_called()
@@ -277,7 +281,7 @@ class TestFotosApagadas(unittest.TestCase):
 
     def test_prendidas(self):
         with mock.patch.dict(os.environ, {"FOTOS_DE_TICKETS": "1"}):
-            self.assertEqual(self.cliente.get("/api/gastos/estado").json(), {"fotos": True})
+            self.assertIs(self.cliente.get("/api/gastos/estado").json()["fotos"], True)
 
 
 if __name__ == "__main__":

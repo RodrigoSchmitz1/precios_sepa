@@ -5,10 +5,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { obtenerBasicos } from "../api/client";
 import { useLista } from "../contexto/lista";
 import type { Basico, ProductoComparado } from "../types";
-import EjemploDeCompra from "./EjemploDeCompra";
+import EjemploDeCompra, { BotonVerEjemplo } from "./EjemploDeCompra";
 import ProveedorLista from "./ProveedorLista";
 
-/* La compra de ejemplo de la primera visita (openspec ejemplo-para-empezar). */
+/* La compra de ejemplo a pedido (openspec app-para-el-usuario, antes ejemplo-para-empezar). */
 
 vi.mock("../api/client", () => ({ obtenerBasicos: vi.fn() }));
 
@@ -50,13 +50,14 @@ afterEach(() => {
   vi.clearAllMocks();
 });
 
-async function mostrar(conEjemplo = true) {
+async function mostrar() {
   await act(async () => {
     raiz.render(
-      <ProveedorLista conEjemplo={conEjemplo}>
+      <ProveedorLista>
         <Espia onEstado={(e) => {
           estado = e;
         }} />
+        <BotonVerEjemplo />
         <EjemploDeCompra />
       </ProveedorLista>,
     );
@@ -72,8 +73,17 @@ async function remontar() {
 const boton = (texto: string) => [...contenedor.querySelectorAll("button")].find((b) => b.textContent?.includes(texto));
 
 describe("compra de ejemplo", () => {
-  it("la primera vez carga los dos básicos con más empresas de cada grupo, con el cartel", async () => {
+  it("no se carga sola: la lista arranca vacía y sin pedir básicos", async () => {
     await mostrar();
+    expect(estado.lista).toEqual([]);
+    expect(estado.esEjemplo).toBe(false);
+    expect(obtenerBasicos).not.toHaveBeenCalled();
+    expect(boton("Ver un ejemplo")).toBeTruthy();
+  });
+
+  it("Ver un ejemplo carga los dos básicos con más empresas de cada grupo, con el cartel", async () => {
+    await mostrar();
+    await act(async () => boton("Ver un ejemplo")!.click());
     expect(estado.esEjemplo).toBe(true);
     expect(estado.lista).toHaveLength(12);
     expect(estado.lista.map((i) => i.id_producto).filter((id) => id.endsWith("1"))).toEqual([]);
@@ -81,62 +91,81 @@ describe("compra de ejemplo", () => {
     expect(boton("Limpieza")).toBeTruthy();
   });
 
-  it("sin conEjemplo (fuera del Layout) no carga nada", async () => {
-    await mostrar(false);
-    expect(estado.lista).toEqual([]);
-    expect(obtenerBasicos).not.toHaveBeenCalled();
-  });
-
-  it("borrar el ejemplo vacía la lista y no vuelve", async () => {
+  it("borrar el ejemplo vacía la lista y no vuelve cargado", async () => {
     await mostrar();
+    await act(async () => boton("Ver un ejemplo")!.click());
     await act(async () => boton("Borrar el ejemplo")!.click());
     expect(estado.lista).toEqual([]);
     await remontar();
     expect(estado.lista).toEqual([]);
     expect(contenedor.textContent).not.toContain("Lista de ejemplo");
+    expect(boton("Ver un ejemplo")).toBeTruthy();
   });
 
   it("sacar un grupo no la hace propia", async () => {
     await mostrar();
+    await act(async () => boton("Ver un ejemplo")!.click());
     await act(async () => boton("Limpieza")!.click());
     expect(estado.lista.some((i) => i.grupo === "Limpieza")).toBe(false);
     expect(estado.lista).toHaveLength(10);
     expect(estado.esEjemplo).toBe(true);
   });
 
-  it("sumar un producto la hace propia y conserva lo que había", async () => {
+  it("sumar un producto reemplaza al ejemplo", async () => {
     await mostrar();
-    await act(async () => estado.agregar({ id_producto: "999", nombre: "Atún", cantidad: 1 }));
+    await act(async () => boton("Ver un ejemplo")!.click());
+    await act(async () => estado.agregar({ id_producto: "999", nombre: "Yerba", cantidad: 1 }));
     expect(estado.esEjemplo).toBe(false);
-    expect(estado.lista).toHaveLength(13);
+    expect(estado.lista.map((i) => i.id_producto)).toEqual(["999"]);
     expect(contenedor.textContent).not.toContain("Lista de ejemplo");
-    await act(async () => estado.vaciar());
-    await remontar();
-    expect(estado.lista).toEqual([]);
+    expect(estado.deshacer).not.toBeNull();
   });
 
-  it("con una lista propia guardada no carga el ejemplo, ni después de vaciarla", async () => {
+  it("Deshacer vuelve el ejemplo con lo sumado, como lista propia", async () => {
+    await mostrar();
+    await act(async () => boton("Ver un ejemplo")!.click());
+    await act(async () => estado.agregar({ id_producto: "999", nombre: "Yerba", cantidad: 1 }));
+    await act(async () => estado.deshacer!());
+    expect(estado.lista).toHaveLength(13);
+    expect(estado.esEjemplo).toBe(false);
+    expect(estado.deshacer).toBeNull();
+  });
+
+  it("Deshacer se va solo después de unos segundos", async () => {
+    vi.useFakeTimers();
+    try {
+      await mostrar();
+      await act(async () => boton("Ver un ejemplo")!.click());
+      await act(async () => estado.agregar({ id_producto: "999", nombre: "Yerba", cantidad: 1 }));
+      await act(async () => vi.advanceTimersByTime(6100));
+      expect(estado.deshacer).toBeNull();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("cambiar una cantidad la hace propia y conserva los 12", async () => {
+    await mostrar();
+    await act(async () => boton("Ver un ejemplo")!.click());
+    const id = estado.lista[0].id_producto;
+    await act(async () => estado.cambiarCantidad(id, 3));
+    expect(estado.esEjemplo).toBe(false);
+    expect(estado.lista).toHaveLength(12);
+  });
+
+  it("con una lista propia, sumar no reemplaza nada", async () => {
     window.localStorage.setItem("changuito.lista.v1", JSON.stringify([{ id_producto: "1", nombre: "Yerba", cantidad: 1 }]));
     await mostrar();
-    expect(estado.lista).toHaveLength(1);
-    expect(estado.esEjemplo).toBe(false);
-    await act(async () => estado.vaciar());
-    await remontar();
-    expect(estado.lista).toEqual([]);
+    await act(async () => estado.agregar({ id_producto: "2", nombre: "Leche", cantidad: 1 }));
+    expect(estado.lista).toHaveLength(2);
+    expect(estado.deshacer).toBeNull();
   });
 
-  it("una lista que llega por link tiene prioridad", async () => {
-    window.history.replaceState(null, "", "/lista?l=7790001");
-    await mostrar();
-    expect(estado.lista).toEqual([]);
-    expect(obtenerBasicos).not.toHaveBeenCalled();
-  });
-
-  it("si faltan básicos no hay ejemplo y se reintenta en la próxima visita", async () => {
+  it("si faltan básicos lo dice y la lista queda vacía", async () => {
     vi.mocked(obtenerBasicos).mockResolvedValueOnce(BASICOS.slice(0, 6));
     await mostrar();
+    await act(async () => boton("Ver un ejemplo")!.click());
     expect(estado.lista).toEqual([]);
-    await remontar();
-    expect(estado.lista).toHaveLength(12);
+    expect(contenedor.textContent).toContain("No se pudo armar el ejemplo");
   });
 });
