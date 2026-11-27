@@ -1,0 +1,67 @@
+version: 2
+
+# Tests unitarios del precio de un producto en una cadena (change
+# precios-por-cadena-deterministas, 2026-11-26). Corren en BigQuery con filas de
+# prueba: no leen los datos del dia.
+#
+# Fijan la mediana baja exacta: con cantidad par de sucursales, el de abajo de
+# los dos del medio, no el promedio. Y que el tamano sea uno declarado.
+
+unit_tests:
+  - name: precio_cadena_es_la_mediana_baja_de_sus_sucursales
+    description: >
+      Tres casos en un solo producto: Coto con 3 sucursales (impar: el del
+      medio), Jumbo con 4 (par: el de abajo de los dos del medio, $110 y no el
+      promedio $120) y Dia con una sola. El precio publicado es siempre uno que
+      cobra alguna sucursal.
+    model: int_precio_producto_cadena
+    overrides:
+      macros:
+        is_incremental: false
+    given:
+      - input: ref('stg_productos')
+        rows:
+          - {fecha_datos: "2026-11-25", id_producto: "1", id_comercio: "12", id_bandera: "1", id_sucursal: "1", precio: 300, cantidad_normalizada: 500, unidad_normalizada: g}
+          - {fecha_datos: "2026-11-25", id_producto: "1", id_comercio: "12", id_bandera: "1", id_sucursal: "2", precio: 100, cantidad_normalizada: 500, unidad_normalizada: g}
+          - {fecha_datos: "2026-11-25", id_producto: "1", id_comercio: "12", id_bandera: "1", id_sucursal: "3", precio: 120, cantidad_normalizada: 500, unidad_normalizada: g}
+          - {fecha_datos: "2026-11-25", id_producto: "1", id_comercio: "15", id_bandera: "1", id_sucursal: "1", precio: 500, cantidad_normalizada: 500, unidad_normalizada: g}
+          - {fecha_datos: "2026-11-25", id_producto: "1", id_comercio: "15", id_bandera: "1", id_sucursal: "2", precio: 130, cantidad_normalizada: 500, unidad_normalizada: g}
+          - {fecha_datos: "2026-11-25", id_producto: "1", id_comercio: "15", id_bandera: "1", id_sucursal: "3", precio: 100, cantidad_normalizada: 500, unidad_normalizada: g}
+          - {fecha_datos: "2026-11-25", id_producto: "1", id_comercio: "15", id_bandera: "1", id_sucursal: "4", precio: 110, cantidad_normalizada: 500, unidad_normalizada: g}
+          - {fecha_datos: "2026-11-25", id_producto: "1", id_comercio: "16", id_bandera: "1", id_sucursal: "1", precio: 250, cantidad_normalizada: 500, unidad_normalizada: g}
+      - input: ref('stg_comercio')
+        rows:
+          - {id_comercio: "12", id_bandera: "1", nombre_comercial: Coto, formato: supermercado}
+          - {id_comercio: "15", id_bandera: "1", nombre_comercial: Jumbo, formato: supermercado}
+          - {id_comercio: "16", id_bandera: "1", nombre_comercial: Dia, formato: supermercado}
+    expect:
+      rows:
+        - {cadena: Coto, precio_mediano: 120, precio_minimo: 100, precio_maximo: 300, sucursales: 3}
+        - {cadena: Jumbo, precio_mediano: 110, precio_minimo: 100, precio_maximo: 500, sucursales: 4}
+        - {cadena: Dia, precio_mediano: 250, precio_minimo: 250, precio_maximo: 250, sucursales: 1}
+
+  - name: tamano_cadena_es_uno_declarado_y_tolera_nulos
+    description: >
+      Carrefour declara 500 g en una sucursal y 1.000 g en otra: el tamano es
+      500, nunca el promedio 750, un envase que no existe. Coto no trae una
+      cantidad reconocible en ninguna sucursal: el tamano queda vacio y su
+      precio se calcula igual, sin cortar la corrida.
+    model: int_precio_producto_cadena
+    overrides:
+      macros:
+        is_incremental: false
+    given:
+      - input: ref('stg_productos')
+        rows:
+          - {fecha_datos: "2026-11-25", id_producto: "2", id_comercio: "2", id_bandera: "1", id_sucursal: "1", precio: 1000, cantidad_normalizada: 1000, unidad_normalizada: g}
+          - {fecha_datos: "2026-11-25", id_producto: "2", id_comercio: "2", id_bandera: "1", id_sucursal: "2", precio: 1200, cantidad_normalizada: 500, unidad_normalizada: g}
+          - {fecha_datos: "2026-11-25", id_producto: "2", id_comercio: "12", id_bandera: "1", id_sucursal: "1", precio: 900, cantidad_normalizada: null, unidad_normalizada: null}
+          - {fecha_datos: "2026-11-25", id_producto: "2", id_comercio: "12", id_bandera: "1", id_sucursal: "2", precio: 950, cantidad_normalizada: null, unidad_normalizada: null}
+      - input: ref('stg_comercio')
+        rows:
+          - {id_comercio: "2", id_bandera: "1", nombre_comercial: Carrefour, formato: supermercado}
+          - {id_comercio: "12", id_bandera: "1", nombre_comercial: Coto, formato: supermercado}
+    expect:
+      rows:
+        - {cadena: Carrefour, precio_mediano: 1000, cantidad_normalizada: 500}
+        - {cadena: Coto, precio_mediano: 900, cantidad_normalizada: null}

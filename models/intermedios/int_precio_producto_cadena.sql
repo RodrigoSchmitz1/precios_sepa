@@ -50,7 +50,12 @@ SELECT
     MIN(p.id_comercio) AS empresa,
     -- supermercado o farmacia, de stg_comercio (2026-11-19).
     MIN(c.formato) AS formato,
-    APPROX_QUANTILES(p.precio, 2)[OFFSET(1)] AS precio_mediano,
+    -- Mediana baja exacta (macro mediana_baja) desde el 2026-11-26. Con
+    -- APPROX_QUANTILES dos corridas con el mismo crudo daban precios distintos
+    -- (123 de ~258 mil, hasta 22%), y el ruido llegaba a Mismo producto, Quien
+    -- gana y los cambios de precio. Ver la macro para por que baja y no el
+    -- promedio de los dos del medio.
+    {{ mediana_baja("p.precio") }} AS precio_mediano,
     MIN(p.precio) AS precio_minimo,
     MAX(p.precio) AS precio_maximo,
     COUNT(DISTINCT p.id_sucursal) AS sucursales,
@@ -62,11 +67,12 @@ SELECT
     -- puede traer la cantidad mal cargada en alguna sucursal, igual que el
     -- precio, y la mediana lo aguanta. La unidad va con MIN, que es
     -- determinista; para un codigo de barras dado no deberia variar.
-    -- SAFE_OFFSET y no OFFSET: cantidad_normalizada es NULL cuando la unidad
-    -- no se reconoce, y APPROX_QUANTILES ignora los NULL. Si TODAS las filas de
-    -- un producto x cadena la tienen nula, devuelve un array vacio y OFFSET(1)
-    -- cortaria la corrida entera por un producto sin gramaje.
-    APPROX_QUANTILES(p.cantidad_normalizada, 2)[SAFE_OFFSET(1)] AS cantidad_normalizada,
+    -- Mediana baja, como el precio: el tamano es siempre uno que declaro alguna
+    -- sucursal (nunca 750 g entre una de 500 y una de 1.000).
+    -- cantidad_normalizada es NULL cuando la unidad no se reconoce; la macro
+    -- ignora los NULL y, si TODAS las filas de un producto x cadena la tienen
+    -- nula, da NULL sin cortar la corrida por un producto sin gramaje.
+    {{ mediana_baja("p.cantidad_normalizada") }} AS cantidad_normalizada,
     MIN(p.unidad_normalizada) AS unidad_normalizada
 FROM {{ ref("stg_productos") }} AS p
 JOIN {{ ref("stg_comercio") }} AS c

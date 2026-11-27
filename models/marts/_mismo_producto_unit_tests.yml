@@ -192,3 +192,66 @@ unit_tests:
         - {cadena: Carrefour, fecha_datos: "2026-11-11", fecha_precio: "2026-11-11", precio_mediano: 1010, precio_mas_alto: 1100}
         - {cadena: Coto, fecha_datos: "2026-11-11", fecha_precio: "2026-11-11", precio_mediano: 1000, precio_mas_alto: 1100}
         - {cadena: Jumbo, fecha_datos: "2026-11-11", fecha_precio: "2026-11-10", precio_mediano: 1100, precio_mas_alto: 1100}
+
+  # Desempates (change precios-por-cadena-deterministas, 2026-11-26). Sin un
+  # ultimo criterio por texto, dos marcas o dos tamanos empatados salian uno u
+  # otro segun la corrida: ~150 productos cambiaban de nombre y ~10 de tamano
+  # sin que cambiara el dato. Un test no prueba que algo no sea al azar, pero
+  # fija cual gana.
+  - name: mismo_producto_dos_marcas_empatadas_gana_siempre_la_misma
+    description: >
+      Dos comercios informan "PUREZA DE LAS SIERRA" y otros dos "PUREZA D LAS
+      SIERRAS": mismos comercios y mismo largo (20). Gana la primera en orden
+      alfabetico, "PUREZA D LAS SIERRAS", en todas las corridas.
+    model: mart_mismo_producto
+    overrides:
+      macros:
+        ultima_fecha: "2026-11-25"
+    given:
+      - input: ref('int_precio_producto_cadena')
+        rows:
+          - {fecha_datos: "2026-11-25", id_producto: "77", cadena: Coto, empresa: "12", precio_mediano: 2000, precio_minimo: 2000, precio_maximo: 2000, sucursales: 50, cantidad_normalizada: 1000, unidad_normalizada: g}
+          - {fecha_datos: "2026-11-25", id_producto: "77", cadena: Dia, empresa: "15", precio_mediano: 2100, precio_minimo: 2100, precio_maximo: 2100, sucursales: 50, cantidad_normalizada: 1000, unidad_normalizada: g}
+          - {fecha_datos: "2026-11-25", id_producto: "77", cadena: Vea, empresa: "9", precio_mediano: 2200, precio_minimo: 2200, precio_maximo: 2200, sucursales: 50, cantidad_normalizada: 1000, unidad_normalizada: g}
+          - {fecha_datos: "2026-11-25", id_producto: "77", cadena: Carrefour, empresa: "2", precio_mediano: 2150, precio_minimo: 2150, precio_maximo: 2150, sucursales: 50, cantidad_normalizada: 1000, unidad_normalizada: g}
+      - input: ref('stg_categorias')
+        rows:
+          - {id_producto: "77", descripcion: HARINA, marca: PUREZA, categoria: Harinas, rubro: Almacen}
+      - input: source('sepa', 'productos')
+        rows:
+          - {fecha_datos: "2026-11-25", id_producto: "77", id_comercio: "12", productos_descripcion: HARINA LEUDANTE PUREZA 1 KG, productos_marca: PUREZA DE LAS SIERRA}
+          - {fecha_datos: "2026-11-25", id_producto: "77", id_comercio: "15", productos_descripcion: HARINA LEUDANTE PUREZA 1 KG, productos_marca: PUREZA DE LAS SIERRA}
+          - {fecha_datos: "2026-11-25", id_producto: "77", id_comercio: "9", productos_descripcion: HARINA LEUDANTE PUREZA 1 KG, productos_marca: PUREZA D LAS SIERRAS}
+          - {fecha_datos: "2026-11-25", id_producto: "77", id_comercio: "2", productos_descripcion: HARINA LEUDANTE PUREZA 1 KG, productos_marca: PUREZA D LAS SIERRAS}
+    expect:
+      rows:
+        - {cadena: Coto, marca: PUREZA D LAS SIERRAS}
+        - {cadena: Dia, marca: PUREZA D LAS SIERRAS}
+        - {cadena: Vea, marca: PUREZA D LAS SIERRAS}
+        - {cadena: Carrefour, marca: PUREZA D LAS SIERRAS}
+
+  - name: mismo_producto_dos_tamanos_empatados_gana_el_menor
+    description: >
+      Coto dice 900 g y Dia 500 g, cada una con 50 sucursales; Jumbo no trae un
+      tamano reconocible. Mismos votos en empresas y sucursales: gana el menor,
+      500 g, en todas las corridas y en todas las filas del producto.
+    model: mart_mismo_producto
+    overrides:
+      macros:
+        ultima_fecha: "2026-11-25"
+    given:
+      - input: ref('int_precio_producto_cadena')
+        rows:
+          - {fecha_datos: "2026-11-25", id_producto: "78", cadena: Coto, empresa: "12", precio_mediano: 2000, precio_minimo: 2000, precio_maximo: 2000, sucursales: 50, cantidad_normalizada: 900, unidad_normalizada: g}
+          - {fecha_datos: "2026-11-25", id_producto: "78", cadena: Dia, empresa: "15", precio_mediano: 2100, precio_minimo: 2100, precio_maximo: 2100, sucursales: 50, cantidad_normalizada: 500, unidad_normalizada: g}
+          - {fecha_datos: "2026-11-25", id_producto: "78", cadena: Jumbo, empresa: "11", precio_mediano: 2200, precio_minimo: 2200, precio_maximo: 2200, sucursales: 20, cantidad_normalizada: null, unidad_normalizada: null}
+      - input: ref('stg_categorias')
+        rows:
+          - {id_producto: "78", descripcion: GALLETITAS, marca: X, categoria: Galletitas, rubro: Almacen}
+      - input: source('sepa', 'productos')
+        rows: []
+    expect:
+      rows:
+        - {cadena: Coto, cantidad_normalizada: 500, unidad_normalizada: g}
+        - {cadena: Dia, cantidad_normalizada: 500, unidad_normalizada: g}
+        - {cadena: Jumbo, cantidad_normalizada: 500, unidad_normalizada: g}

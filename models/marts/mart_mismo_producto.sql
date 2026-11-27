@@ -198,7 +198,7 @@ evaluados AS (
 -- La regla: "unidad" pierde contra cualquier g o cc, porque "1 unidad" es lo
 -- que carga una cadena cuando no informa el peso. Entre los demas gana el que
 -- declaran mas EMPRESAS, no mas banderas: con banderas, el error de Cencosud
--- valia tres votos. Empate: mas sucursales.
+-- valia tres votos. Empate: mas sucursales, y despues el menor tamano.
 tamanos AS (
     SELECT
         id_producto,
@@ -216,7 +216,15 @@ tamano_producto AS (
         id_producto,
         ARRAY_AGG(
             STRUCT(cantidad_normalizada, unidad_normalizada)
-            ORDER BY unidad_normalizada = "unidad", empresas_que_lo_dicen DESC, sucursales_que_lo_dicen DESC
+            -- Desempate final (2026-11-26): con los mismos votos, el menor
+            -- tamano. Ninguno es mas cierto que el otro; lo que importa es que
+            -- salga siempre el mismo (antes ~10 productos alternaban).
+            ORDER BY
+                unidad_normalizada = "unidad",
+                empresas_que_lo_dicen DESC,
+                sucursales_que_lo_dicen DESC,
+                cantidad_normalizada,
+                unidad_normalizada
             LIMIT 1
         )[OFFSET(0)] AS tamano
     FROM tamanos
@@ -273,7 +281,11 @@ nombres_crudos AS (
 marca_producto AS (
     SELECT
         id_producto,
-        ARRAY_AGG(marca ORDER BY comercios DESC, LENGTH(marca) DESC LIMIT 1)[OFFSET(0)] AS marca
+        -- El ultimo criterio, el texto, es el desempate (2026-11-26): sin el,
+        -- dos marcas con los mismos comercios y el mismo largo ("PUREZA D LAS
+        -- SIERRAS" y "PUREZA DE LAS SIERRA") salian una u otra segun la
+        -- corrida, y ~150 productos cambiaban de nombre sin que cambiara el dato.
+        ARRAY_AGG(marca ORDER BY comercios DESC, LENGTH(marca) DESC, marca LIMIT 1)[OFFSET(0)] AS marca
     FROM (
         SELECT id_producto, marca, COUNT(DISTINCT id_comercio) AS comercios
         FROM nombres_crudos
@@ -297,8 +309,17 @@ nombre_producto AS (
             LIMIT 1
         )[OFFSET(0)] AS descripcion,
         ANY_VALUE(m.marca) AS marca,
-        SUBSTR(STRING_AGG(DISTINCT LOWER(CONCAT(n.descripcion, " ", IFNULL(n.marca, ""))), " "), 1, 1500)
-            AS textos_busqueda
+        -- Ordenado (2026-11-26): sin ORDER BY, STRING_AGG junta los textos en
+        -- cualquier orden y dos corridas con los mismos datos daban otra fila en
+        -- 124.606 de 225.409. Con el corte a 1.500, un producto largo perderia
+        -- palabras distintas segun la corrida (medido: hoy ninguno llega al corte).
+        SUBSTR(
+            STRING_AGG(
+                DISTINCT LOWER(CONCAT(n.descripcion, " ", IFNULL(n.marca, ""))), " "
+                ORDER BY LOWER(CONCAT(n.descripcion, " ", IFNULL(n.marca, "")))
+            ),
+            1, 1500
+        ) AS textos_busqueda
     FROM nombres_crudos AS n
     LEFT JOIN marca_producto AS m USING (id_producto)
     GROUP BY n.id_producto

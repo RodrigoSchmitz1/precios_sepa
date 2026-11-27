@@ -19,3 +19,28 @@
         WHERE o BETWEEN DIV(ARRAY_LENGTH({{ arreglo }}) - 1, 2) AND DIV(ARRAY_LENGTH({{ arreglo }}), 2)
     )
 {% endmacro %}
+
+{#
+    Mediana BAJA exacta, como agregado: el valor del medio y, con cantidad par
+    de valores, el de abajo de los dos del medio. Va directo en un SELECT con
+    GROUP BY, sin la CTE que necesita `mediana`.
+
+    POR QUE BAJA Y NO EL PROMEDIO (2026-11-26, change
+    precios-por-cadena-deterministas)
+    Es la que usa el precio de un producto en una cadena
+    (int_precio_producto_cadena). Antes era APPROX_QUANTILES(x, 2)[OFFSET(1)],
+    que no es determinista: dos reconstrucciones con el mismo crudo cambiaron
+    123 de ~258 mil precios, hasta 22%. En los grupos chicos el aproximado ya
+    daba el de abajo, asi que la mediana baja solo mueve los grupos donde se
+    equivocaba; el promedio habria movido miles de precios el dia del deploy, y
+    la historia y los cambios de precio los habrian leido como cambios reales.
+    Ademas el resultado es siempre un valor que alguien informo: un precio que
+    cobra alguna sucursal, un tamano que declaro alguna (nunca 750 g entre 500 y
+    1.000).
+
+    Los NULL se ignoran. Si todos lo son, ARRAY_AGG devuelve NULL y el
+    resultado es NULL, sin cortar la corrida.
+#}
+{% macro mediana_baja(columna) %}
+    ARRAY_AGG({{ columna }} IGNORE NULLS ORDER BY {{ columna }})[SAFE_OFFSET(DIV(COUNT({{ columna }}) - 1, 2))]
+{% endmacro %}

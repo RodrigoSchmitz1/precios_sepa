@@ -1571,6 +1571,56 @@ resumen del mes y la próxima compra.
 Estados Unidos, y el botón es "Acepto y saco la foto": es el consentimiento
 expreso para la transferencia internacional (Ley 25.326, art. 12).
 
+## Los mismos datos dan los mismos precios
+
+Openspec `precios-por-cadena-deterministas` (2026-11-26/27). Al validar otro
+change se reconstruyó `int_precio_producto_cadena` dos veces con el mismo crudo,
+y 123 de las ~258 mil medianas por cadena cambiaron, hasta 22%. La mediana salía
+de `APPROX_QUANTILES`, que no es determinista en los grupos grandes. El ruido
+llegaba a Mismo producto (~118 productos con otra referencia o brecha), a Quién
+gana (un Yogur pasó de la Cooperativa a Maxi) y a los cambios de precio. Además,
+Mismo producto elegía la marca y el tamaño con empates sin desempate: ~150
+productos cambiaban de nombre y ~10 de tamaño entre corridas.
+
+**Mediana baja, no el promedio.** El precio de una cadena es ahora la mediana
+exacta entre sus sucursales y, con cantidad par, el de abajo de los dos del medio
+(macro `mediana_baja`). Lo mismo el tamaño. Medido sobre el 25-11, contra lo
+publicado:
+
+| | Precios que cambian | De 3% o más |
+|---|---|---|
+| Mediana baja | 98 de 258.562 (máx. 27,9%) | 13 |
+| Promedio de los dos del medio | 5.223 | 1.490 |
+
+En los grupos chicos el aproximado ya daba el de abajo, así que la mediana baja
+solo corrige los 98 donde se equivocaba. El promedio habría cambiado 5.223
+precios el día del deploy, y la historia y los cambios de precio los habrían
+leído como cambios reales. Además publica siempre un precio que alguna sucursal
+cobra y un tamaño que alguna declaró (nunca 750 g entre 500 y 1.000). El
+promedio sigue en la referencia del mercado entre empresas (macro `mediana`),
+que no se presenta como el precio de nadie.
+
+**Desempates.** La marca termina en el orden alfabético y el tamaño en el menor.
+Al verificar apareció un tercer caso: `textos_busqueda` (`STRING_AGG(DISTINCT
+...)` sin `ORDER BY`) salía distinto en 124.606 de 225.409 filas. Hoy ningún
+texto llega al corte de 1.500 caracteres, así que la búsqueda no cambiaba, pero
+un producto largo habría perdido palabras distintas según la corrida. Ahora va
+ordenado.
+
+**Verificado.** En un dataset de prueba, dos construcciones seguidas de cada
+modelo para el 25-11 dieron 0 filas de diferencia en los dos sentidos
+(`EXCEPT DISTINCT` sobre la fila entera): 258.562 filas del intermedio y 225.409
+del mart. Costo: los bytes leídos no cambian (dry run: 828.523.364 el
+intermedio y 1.098.763.277 el mart, antes y después). Toda la verificación,
+contando la medición y las reconstrucciones extra del arreglo de
+`textos_busqueda`, facturó 6,66 GiB.
+
+**Pendiente, mismo problema.** Quedan `APPROX_QUANTILES` en
+`mart_precios_cadena_categoria` (el precio por producto del pareo del índice de
+inflación), `mart_gama_productos` (más un `NTILE` sin desempate: un producto en
+el borde puede cambiar de gama), los marts por categoría y la calibración de
+promos.
+
 ## Tests
 
 Además de los genéricos, hay tests singulares de dbt para lo que sólo se
