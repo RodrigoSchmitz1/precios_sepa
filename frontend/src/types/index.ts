@@ -583,3 +583,27 @@ export type Vidriera = {
   poco_informan: string[];
   sucursales: Record<string, SucursalMapa>;
 };
+
+/** Una promo de banco o billetera en supermercados (openspec promos-bancarias). Las
+ *  cadenas van con los nombres de SEPA, como zona.cadenas. */
+export type PromoBancaria = {
+  id: string;
+  cadenas: string[];
+  entidad: string;
+  medio: "credito" | "debito" | "qr" | "billetera" | "prepaga";
+  segmento: string | null;
+  dias: string[];
+  porcentaje: number;
+  tipo: "descuento" | "reintegro";
+  canal: "sucursal" | "online" | "ambos";
+  tope: number | null;
+  tope_periodo: "compra" | "dia" | "semana" | "mes" | null;
+  compra_minima: number | null;
+  rubros: string[] | null;
+  acumula: "si" | "no" | "no_se_sabe";
+  vigente_desde: string;
+  vigente_hasta: string;
+  fuente: string;
+  revisada: string;
+  nota?: string | null;
+};

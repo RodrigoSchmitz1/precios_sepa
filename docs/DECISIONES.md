@@ -1677,6 +1677,45 @@ los productos que compra seguido vigilados solos en sus avisos y Mi compra
 armada con lo que compra. Las promos bancarias y "con qué tarjeta pagar" quedan
 para otro change, cuando se defina la fuente.
 
+## Promos bancarias: curadas a mano, con su fuente y en dos cifras
+
+Openspec `promos-bancarias` (2026-11-27). El mayor ahorro en el súper son los
+reintegros y descuentos de bancos y billeteras por día, y SEPA no los trae.
+Convi, la competencia mejor hecha, ya los muestra y piensa cobrar el cruce con
+tus tarjetas. Changuito los da gratis, como parte de lo que gana quien usa la
+app.
+
+**La fuente son las páginas de cada súper, no Convi.** El informe
+(`Desktop/investigaciones/reports/Convi competidor de Changuito.md`) encontró
+que Convi lee las mismas páginas, pero sus términos prohíben extraer sus datos.
+Además no hace falta: la fuente original está a mano. MODO publica un feed
+estructurado y sirve para controlar. Las páginas de Carrefour, Coto, Día y Jumbo
+se arman con JavaScript: leídas sin navegador vienen vacías (comprobado el
+27-11). Por eso la primera etapa es curada a mano, y los lectores automáticos
+quedan para otro change, después de leer términos y robots.
+
+**Un JSON en el repo, no BigQuery.** Son entre 100 y 200 promos. El archivo
+(`api/datos/promos_bancarias.json`) se versiona con git, lo valida un test que
+falla con una cadena mal escrita, una vigencia al revés o una revisión futura, y
+la API lo lee una vez por instancia. Costo cero, sin cuota. Lo vencido deja de
+servirse solo. Se guardan solo hechos, con palabras propias: nada de legales
+copiados.
+
+**Dos cifras, nunca una.** "Con qué pagar" muestra lo que se paga en caja y, aparte,
+lo que te devuelven en 10 a 30 días. Sumarlas mentiría sobre lo que sale del
+bolsillo ese día. El tope se aplica entero, porque no sabemos cuánto usaste, y se
+aclara. Lo que depende de rubros o de un segmento no marcado queda "a confirmar",
+sin monto. Debajo de la compra mínima se dice cuánto falta. El canal es sucursal,
+porque los precios de la lista son de sucursal.
+
+**Mis tarjetas, en el teléfono.** Los bancos y billeteras marcados filtran lo que
+se ve y no viajan al servidor. El endpoint devuelve todas las promos vigentes,
+sin la zona ni las tarjetas del usuario.
+
+**Queda para después.** Los lectores automáticos, y "cuánto tope te queda": si
+Mis gastos sabe con qué pagaste cada ticket, Changuito puede descontar el
+reintegro ya usado, algo que Convi no puede hacer.
+
 ## Tests
 
 Además de los genéricos, hay tests singulares de dbt para lo que sólo se

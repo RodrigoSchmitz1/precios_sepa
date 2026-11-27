@@ -1,6 +1,7 @@
 import type { Zona } from "../utils/zona";
 import type {
   RenglonInterpretado,
+  PromoBancaria,
   Promo,
   PromoMapa,
   LugarMapa,
@@ -415,6 +416,13 @@ export function enviarSenales(cuerpo: unknown): void {
   } catch {
     /* sin red o sin permiso: se pierde esta tanda */
   }
+}
+
+/** Las promos de bancos y billeteras vigentes hoy (openspec promos-bancarias). */
+export async function obtenerPromosBancarias(): Promise<{ promos: PromoBancaria[]; revisadas_hasta: string | null }> {
+  const respuesta = await fetch(`${API_BASE}/promos-bancarias`);
+  if (!respuesta.ok) await fallar(respuesta, "No se pudieron traer las promos bancarias");
+  return leerJson(respuesta);
 }
 
 /** Si la API lee fotos de tickets: apagado hasta activar Gemini pago (2026-11-23). */

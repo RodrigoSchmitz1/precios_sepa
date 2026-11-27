@@ -5,7 +5,7 @@ import os
 import threading
 import time
 from contextlib import asynccontextmanager
-from datetime import datetime, timedelta
+from datetime import date, datetime, timedelta
 from zoneinfo import ZoneInfo
 
 from fastapi import FastAPI, HTTPException, Query, Request
@@ -23,6 +23,7 @@ from calcular_canasta import calcular_costo_canasta
 import compartir
 import mapa_promos
 import mismo_producto
+import promos_bancarias
 import precios_por_sucursal
 import senales
 import tickets
@@ -441,6 +442,24 @@ def obtener_promos_mapa(
 # La vidriera de todo el pais es una sola por indice y por dia: se guarda. La
 # de cada zona no, como /promos/mapa (cada combinacion quedaria guardada).
 _vidriera_nacional: dict = {}
+
+
+# Promos de bancos y billeteras (openspec promos-bancarias): un archivo curado,
+# leido una vez por instancia. No consulta BigQuery ni recibe datos del usuario.
+_promos_bancarias: dict = {}
+
+
+def _promos_bancarias_del_archivo() -> list[dict]:
+    if "promos" not in _promos_bancarias:
+        _promos_bancarias["promos"] = promos_bancarias.leer()
+    return _promos_bancarias["promos"]
+
+
+@api.get("/promos-bancarias")
+def obtener_promos_bancarias():
+    """Las promos bancarias vigentes hoy en la Argentina, con la revision mas vieja."""
+    hoy = date.fromisoformat(datetime.now(ZoneInfo("America/Argentina/Buenos_Aires")).strftime("%Y-%m-%d"))
+    return promos_bancarias.vigentes(_promos_bancarias_del_archivo(), hoy)
 
 
 @api.get("/promos/vidriera")

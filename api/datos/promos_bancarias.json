@@ -1,0 +1,222 @@
+{
+  "nota": "Promos de bancos y billeteras curadas a mano desde las paginas de descuentos de cada super. Ver docs/promos-bancarias.md. Solo hechos y palabras propias.",
+  "promos": [
+    {
+      "cadenas": [
+        "Carrefour",
+        "Market (Carrefour)",
+        "Express (Carrefour)"
+      ],
+      "canal": "sucursal",
+      "vigente_desde": "2026-11-01",
+      "vigente_hasta": "2026-11-30",
+      "fuente": "https://www.carrefour.com.ar/descuentos-bancarios?formato=hyper",
+      "revisada": "2026-11-27",
+      "segmento": null,
+      "rubros": null,
+      "compra_minima": null,
+      "tope": null,
+      "tope_periodo": null,
+      "acumula": "si",
+      "nota": "con algunas exclusiones",
+      "id": "carrefour-cuenta-digital-viernes-2026-11",
+      "entidad": "Carrefour Banco (Cuenta Digital)",
+      "medio": "debito",
+      "dias": [
+        "viernes"
+      ],
+      "porcentaje": 15,
+      "tipo": "descuento"
+    },
+    {
+      "cadenas": [
+        "Carrefour",
+        "Market (Carrefour)",
+        "Express (Carrefour)"
+      ],
+      "canal": "sucursal",
+      "vigente_desde": "2026-11-01",
+      "vigente_hasta": "2026-11-30",
+      "fuente": "https://www.carrefour.com.ar/descuentos-bancarios?formato=hyper",
+      "revisada": "2026-11-27",
+      "segmento": null,
+      "rubros": null,
+      "compra_minima": null,
+      "tope": null,
+      "tope_periodo": null,
+      "acumula": "si",
+      "nota": "con algunas exclusiones",
+      "id": "carrefour-cuenta-digital-finde-2026-11",
+      "entidad": "Carrefour Banco (Cuenta Digital)",
+      "medio": "debito",
+      "dias": [
+        "sabado",
+        "domingo"
+      ],
+      "porcentaje": 10,
+      "tipo": "descuento"
+    },
+    {
+      "cadenas": [
+        "Carrefour",
+        "Market (Carrefour)",
+        "Express (Carrefour)"
+      ],
+      "canal": "sucursal",
+      "vigente_desde": "2026-11-01",
+      "vigente_hasta": "2026-11-30",
+      "fuente": "https://www.carrefour.com.ar/descuentos-bancarios?formato=hyper",
+      "revisada": "2026-11-27",
+      "segmento": null,
+      "rubros": null,
+      "compra_minima": null,
+      "tope": null,
+      "tope_periodo": null,
+      "acumula": "no_se_sabe",
+      "nota": "no incluye carnicería, huevos ni electro",
+      "id": "carrefour-banco-credito-martes-2026-11",
+      "entidad": "Carrefour Banco (tarjeta de crédito)",
+      "medio": "credito",
+      "dias": [
+        "martes"
+      ],
+      "porcentaje": 20,
+      "tipo": "descuento"
+    },
+    {
+      "cadenas": [
+        "Carrefour",
+        "Market (Carrefour)",
+        "Express (Carrefour)"
+      ],
+      "canal": "sucursal",
+      "vigente_desde": "2026-11-01",
+      "vigente_hasta": "2026-11-30",
+      "fuente": "https://www.carrefour.com.ar/descuentos-bancarios?formato=hyper",
+      "revisada": "2026-11-27",
+      "segmento": "Plan Sueldo",
+      "rubros": null,
+      "compra_minima": null,
+      "tope": 10000,
+      "tope_periodo": "mes",
+      "acumula": "no_se_sabe",
+      "nota": "débito o crédito en un pago; tope por cuenta",
+      "id": "carrefour-patagonia-plan-sueldo-2026-11",
+      "entidad": "Banco Patagonia",
+      "medio": "debito",
+      "dias": [
+        "miercoles"
+      ],
+      "porcentaje": 15,
+      "tipo": "reintegro"
+    },
+    {
+      "cadenas": [
+        "Carrefour",
+        "Market (Carrefour)",
+        "Express (Carrefour)"
+      ],
+      "canal": "sucursal",
+      "vigente_desde": "2026-11-01",
+      "vigente_hasta": "2026-11-30",
+      "fuente": "https://www.carrefour.com.ar/descuentos-bancarios?formato=hyper",
+      "revisada": "2026-11-27",
+      "segmento": "Plan Sueldo Plus",
+      "rubros": null,
+      "compra_minima": null,
+      "tope": 15000,
+      "tope_periodo": "mes",
+      "acumula": "no_se_sabe",
+      "nota": "débito o crédito en un pago; tope por cuenta",
+      "id": "carrefour-patagonia-plan-sueldo-plus-2026-11",
+      "entidad": "Banco Patagonia",
+      "medio": "debito",
+      "dias": [
+        "miercoles"
+      ],
+      "porcentaje": 20,
+      "tipo": "reintegro"
+    },
+    {
+      "cadenas": [
+        "Carrefour",
+        "Market (Carrefour)",
+        "Express (Carrefour)"
+      ],
+      "canal": "sucursal",
+      "vigente_desde": "2026-11-01",
+      "vigente_hasta": "2026-11-30",
+      "fuente": "https://www.carrefour.com.ar/descuentos-bancarios?formato=hyper",
+      "revisada": "2026-11-27",
+      "segmento": "Plan Sueldo Singular",
+      "rubros": null,
+      "compra_minima": null,
+      "tope": 20000,
+      "tope_periodo": "mes",
+      "acumula": "no_se_sabe",
+      "nota": "débito o crédito en un pago; tope por cuenta",
+      "id": "carrefour-patagonia-singular-2026-11",
+      "entidad": "Banco Patagonia",
+      "medio": "debito",
+      "dias": [
+        "miercoles"
+      ],
+      "porcentaje": 30,
+      "tipo": "reintegro"
+    },
+    {
+      "cadenas": [
+        "Carrefour",
+        "Market (Carrefour)",
+        "Express (Carrefour)"
+      ],
+      "canal": "sucursal",
+      "vigente_desde": "2026-11-01",
+      "vigente_hasta": "2026-11-30",
+      "fuente": "https://www.carrefour.com.ar/descuentos-bancarios?formato=hyper",
+      "revisada": "2026-11-27",
+      "segmento": null,
+      "rubros": null,
+      "compra_minima": 20000,
+      "tope": null,
+      "tope_periodo": null,
+      "acumula": "si",
+      "nota": "jubilados suman un 5 % más, con tope propio",
+      "id": "carrefour-cuenta-dni-miercoles-2026-11",
+      "entidad": "Cuenta DNI",
+      "medio": "billetera",
+      "dias": [
+        "miercoles"
+      ],
+      "porcentaje": 10,
+      "tipo": "descuento"
+    },
+    {
+      "cadenas": [
+        "Carrefour",
+        "Market (Carrefour)",
+        "Express (Carrefour)"
+      ],
+      "canal": "sucursal",
+      "vigente_desde": "2026-11-01",
+      "vigente_hasta": "2026-11-30",
+      "fuente": "https://www.carrefour.com.ar/descuentos-bancarios?formato=hyper",
+      "revisada": "2026-11-27",
+      "segmento": null,
+      "rubros": null,
+      "compra_minima": 20000,
+      "tope": null,
+      "tope_periodo": null,
+      "acumula": "si",
+      "nota": "con dinero en cuenta",
+      "id": "carrefour-mercado-pago-jueves-2026-11",
+      "entidad": "Mercado Pago",
+      "medio": "qr",
+      "dias": [
+        "jueves"
+      ],
+      "porcentaje": 15,
+      "tipo": "descuento"
+    }
+  ]
+}

@@ -13,6 +13,7 @@ import { cadenasVisibles, rotuloZona } from "../utils/zona";
 import type { ItemLista, PromoCerca, PromosDeLista, ResultadoLista } from "../types";
 import BotonCompartir from "./BotonCompartir";
 import PromoCercana from "./PromoCercana";
+import ConQuePagar from "./ConQuePagar";
 
 /*
   Tu lista (2026-10-08): cuanto sale en cada cadena una lista de productos
@@ -373,6 +374,9 @@ function TuLista({ lista, onCambiarCantidad, onQuitar, onVaciar, onVer }: Props)
           )}
         </details>
       )}
+
+      {/* Promos de bancos y billeteras de hoy (openspec promos-bancarias). */}
+      <ConQuePagar completas={completas} />
 
       {(completas.length > 0 || incompletas.length > 0) && (
         <details className="mb-5 border-b border-linea pb-3 group" open={!barata}>

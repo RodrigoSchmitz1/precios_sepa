@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useRef } from "react";
 import { Link, useSearchParams } from "react-router";
 import Presentacion from "../components/Presentacion";
 import { FilasDeVidriera, PromosDelDia } from "../components/VidrieraPromos";
+import PromosBancariasHoy from "../components/PromosBancariasHoy";
 import { useVidriera } from "../contexto/useVidriera";
 
 /*
@@ -67,7 +68,20 @@ function PromosPage() {
       tarjetas por fila.
     */
     <div className="max-w-6xl mx-auto">
-      <Presentacion enMedio={enMedio} despues={!conMapa && <div className="mt-10"><FilasDeVidriera {...vidriera} /></div>} />
+      <Presentacion
+        enMedio={enMedio}
+        despues={
+          !conMapa && (
+            <>
+              {/* Debajo de las promos del dia, para no sacar su titulo de la primera pantalla (promos-bancarias). */}
+              <PromosBancariasHoy />
+              <div className="mt-10">
+                <FilasDeVidriera {...vidriera} />
+              </div>
+            </>
+          )
+        }
+      />
     </div>
   );
 }
